@@ -50,15 +50,20 @@ arrayOfDouble4D getArrayOfDouble4D(int n, int m, int p, int q, double val)
     return arrayDouble4D;
 }
 
-double getMinimumOf3DArray(arrayOfDouble3D array3D)
+double getMinimumOf3DArray(arrayOfDouble3D array3D, int& c)
 {
+    c = 0;
     double minValue = DBL_MAX;
     for (size_t d1 = 0; d1 < array3D.size(); d1++)
         for (size_t d2 = 0; d2 < array3D[d1].size(); d2++)
             for (size_t d3 = 0; d3 < array3D[d1][d2].size(); d3++)
             {
                 minValue = min(minValue, array3D[d1][d2][d3]);
+                if(array3D[d1][d2][d3] < 0.0)
+                    c++;
             }
+
+    // cout << "value of c = " << c << endl;
     return minValue;
 }
 
@@ -93,6 +98,17 @@ double getMaximumOf2DArray(arrayOfDouble2D array2D)
     return maxValue;
 }
 
+double getSumOf2DArray(arrayOfDouble2D array2D)
+{
+    double sum = 0.0;
+    for (size_t d1 = 0; d1 < array2D.size(); d1++)
+        for (size_t d2 = 0; d2 < array2D[d1].size(); d2++)
+        {
+            sum += array2D[d1][d2];
+        }
+    return sum;
+}
+
 int getCountOfNegativeIn3DArray(arrayOfDouble3D array3D)
 {
     int count = 0;
@@ -117,6 +133,19 @@ vector<double> linearize3DVector(arrayOfDouble3D array3D)
         for (size_t d2 = 0; d2 < dim2; d2++)
             for (size_t d3 = 0; d3 < dim3; d3++)
                 data[d1 * dim2 * dim3 + d2 * dim3 + d3] = array3D[d1][d2][d3];
+
+    return data;
+}
+
+vector<double> linearize2DVector(arrayOfDouble2D array2D)
+{
+    // vector<double> data;
+    size_t dim1 = array2D.size();
+    size_t dim2 = array2D[0].size();
+    vector<double> data(dim1 * dim2, 0.0);
+    for (size_t d1 = 0; d1 < dim1; d1++)
+        for (size_t d2 = 0; d2 < dim2; d2++)
+                data[d1 * dim2 + d2] = array2D[d1][d2];
 
     return data;
 }
