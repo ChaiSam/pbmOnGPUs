@@ -11,8 +11,6 @@
 #include "timeStamp.h"
 #include "parameterData.h"
 
-#include <mpi.h>
-
 using namespace std;
 
 #define TWOWAYCOUPLE true
@@ -37,7 +35,7 @@ int main(int argc, char *argv[])
     //cout << "CodeBegins" << endl << endl;
     string startTimeStr;
     double startTime = 0.0;
-    liggghtsData *lData = nullptr;
+    //liggghtsData *lData = nullptr;
     parameterData *pData = nullptr;
 
     string coreVal;
@@ -48,9 +46,22 @@ int main(int argc, char *argv[])
     if (argc < 5)
        cout << "All values aren't available as input parameters" << endl;
 
+    pbmInFilePath = string(argv[1]); 
+    coreVal = string(argv[2]);
+    diaVal = string(argv[3]);
+    timeVal = string(argv[4]);
+
+
+    pData = parameterData::getInstance();
+    pData->readPBMInputFile(pbmInFilePath);
+
+    int nCompartments = pData->nCompartments;
+
+
+
     //Read Dump Atom Files
     liggghtsData *lData = liggghtsData::getInstance();
-    lData->readLiggghtsDataFiles();
+    // lData->readLiggghtsDataFiles();
 
     //return 0;//to stop execution after reading liggghts data
 
@@ -82,7 +93,7 @@ int main(int argc, char *argv[])
 
     //cout << "End assign value to vssArray" << endl << endl;
 
-     arrayOfDouble2D diameter = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+    arrayOfDouble2D diameter = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
     for (size_t s = 0; s < nFirstSolidBins; s++)
         for (size_t ss = 0; ss < nSecondSolidBins; ss++)
             diameter[s][ss] = cbrt((6 / M_PI) * (vs[s] + vss[ss]));
@@ -142,8 +153,8 @@ int main(int argc, char *argv[])
 
     //repmat for  sAggregationCheck & ssAggregationCheck
     //cout << "Creating sAggregationCheck & ssAggregationCheck and assigning zeros" << endl;
-    compartmentIn.sAggregationCheck = getArrayOfInt2D(nFirstSolidBins, nFirstSolidBins);
-    compartmentIn.ssAggregationCheck = getArrayOfInt2D(nSecondSolidBins, nSecondSolidBins);
+    arrayOfInt2D sAggregationCheck = getArrayOfInt2D(nFirstSolidBins, nFirstSolidBins);
+    arrayOfInt2D ssAggregationCheck = getArrayOfInt2D(nSecondSolidBins, nSecondSolidBins);
 
     //cout << "Begin initializing values to sAggregationCheck" << endl;
 	for (size_t s1 = 0; s1 < nFirstSolidBins; s1++)
@@ -159,7 +170,7 @@ int main(int argc, char *argv[])
 
     // end of repmat for  sAggregationCheck & ssAggregationCheck
 
-arrayOfDouble2D sLow = sMeshXY;
+	arrayOfDouble2D sLow = sMeshXY;
     arrayOfDouble2D sHigh = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
     for (size_t i = 0; i < nSecondSolidBins - 1; i++)
         for (size_t j = 0; j < nSecondSolidBins; j++)
@@ -216,7 +227,7 @@ arrayOfDouble2D sLow = sMeshXY;
 
     //bsxfun @minus for sBreak & ssBreak
     //cout << "Creating sBreak & ssBreak and assigning zeros" << endl;
-arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
+	arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
     arrayOfDouble2D ssBreak = getArrayOfDouble2D(nSecondSolidBins, nSecondSolidBins);
 
     //cout << "Begin initializing values to sBreak (MATLAB bsxfun @minus)" << endl;
@@ -274,7 +285,6 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
     for (size_t ss1 = 0; ss1 < nSecondSolidBins; ss1++)
         for (size_t ss2 = 0; ss2 < nSecondSolidBins; ss2++)
             ssCheckB[ss1][ss2] = ssLocBreak[ss1][ss2] >= 1 ? 1 : 0;
-    ;
     //cout << "End initializing values to ssCheckB" << endl;
 
     //repmat/reshape for sIndB & ssIndB
@@ -321,20 +331,20 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
         if (fAllCompartments.empty())
         {
             cout << "particle file missing for time = " << timeVal << endl;
-            break;
+            return 1;
         }
 
         flAllCompartments = pData->readCompartmentInputFile(/*timeValueString*/ timeVal, string("liquid"));
         if (flAllCompartments.empty())
         {
             cout << "liquid file missing for time = " << timeVal << endl;
-            break;
+            return 1;
         }
         fgAllCompartments = pData->readCompartmentInputFile(/*timeValueString*/ timeVal, string("gas"));
         if (fgAllCompartments.empty())
         {
             cout << "gas file missing for time = " << timeVal << endl;
-            break;
+            return 1;
         }
         
         // cout << "dumping test data" << endl;
@@ -406,7 +416,7 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
         
         cout << "Diameter data is missing in LIGGGHTS output file" << endl;
         cout << "Input parameters for DEM core and diameter aren't matching with LIGGGHTS output file" << endl;
-        break;
+        return 1;
     }
 
     vector<double> DEMImpactData = lData->getFinalDEMImpactData();
@@ -414,7 +424,7 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
     {
         cout << "Impact data is missing in LIGGGHTS output file" << endl;
         cout << "Input parameters for DEM core and diameter aren't matching with LIGGGHTS output file" << endl;
-        break;
+        return 1;
     }
 
     arrayOfDouble2D DEMCollisionData = lData->getFinalDEMCollisionData();
@@ -422,14 +432,14 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
     {
         cout << "Collision data is missing in LIGGGHTS output file" << endl;
         cout << "Input parameters for DEM core and diameter aren't matching with LIGGGHTS output file" << endl;
-        break;
+        return 1;
     }
     vector<double> velocity = lData->getFinalDEMImpactVelocity();
     if (velocity.size() == 0)
     {
         cout << "Velocity is missing in LIGGGHTS output file" << endl;
         cout << "Input parameters for DEM core and diameter aren't matching with LIGGGHTS output file" << endl;
-	    break;
+	    return 1;
     }
 
 	DUMP2D(DEMCollisionData);
@@ -530,11 +540,15 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
     arrayOfDouble2D formationThroughBreakageOverTime;
     arrayOfDouble2D depletionThroughBreakageOverTime;
 
-    while (time <= FINALTIME)
+    while (time <= finalTime)
     {
-        if (time > PREMIXINGTIME + LIQUIDADDITIONTIME)
-            fIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-        for (int c = 0; c < NUMBEROFCOMPARTMENTS; c++)
+    	vector<double> formationThroughAggregation(nCompartments, 0.0);
+        vector<double> depletionThroughAggregation(nCompartments, 0.0);
+        vector<double> formationThroughBreakage(nCompartments, 0.0);
+        vector<double> depletionThroughBreakage(nCompartments, 0.0);
+        // if (time > PREMIXINGTIME + LIQUIDADDITIONTIME)
+        //     fIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+        for (int c = 0; c < nCompartments; c++)
         {
 
             compartmentIn.fAll = fAllCompartments[c];
@@ -549,9 +563,9 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
                 prevCompInData.fgPreviousCompartment = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
                 prevCompInData.fAllComingIn = fIn;
                 prevCompInData.fgComingIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-                double value = INITIALPOROSITY * timeStep;
-                for (int s = 0; s < nFirstSolidBins; s++)
-                    for (int ss = 0; ss < nSecondSolidBins; ss++)
+                double value = initPorosity * timeStep;
+                for (size_t s = 0; s < nFirstSolidBins; s++)
+                    for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                         prevCompInData.fgComingIn[s][ss] = fIn[s][ss] * (compartmentIn.vs[ss] + compartmentIn.vss[ss]) * value;
             }
 
@@ -564,7 +578,7 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
                 prevCompInData.fgComingIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
             }
 
-            compartmentOut = performCompartmentCalculations(prevCompInData, compartmentIn, compartmentDEMIn, time, timeStep);
+            compartmentOut = performCompartmentCalculations(prevCompInData, compartmentIn, compartmentDEMIn, time, timeStep, stod(timeVal));
 
             dfdtAllCompartments[c] = compartmentOut.dfAlldt;
             dfldtAllCompartments[c] = compartmentOut.dfLiquiddt;
@@ -572,22 +586,32 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
 
             liquidBinsAllCompartments[c] = compartmentOut.liquidBins;
             gasBinsAllCompartments[c] = compartmentOut.gasBins;
+
+            formationThroughAggregation[c] = compartmentOut.formationThroughAggregation;
+            depletionThroughAggregation[c] = compartmentOut.depletionThroughAggregation;
+            formationThroughBreakage[c] = compartmentOut.formationThroughBreakage;
+            depletionThroughBreakage[c] = compartmentOut.depletionThroughBreakage;
         }
+
+        formationThroughAggregationOverTime.push_back(formationThroughAggregation);
+        depletionThroughAggregationOverTime.push_back(depletionThroughAggregation);
+        formationThroughBreakageOverTime.push_back(formationThroughBreakage);
+        depletionThroughBreakageOverTime.push_back(depletionThroughBreakage);
 
         double maxofthree = -DBL_MAX;
         double maxAll = -DBL_MAX;
         double maxLiquid = -DBL_MAX;
         double maxGas = -DBL_MAX;
 
-        for (int c = 0; c < NUMBEROFCOMPARTMENTS; c++)
+        for (int c = 0; c < nCompartments; c++)
             for (int s = 0; s < nFirstSolidBins; s++)
                 for (int ss = 0; ss < nSecondSolidBins; ss++)
                 {
-                    if (fabs(fAllCompartments[c][s][ss]) > EPSILON)
+                    if (fabs(fAllCompartments[c][s][ss]) > 1.0e-16)
                         maxAll = max(maxAll, -dfdtAllCompartments[c][s][ss] / fAllCompartments[c][s][ss]);
-                    if (fabs(flAllCompartments[c][s][ss]) > EPSILON)
+                    if (fabs(flAllCompartments[c][s][ss]) > 1.0e-16)
                         maxLiquid = max(maxLiquid, -dfldtAllCompartments[c][s][ss] / flAllCompartments[c][s][ss]);
-                    if (fabs(fgAllCompartments[c][s][ss]) > EPSILON)
+                    if (fabs(fgAllCompartments[c][s][ss]) > 1.0e-16)
                         maxGas = max(maxGas, -dfgdtAllCompartments[c][s][ss] / fgAllCompartments[c][s][ss]);
                     maxofthree = max(maxofthree, max(maxAll, max(maxLiquid, maxGas)));
                 }
@@ -604,7 +628,7 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
 
         int nanCount = 0;
         double minfAll = -DBL_MAX;
-        for (int c = 0; c < NUMBEROFCOMPARTMENTS; c++)
+        for (int c = 0; c < nCompartments; c++)
             for (int s = 0; s < nFirstSolidBins; s++)
                 for (int ss = 0; ss < nSecondSolidBins; ss++)
                 {
@@ -624,7 +648,9 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
             cout << endl
                  << "*****fAllCompartments has " << nanCount << "nan values******" << endl
                  << endl;
-        minfAll = getMinimumOf3DArray(fAllCompartments);
+                 
+        int countnegfAll = 0;
+        minfAll = getMinimumOf3DArray(fAllCompartments, countnegfAll);
         if (minfAll < 0.0 /*&& fabs(minfAll) > 1e-16*/)
         {
             cout << "minfAll" << minfAll << endl;
@@ -632,27 +658,28 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
                  << "******fAllCompartments has negative values********" << endl
                  << endl;
             cout << "Aborting..." << endl;
-            return 0;
+            return 1;
         }
 
         //BIN RECALCULATION
         //cout << "********Begin bin recalculation***********" << endl;
 
-        for (int c = 0; c < NUMBEROFCOMPARTMENTS; c++)
+        double granSatFactor = pData->granSatFactor;
+        for (int c = 0; c < nCompartments; c++)
         {
             arrayOfDouble2D liquidBins = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
             arrayOfDouble2D gasBins = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
             arrayOfDouble2D internalLiquid = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
             arrayOfDouble2D externalLiquid = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-            for (int s = 0; s < nFirstSolidBins; s++)
-                for (int ss = 0; ss < nSecondSolidBins; ss++)
+            for (size_t s = 0; s < nFirstSolidBins; s++)
+                for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
-                    if (fabs(fAllCompartments[c][s][ss]) > EPSILON)
+                    if (fabs(fAllCompartments[c][s][ss]) > 1.0e-16)
                     {
                         liquidBins[s][ss] = flAllCompartments[c][s][ss] / fAllCompartments[c][s][ss];
                         gasBins[s][ss] = fgAllCompartments[c][s][ss] / fAllCompartments[c][s][ss];
                     }
-                    internalLiquid[s][ss] = min(GRANULESATURATIONFACTOR * gasBins[s][ss], liquidBins[s][ss]);
+                    internalLiquid[s][ss] = min(granSatFactor * gasBins[s][ss], liquidBins[s][ss]);
                     externalLiquid[s][ss] = max(0.0, liquidBins[s][ss] - internalLiquid[s][ss]);
 
                     double value = compartmentIn.sMeshXY[s][ss] + compartmentIn.ssMeshXY[s][ss] + gasBins[s][ss];
@@ -664,132 +691,26 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
             externalVolumeBinsAllCompartments[c] = externalVolumeBins;
             internalVolumeBinsAllCompartments[c] = internalVolumeBins;
         }
-        //SAVING OVER TIME
-        //cout << endl <<  "************Saving over time" << endl << endl;
-        fAllCompartmentsOverTime.push_back(fAllCompartments);
-        externalVolumeBinsAllCompartmentsOverTime.push_back(externalVolumeBinsAllCompartments);
-        internalVolumeBinsAllCompartmentsOverTime.push_back(internalVolumeBinsAllCompartments);
-        liquidBinsAllCompartmentsOverTime.push_back(liquidBinsAllCompartments);
-        gasBinsAllCompartmentsOverTime.push_back(gasBinsAllCompartments);
 
-        cout << "time = " << time << endl;
-        cout << "timeStep = " << timeStep << endl;
-        cout << endl;
-        Time.push_back(time);
-        time += timeStep;
-    }
+        vector<double> d10OverCompartment(nCompartments, 0.0);
+        vector<double> d50OverCompartment(nCompartments, 0.0);
+        vector<double> d90OverCompartment(nCompartments, 0.0);
 
-    size_t nTimeSteps = Time.size();
-    cout << endl
-         << "nTimeSteps = " << nTimeSteps << endl
-         << endl;
-
-    arrayOfDouble3D dumpedLastValue = *(fAllCompartmentsOverTime.end() - 1);
-
-    DUMP3DCSV(dumpedLastValue);
-    //    string fileName = string("last_f_for_") + to_string(DEMAGGREGATIONKERNELVALUE) + string("_");
-    //    fileName += to_string(DEMAGGREGATIONKERNELCONST) + string("_");
-    //    fileName += to_string(DEMBREAKAGEKERNELVALUE) + string("_");
-    //    fileName += to_string(DEMBREAKAGEKERNELCONST);
-    //    dumpTestCSV(dumpedLastValue, fileName, DEMAGGREGATIONKERNELVALUE, DEMAGGREGATIONKERNELCONST, DEMBREAKAGEKERNELVALUE, DEMBREAKAGEKERNELCONST);
-
-    // D10, D50, D90
-    //cout << "Begin computing D10, D50, D90" << endl;
-    arrayOfDouble2D d10OverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-    arrayOfDouble2D d50OverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-    arrayOfDouble2D d90OverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-
-    arrayOfDouble2D totalVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-    arrayOfDouble2D totalSolidVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-    arrayOfDouble2D totalPoreVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-    arrayOfDouble2D totalLiquidVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-    arrayOfDouble2D totalGasVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, NUMBEROFCOMPARTMENTS);
-
-    //sieveGrid=[38, 63, 90, 125, 250, 355, 500, 710, 850, 1000, 1400, 2000, 2380, 4000]; %Sieve (in micron)
-    vector<int> sieveGrid;
-    sieveGrid.push_back(38);
-    sieveGrid.push_back(63);
-    sieveGrid.push_back(90);
-    sieveGrid.push_back(125);
-    sieveGrid.push_back(250);
-    sieveGrid.push_back(355);
-    sieveGrid.push_back(500);
-    sieveGrid.push_back(710);
-    sieveGrid.push_back(850);
-    sieveGrid.push_back(1000);
-    sieveGrid.push_back(1400);
-    sieveGrid.push_back(2000);
-    sieveGrid.push_back(2380);
-    sieveGrid.push_back(4000);
-    size_t nSieveGrid = sieveGrid.size();
-
-    array<double, nFirstSolidBins> vs = compartmentIn.vs;
-    array<double, nFirstSolidBins> vss = compartmentIn.vss;
-    arrayOfDouble3D cumulativeVolumeDistributionAllCompartmentsOverTime = getArrayOfDouble3D(nTimeSteps, NUMBEROFCOMPARTMENTS, nSieveGrid);
-    arrayOfDouble3D totalVolumeGridAllCompartmentsOverTime = getArrayOfDouble3D(nTimeSteps, NUMBEROFCOMPARTMENTS, nSieveGrid);
-
-    vector<double> totalStuffLeavingOverTime(nTimeSteps, 0.0);
-    vector<double> totalSolidLeavingOverTime(nTimeSteps, 0.0);
-    vector<double> totalLiquidLeavingOverTime(nTimeSteps, 0.0);
-
-    for (size_t n = 1; n < nTimeSteps; n++)
-    {
-        for (int s = 0; s < nFirstSolidBins; s++)
-            for (int ss = 0; ss < nSecondSolidBins; ss++)
-            {
-                timeStep = Time[n] - Time[n - 1];
-                double value1 = fAllCompartmentsOverTime[n][NUMBEROFCOMPARTMENTS - 1][s][ss];
-                value1 *= (particleAverageVelocity[NUMBEROFCOMPARTMENTS - 1] / DISTANCEBETWEENCOMPARTMENTS) * timeStep;
-                double value2 = value1 * externalVolumeBinsAllCompartmentsOverTime[n][NUMBEROFCOMPARTMENTS - 1][s][ss];
-                totalStuffLeavingOverTime[n] += value2;
-
-                value2 = value1 * (vs[s] + vss[ss]);
-                totalSolidLeavingOverTime[n] += value2;
-
-                value2 = value1 * (externalVolumeBinsAllCompartmentsOverTime[n][NUMBEROFCOMPARTMENTS - 1][s][ss] - vs[s] - vss[ss]);
-                totalLiquidLeavingOverTime[n] += value2;
-            }
-
-        for (int c = 0; c < NUMBEROFCOMPARTMENTS; c++)
+        for (int c = 0; c < nCompartments; c++)
         {
-            for (int s = 0; s < nFirstSolidBins; s++)
-                for (int ss = 0; ss < nSecondSolidBins; ss++)
-                {
-                    double value1 = fAllCompartmentsOverTime[n][c][s][ss];
-                    double value2 = value1 * externalVolumeBinsAllCompartmentsOverTime[n][NUMBEROFCOMPARTMENTS - 1][s][ss];
-                    totalVolumeAllCompartmentsOverTime[n][c] += value2;
-
-                    value2 = value1 * (vs[s] + vss[ss]);
-                    totalSolidVolumeAllCompartmentsOverTime[n][c] += value2;
-
-                    value2 = value1 * (externalVolumeBinsAllCompartmentsOverTime[n][c][s][ss] - vs[s] - vss[ss]);
-                    totalPoreVolumeAllCompartmentsOverTime[n][c] += value2;
-
-                    value2 = value1 * liquidBinsAllCompartmentsOverTime[n][c][s][ss];
-                    totalLiquidVolumeAllCompartmentsOverTime[n][c] += value2;
-
-                    value2 = value1 * gasBinsAllCompartmentsOverTime[n][c][s][ss];
-                    totalGasVolumeAllCompartmentsOverTime[n][c] += value2;
-                }
-
-            arrayOfDouble2D fAll = fAllCompartmentsOverTime[n][c];
-            externalVolumeBins = externalVolumeBinsAllCompartmentsOverTime[n][c];
             arrayOfDouble2D diameter = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-
-            for (int s = 0; s < nFirstSolidBins; s++)
-                for (int ss = 0; ss < nSecondSolidBins; ss++)
-                    diameter[s][ss] = cbrt((6 / M_PI) * externalVolumeBinsAllCompartmentsOverTime[n][c][s][ss]) * 1.0e6;
+            for (size_t s = 0; s < nFirstSolidBins; s++)
+                for (size_t ss = 0; ss < nSecondSolidBins; ss++)
+                    diameter[s][ss] = cbrt((6 / M_PI) * externalVolumeBinsAllCompartments[c][s][ss]) * 1.0e6;
 
             vector<double> totalVolumeGrid(nSieveGrid, 0.0);
             for (size_t d = 0; d < nSieveGrid - 1; d++)
-                for (int s = 0; s < nFirstSolidBins; s++)
-                    for (int ss = 0; ss < nSecondSolidBins; ss++)
+                for (size_t s = 0; s < nFirstSolidBins; s++)
+                    for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                     {
                         if (diameter[s][ss] < sieveGrid[d + 1] && diameter[s][ss] >= sieveGrid[d])
-                            totalVolumeGrid[d] += fAll[s][ss] * externalVolumeBinsAllCompartmentsOverTime[n][c][s][ss];
+                            totalVolumeGrid[d] += fAllCompartments[c][s][ss] * externalVolumeBinsAllCompartments[c][s][ss];
                     }
-
-            totalVolumeGridAllCompartmentsOverTime[n][c] = totalVolumeGrid;
 
             double sum = 0.0;
             for (size_t d = 0; d < nSieveGrid; d++)
@@ -806,8 +727,6 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
                 sum += volumeDistribution[d];
                 cumulativeVolumeDistribution[d] = sum;
             }
-            cumulativeVolumeDistributionAllCompartmentsOverTime[n][c] = cumulativeVolumeDistribution;
-
             double d10 = 0.1 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
             double d50 = 0.5 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
             double d90 = 0.9 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
@@ -824,40 +743,237 @@ arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
                 if (cumulativeVolumeDistribution[d - 1] < 0.1 && cumulativeVolumeDistribution[d] >= 0.1)
                 {
                     double value = 0.1 - cumulativeVolumeDistribution[d - 1];
-                    d10 = value * value1  + value2;
+                    d10 = value * value1 + value2;
                 }
                 if (cumulativeVolumeDistribution[d - 1] < 0.1 && cumulativeVolumeDistribution[d] >= 0.1)
                 {
                     double value = 0.9 - cumulativeVolumeDistribution[d - 1];
-                    d90 = value * value1  + value2;
+                    d90 = value * value1 + value2;
                 }
             }
-            d10OverTime[n][c] = d10;
-            d50OverTime[n][c] = d50;
-            d90OverTime[n][c] = d90;
+            
+            d10OverCompartment[c] = d10;
+            d50OverCompartment[c] = d50;
+            d10OverCompartment[c] = d90;
         }
+
+        //SAVING OVER TIME
+        //cout << endl <<  "************Saving over time" << endl << endl;
+        fAllCompartmentsOverTime.push_back(fAllCompartments);
+        externalVolumeBinsAllCompartmentsOverTime.push_back(externalVolumeBinsAllCompartments);
+        internalVolumeBinsAllCompartmentsOverTime.push_back(internalVolumeBinsAllCompartments);
+        liquidBinsAllCompartmentsOverTime.push_back(liquidBinsAllCompartments);
+        gasBinsAllCompartmentsOverTime.push_back(gasBinsAllCompartments);
+
+        cout << "time = " << time << endl;
+        cout << "timeStep = " << timeStep << endl;
+        cout << endl;
+        Time.push_back(time);
+        if (time - lastTime >= 0.2)
+        {
+            //cout << "dumping d50 etc. & particles for time = " << time << endl;
+            string timeStr = to_string(floorf(time * 1.0e6) / 1.0e6);// + string("sec"); //moreSigs(time, 2);
+            size_t dumpVecSize = timeIdxCount - lastTimeIdxCount + 1;
+            arrayOfDouble2D d50ToDump (dumpVecSize);
+            vector<double> timeToDump (dumpVecSize);
+            copy(d50OverTime.begin()+lastTimeIdxCount, d50OverTime.end(), d50ToDump.begin());
+            copy(Time.begin()+lastTimeIdxCount, Time.end(), timeToDump.begin());
+            //string timeStr = moreSigs(time, 6); //get time to 2 sig digits, traiing zero removed
+            string appendFileName = string("_") + timeStr;
+            dumpDiaCSV(timeToDump, d50ToDump, string("d50") + appendFileName);
+            dump3DCSV(fAllCompartments, string("particles") + appendFileName);
+            dump3DCSV(flAllCompartments, string("liquid") + appendFileName);
+            dump3DCSV(fgAllCompartments, string("gas") + appendFileName);
+            lastTime = time;
+            lastTimeIdxCount = timeIdxCount;
+        }
+        timeIdxCount++;
+        time += timeStep;
     }
-    //cout << "End computing D10, D50, D90" << endl;
-    //   DUMP2D(d10OverTime);
-    //   DUMP2DCSV(d10OverTime);
-    //   DUMP2D(d50OverTime);
-    //   DUMP2DCSV(d50OverTime);
-    //   DUMP2D(d90OverTime);
-    //   DUMP2DCSV(d90OverTime);
 
-    //DUMPDIACSV(Time, d10OverTime);
-    //DUMPDIACSV(Time, d50OverTime);
-    //DUMPDIACSV(Time, d90OverTime);
+    size_t nTimeSteps = Time.size();
+    cout << endl
+         << "nTimeSteps = " << nTimeSteps << endl
+         << endl;
 
-    //    string appendFileName = string("_") + to_string(DEMAGGREGATIONKERNELVALUE);
-    //    appendFileName += string("_") + to_string(DEMAGGREGATIONKERNELCONST);
-    //    appendFileName += string("_") + to_string(DEMBREAKAGEKERNELVALUE);
-    //    appendFileName += string("_") + to_string(DEMBREAKAGEKERNELCONST);
-    //
-    //
-    //    dumpDiaCSV(Time, d10OverTime, string("d10OverTime") + appendFileName);
-    //    dumpDiaCSV(Time, d50OverTime, string("d50OverTime") + appendFileName);
-    //    dumpDiaCSV(Time, d90OverTime, string("d90OverTime") + appendFileName);
+    // arrayOfDouble3D dumpedLastValue = *(fAllCompartmentsOverTime.end() - 1);
+    dumpDiaCSV(Time, formationThroughAggregationOverTime, string("FormationThroughAggregation"));
+    dumpDiaCSV(Time, depletionThroughAggregationOverTime, string("DepletionThroughAggregation"));
+    dumpDiaCSV(Time, formationThroughBreakageOverTime, string("FormationThroughBreakage"));
+    dumpDiaCSV(Time, depletionThroughBreakageOverTime, string("DepletionThroughBreakage"));
+
+    // DUMP3DCSV(dumpedLastValue);
+    // //    string fileName = string("last_f_for_") + to_string(DEMAGGREGATIONKERNELVALUE) + string("_");
+    // //    fileName += to_string(DEMAGGREGATIONKERNELCONST) + string("_");
+    // //    fileName += to_string(DEMBREAKAGEKERNELVALUE) + string("_");
+    // //    fileName += to_string(DEMBREAKAGEKERNELCONST);
+    // //    dumpTestCSV(dumpedLastValue, fileName, DEMAGGREGATIONKERNELVALUE, DEMAGGREGATIONKERNELCONST, DEMBREAKAGEKERNELVALUE, DEMBREAKAGEKERNELCONST);
+
+    // // D10, D50, D90
+    // //cout << "Begin computing D10, D50, D90" << endl;
+    // arrayOfDouble2D d10OverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+    // arrayOfDouble2D d50OverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+    // arrayOfDouble2D d90OverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+
+    // arrayOfDouble2D totalVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+    // arrayOfDouble2D totalSolidVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+    // arrayOfDouble2D totalPoreVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+    // arrayOfDouble2D totalLiquidVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+    // arrayOfDouble2D totalGasVolumeAllCompartmentsOverTime = getArrayOfDouble2D(nTimeSteps, nCompartments);
+
+    // //sieveGrid=[38, 63, 90, 125, 250, 355, 500, 710, 850, 1000, 1400, 2000, 2380, 4000]; %Sieve (in micron)
+    // vector<int> sieveGrid;
+    // sieveGrid.push_back(38);
+    // sieveGrid.push_back(63);
+    // sieveGrid.push_back(90);
+    // sieveGrid.push_back(125);
+    // sieveGrid.push_back(250);
+    // sieveGrid.push_back(355);
+    // sieveGrid.push_back(500);
+    // sieveGrid.push_back(710);
+    // sieveGrid.push_back(850);
+    // sieveGrid.push_back(1000);
+    // sieveGrid.push_back(1400);
+    // sieveGrid.push_back(2000);
+    // sieveGrid.push_back(2380);
+    // sieveGrid.push_back(4000);
+    // size_t nSieveGrid = sieveGrid.size();
+
+    // array<double, nFirstSolidBins> vs = compartmentIn.vs;
+    // array<double, nFirstSolidBins> vss = compartmentIn.vss;
+    // arrayOfDouble3D cumulativeVolumeDistributionAllCompartmentsOverTime = getArrayOfDouble3D(nTimeSteps, nCompartments, nSieveGrid);
+    // arrayOfDouble3D totalVolumeGridAllCompartmentsOverTime = getArrayOfDouble3D(nTimeSteps, nCompartments, nSieveGrid);
+
+    // vector<double> totalStuffLeavingOverTime(nTimeSteps, 0.0);
+    // vector<double> totalSolidLeavingOverTime(nTimeSteps, 0.0);
+    // vector<double> totalLiquidLeavingOverTime(nTimeSteps, 0.0);
+
+    // for (size_t n = 1; n < nTimeSteps; n++)
+    // {
+    //     for (int s = 0; s < nFirstSolidBins; s++)
+    //         for (int ss = 0; ss < nSecondSolidBins; ss++)
+    //         {
+    //             timeStep = Time[n] - Time[n - 1];
+    //             double value1 = fAllCompartmentsOverTime[n][nCompartments - 1][s][ss];
+    //             value1 *= (particleAverageVelocity[nCompartments - 1] / DISTANCEBETWEENCOMPARTMENTS) * timeStep;
+    //             double value2 = value1 * externalVolumeBinsAllCompartmentsOverTime[n][nCompartments - 1][s][ss];
+    //             totalStuffLeavingOverTime[n] += value2;
+
+    //             value2 = value1 * (vs[s] + vss[ss]);
+    //             totalSolidLeavingOverTime[n] += value2;
+
+    //             value2 = value1 * (externalVolumeBinsAllCompartmentsOverTime[n][nCompartments - 1][s][ss] - vs[s] - vss[ss]);
+    //             totalLiquidLeavingOverTime[n] += value2;
+    //         }
+
+    //     for (int c = 0; c < nCompartments; c++)
+    //     {
+    //         for (int s = 0; s < nFirstSolidBins; s++)
+    //             for (int ss = 0; ss < nSecondSolidBins; ss++)
+    //             {
+    //                 double value1 = fAllCompartmentsOverTime[n][c][s][ss];
+    //                 double value2 = value1 * externalVolumeBinsAllCompartmentsOverTime[n][nCompartments - 1][s][ss];
+    //                 totalVolumeAllCompartmentsOverTime[n][c] += value2;
+
+    //                 value2 = value1 * (vs[s] + vss[ss]);
+    //                 totalSolidVolumeAllCompartmentsOverTime[n][c] += value2;
+
+    //                 value2 = value1 * (externalVolumeBinsAllCompartmentsOverTime[n][c][s][ss] - vs[s] - vss[ss]);
+    //                 totalPoreVolumeAllCompartmentsOverTime[n][c] += value2;
+
+    //                 value2 = value1 * liquidBinsAllCompartmentsOverTime[n][c][s][ss];
+    //                 totalLiquidVolumeAllCompartmentsOverTime[n][c] += value2;
+
+    //                 value2 = value1 * gasBinsAllCompartmentsOverTime[n][c][s][ss];
+    //                 totalGasVolumeAllCompartmentsOverTime[n][c] += value2;
+    //             }
+
+    //         arrayOfDouble2D fAll = fAllCompartmentsOverTime[n][c];
+    //         externalVolumeBins = externalVolumeBinsAllCompartmentsOverTime[n][c];
+    //         arrayOfDouble2D diameter = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+
+    //         for (int s = 0; s < nFirstSolidBins; s++)
+    //             for (int ss = 0; ss < nSecondSolidBins; ss++)
+    //                 diameter[s][ss] = cbrt((6 / M_PI) * externalVolumeBinsAllCompartmentsOverTime[n][c][s][ss]) * 1.0e6;
+
+    //         vector<double> totalVolumeGrid(nSieveGrid, 0.0);
+    //         for (size_t d = 0; d < nSieveGrid - 1; d++)
+    //             for (int s = 0; s < nFirstSolidBins; s++)
+    //                 for (int ss = 0; ss < nSecondSolidBins; ss++)
+    //                 {
+    //                     if (diameter[s][ss] < sieveGrid[d + 1] && diameter[s][ss] >= sieveGrid[d])
+    //                         totalVolumeGrid[d] += fAll[s][ss] * externalVolumeBinsAllCompartmentsOverTime[n][c][s][ss];
+    //                 }
+
+    //         totalVolumeGridAllCompartmentsOverTime[n][c] = totalVolumeGrid;
+
+    //         double sum = 0.0;
+    //         for (size_t d = 0; d < nSieveGrid; d++)
+    //             sum += totalVolumeGrid[d];
+
+    //         vector<double> volumeDistribution(nSieveGrid, 0.0);
+    //         for (size_t d = 0; d < nSieveGrid; d++)
+    //             volumeDistribution[d] = totalVolumeGrid[d] / sum;
+
+    //         vector<double> cumulativeVolumeDistribution(nSieveGrid, 0.0);
+    //         sum = 0.0;
+    //         for (size_t d = 0; d < nSieveGrid; d++)
+    //         {
+    //             sum += volumeDistribution[d];
+    //             cumulativeVolumeDistribution[d] = sum;
+    //         }
+    //         cumulativeVolumeDistributionAllCompartmentsOverTime[n][c] = cumulativeVolumeDistribution;
+
+    //         double d10 = 0.1 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
+    //         double d50 = 0.5 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
+    //         double d90 = 0.9 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
+
+    //         for (size_t d = 1; d < nSieveGrid; d++)
+    //         {
+    //             double value1 = (sieveGrid[d] - sieveGrid[d - 1]) / (cumulativeVolumeDistribution[d] - cumulativeVolumeDistribution[d - 1]);
+    //             double value2 = sieveGrid[d - 1];
+    //             if (cumulativeVolumeDistribution[d - 1] < 0.5 && cumulativeVolumeDistribution[d] >= 0.5)
+    //             {
+    //                 double value = 0.5 - cumulativeVolumeDistribution[d - 1];
+    //                 d50 = value * value1 + value2;
+    //             }
+    //             if (cumulativeVolumeDistribution[d - 1] < 0.1 && cumulativeVolumeDistribution[d] >= 0.1)
+    //             {
+    //                 double value = 0.1 - cumulativeVolumeDistribution[d - 1];
+    //                 d10 = value * value1  + value2;
+    //             }
+    //             if (cumulativeVolumeDistribution[d - 1] < 0.1 && cumulativeVolumeDistribution[d] >= 0.1)
+    //             {
+    //                 double value = 0.9 - cumulativeVolumeDistribution[d - 1];
+    //                 d90 = value * value1  + value2;
+    //             }
+    //         }
+    //         d10OverTime[n][c] = d10;
+    //         d50OverTime[n][c] = d50;
+    //         d90OverTime[n][c] = d90;
+    //     }
+    // }
+    // //cout << "End computing D10, D50, D90" << endl;
+    // //   DUMP2D(d10OverTime);
+    // //   DUMP2DCSV(d10OverTime);
+    // //   DUMP2D(d50OverTime);
+    // //   DUMP2DCSV(d50OverTime);
+    // //   DUMP2D(d90OverTime);
+    // //   DUMP2DCSV(d90OverTime);
+
+    // //DUMPDIACSV(Time, d10OverTime);
+    // //DUMPDIACSV(Time, d50OverTime);
+    // //DUMPDIACSV(Time, d90OverTime);
+
+    // //    string appendFileName = string("_") + to_string(DEMAGGREGATIONKERNELVALUE);
+    // //    appendFileName += string("_") + to_string(DEMAGGREGATIONKERNELCONST);
+    // //    appendFileName += string("_") + to_string(DEMBREAKAGEKERNELVALUE);
+    // //    appendFileName += string("_") + to_string(DEMBREAKAGEKERNELCONST);
+    // //
+    // //
+    // //    dumpDiaCSV(Time, d10OverTime, string("d10OverTime") + appendFileName);
+    // //    dumpDiaCSV(Time, d50OverTime, string("d50OverTime") + appendFileName);
+    // //    dumpDiaCSV(Time, d90OverTime, string("d90OverTime") + appendFileName);
     double endTime = static_cast<double>(clock()) / static_cast<double>(CLOCKS_PER_SEC);
     cout << "That took " << endTime - startTime << " seconds" << endl;
     cout << "Code End" << endl;

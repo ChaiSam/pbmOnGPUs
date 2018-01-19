@@ -1,9 +1,8 @@
 #ifndef COMPARTMENT_H
 #define COMPARTMENT_H
 
-#include <array>
+#include <vector>
 #include "utility.h"
-#include "parameters.h"
 
 typedef struct
 {
@@ -12,8 +11,8 @@ typedef struct
     arrayOfDouble2D fGas;
     double liquidAdditionRate;
 
-    std::array<double, NUMBEROFFIRSTSOLIDBINS> vs;
-    std::array<double, NUMBEROFSECONDSOLIDBINS> vss;
+    std::vector<double> vs;
+    std::vector<double> vss;
 
     arrayOfDouble2D sMeshXY;
     arrayOfDouble2D ssMeshXY;
@@ -38,7 +37,6 @@ typedef struct
 
     arrayOfDouble2D diameter;
 
-    //double time;
 } CompartmentIn;
 
 typedef struct
@@ -52,14 +50,17 @@ typedef struct
     arrayOfDouble2D externalVolumeBins;
     arrayOfDouble4D aggregationKernel;
     arrayOfDouble4D breakageKernel;
-    //arrayOfDouble2D breakageKernel;
+    double formationThroughAggregation;
+    double depletionThroughAggregation;
+    double formationThroughBreakage;
+    double depletionThroughBreakage;
 } CompartmentOut;
 
 typedef struct
 {
     std::vector<double> DEMDiameter;
-    arrayOfDouble2D numberOfCollisions;
-    std::vector<double> numberOfImpacts;
+    arrayOfDouble2D DEMCollisionData;
+    std::vector<double> DEMImpactData;
 } CompartmentDEMIn;
 
 typedef struct
@@ -71,6 +72,6 @@ typedef struct
     arrayOfDouble2D fgComingIn;
 } PreviousCompartmentIn;
 
-CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compartmentDEMIn, double time, double timeStep);
+CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compartmentDEMIn, double time, double timeStep, double initialTime = 0.0);
 
 #endif // COMPARTMENT_H

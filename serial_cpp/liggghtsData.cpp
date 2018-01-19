@@ -1,9 +1,10 @@
 #include <iostream>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 
 #include "liggghtsData.h"
-#include "parameters.h"
+#include "parameterData.h"
 
 #define ATOMFILEPATH "./sampledumpfiles/"
 using namespace std;
@@ -52,7 +53,7 @@ bool liggghtsData::checkFileConsistency(std::string collisionFile, std::string i
         return false;
     }
     string timeStr = collisionFile.substr(firstDigitPos, dotPos - firstDigitPos);
-    double timeInCollisionFile = stod(timeStr);
+    double timeInCollisionFile = abs(stod(timeStr));
 
     const char *impactFileStr = impactFile.c_str();
     firstDigitPos = strcspn(impactFileStr, digits);
@@ -73,12 +74,14 @@ bool liggghtsData::checkFileConsistency(std::string collisionFile, std::string i
     return (timeInCollisionFile == timeInImpactFile);
 }
 
-void liggghtsData::readLiggghtsDataFiles()
+void liggghtsData::readLiggghtsDataFiles(string coreVal, string diaVal)
 {
     if (!mapCollisionDataOverTime.empty() && !mapImpactDataOverTime.empty())
         return;
 
-    vector<string> fileList = listFiles(ATOMFILEPATH, "atom");
+    // vector<string> fileList = listFiles(ATOMFILEPATH, "atom");
+    string fileExt = coreVal + string("_") + diaVal;
+    vector<string> fileList = listFiles(ATOMFILEPATH, fileExt);
 
     string subStrCollision = "collision";
     string subStrImpact = "impact";
@@ -122,24 +125,25 @@ void liggghtsData::readLiggghtsDataFiles()
             continue;
 
         double time = 0.0;
-        mapCollisionData mapData = collisionFileParser(ATOMFILEPATH, collisionFile, time);
-        if (mapData.empty())
+        mapParticleIdToType mapPartIdToType;
+        mapCollisionData mapColData = collisionFileParser(ATOMFILEPATH, collisionFile, time, mapPartIdToType);
+        if (mapColData.empty())
         {
             cout << collisionFile << " file is invalid" << endl;
             continue;
         }
 
-        pairImpactData pairData = impactFileParser(ATOMFILEPATH, impactFile);
-        if (pairData.first == 0 && pairData.second == 0)
+        mapImpactData mapImpData = impactFileParser(ATOMFILEPATH, impactFile, mapPartIdToType);
+        if (mapImpData.empty())
         {
             cout << impactFile << " file is invalid" << endl;
             continue;
         }
 
-        pair<double, mapCollisionData> mapCollisionEntry(time, mapData);
+        pair<double, mapCollisionData> mapCollisionEntry(time, mapColData);
         mapCollisionDataOverTime.insert(mapCollisionEntry);
 
-        pair<double, pairImpactData> mapImpactEntry(time, pairData);
+        pair<double, mapImpactData> mapImpactEntry(time, mapImpData);
         mapImpactDataOverTime.insert(mapImpactEntry);
     }
 
@@ -193,23 +197,20 @@ mapCollisionData liggghtsData::getMapCollisionData(double time)
     return mapData;
 }
 
-pairImpactData liggghtsData::getPairImpactData(double time)
+mapImpactData liggghtsData::getMapImpactData(double time)
 {
-    pairImpactData pairData;
-    pairData.first = 0;
-    pairData.second = 0;
-
+    mapImpactData mapData;
     if (mapImpactDataOverTime.empty())
-        return pairData;
+       return mapData;
 
     auto it = mapImpactDataOverTime.find(time);
     if (it != mapImpactDataOverTime.end())
-        pairData = it->second;
+        mapData = it->second;
 
-    return pairData;
+    return mapData;
 }
 
-vector<double> liggghtsData::getFinalNumberOfImpacts()
+vector<double> liggghtsData::getFinalDEMImpactData()
 {
     vector<double> nImpacts;
 
@@ -221,14 +222,26 @@ vector<double> liggghtsData::getFinalNumberOfImpacts()
 
     auto mapIt = mapImpactDataOverTime.end();
 
-    pairImpactData pairData = getPairImpactData((--mapIt)->first);
+    mapImpactData mapData = getMapImpactData((--mapIt)->first);
 
-    nImpacts = vector<double>(NUMBEROFDEMBINS, static_cast<double>(pairData.first + pairData.second));
+    if (mapData.empty())
+    return nImpacts;
+    
+    parameterData *pData = parameterData::getInstance();
+    unsigned int nDEMBins = pData->nDEMBins;
+    
+    nImpacts.resize(nDEMBins);
+
+    for (auto itMapData = mapData.begin(); itMapData != mapData.end(); itMapData++)
+        {
+            int row = itMapData->first;
+            nImpacts[row-1] = (itMapData->second).size();
+        }
 
     return nImpacts;
 }
 
-arrayOfDouble2D liggghtsData::getFinalNumberOfCollisions()
+arrayOfDouble2D liggghtsData::getFinalDEMCollisionData()
 {
     arrayOfDouble2D nCollisions;
 
@@ -245,7 +258,10 @@ arrayOfDouble2D liggghtsData::getFinalNumberOfCollisions()
     if (mapData.empty())
         return nCollisions;
 
-    nCollisions = getArrayOfDouble2D(NUMBEROFDEMBINS, NUMBEROFDEMBINS);
+    parameterData *pData = parameterData::getInstance();
+    unsigned int nDEMBins = pData->nDEMBins;
+    
+    nCollisions = getArrayOfDouble2D(nDEMBins, nDEMBins);
     
     vector<size_t> particleTypeCount;
     for (auto itMapData = mapData.begin(); itMapData != mapData.end(); itMapData++)
@@ -266,12 +282,15 @@ arrayOfDouble2D liggghtsData::getFinalNumberOfCollisions()
 
     for (size_t i = 0; i < nCollisions.size(); i++)
         for (size_t j = 0; j < nCollisions[i].size(); j++)
+        {
             nCollisions[i][j] = nCollisions[i][j] / (particleTypeCount[i] * particleTypeCount[j]);
-            
+            nCollisions[i][j] = std::isnan(nCollisions[i][j]) ? 0.0 : nCollisions[i][j];
+        }
+
     return nCollisions;
 }
 
-vector<double> liggghtsData::getParticleDiameters()
+vector<double> liggghtsData::getDEMParticleDiameters()
 {
     vector<double> particleDiameters;
 
@@ -292,4 +311,98 @@ vector<double> liggghtsData::getParticleDiameters()
         particleDiameters.push_back(get<0>(itMapData->second));
 
     return particleDiameters;
+}
+
+vector<double> liggghtsData::getFinalDEMCollisionVelocity()
+{
+	vector<double> velocityCollision;
+	vector<double> velocityIntCollision;
+
+	if (!instanceFlag)
+        return velocityCollision;
+
+    if (mapCollisionDataOverTime.empty())
+        return velocityCollision;
+
+    auto mapIt = mapCollisionDataOverTime.end();
+
+    for(int i = 0; i < 3; i++)
+    {
+	    mapCollisionData mapData = getMapCollisionData((--mapIt)->first);
+
+	    if(mapData.empty())
+	    	continue;
+        
+        parameterData *pData = parameterData::getInstance();
+        unsigned int nDEMBins = pData->nDEMBins;
+	    
+        velocityCollision.resize(nDEMBins);
+	    velocityIntCollision.resize(nDEMBins);
+
+	    for(auto itMapData = mapData.begin(); itMapData != mapData.end(); itMapData++)
+	    {
+            array<double,3> aveColVel{{0.0}};
+	    	vector<collisionData> vecColData = get<1>(itMapData->second);
+            size_t nPartilcesOfEachType = vecColData.size();
+	    	int row = itMapData->first;
+	    	for(auto vecData : vecColData)
+	    	{
+	    		aveColVel[0] += fabs(vecData.velocity[0]);
+	    		aveColVel[1] += fabs(vecData.velocity[1]);
+	    		aveColVel[2] += fabs(vecData.velocity[2]);
+	    	}
+	    	velocityIntCollision[row - 1] = sqrt(pow(aveColVel[0],2) + pow(aveColVel[1],2) + pow(aveColVel[2],2)) / nPartilcesOfEachType;
+	    	velocityCollision[row -1] += velocityIntCollision[row -1] / 3;
+	    }
+	}
+    return velocityCollision;
+
+}
+
+vector<double> liggghtsData::getFinalDEMImpactVelocity()
+{
+    vector<double> velocity;
+    vector<double> velocityInt;
+    if (!instanceFlag)
+        return velocity;
+
+    if (mapImpactDataOverTime.empty())
+        return velocity;
+
+    auto mapIt = mapImpactDataOverTime.end();
+    
+
+    for (int i = 0; i < 3; ++i)
+    {
+	    mapImpactData mapData = getMapImpactData((--mapIt)->first);
+
+	    if (mapData.empty())
+	    //return velocity;
+	    	continue;
+        array<double, 3> aveVeloComp{{0.0}};
+
+        parameterData *pData = parameterData::getInstance();
+        unsigned int nDEMBins = pData->nDEMBins;
+	    
+        velocity.resize(nDEMBins);
+	    velocityInt.resize(nDEMBins);
+
+	    for (auto itMapData = mapData.begin(); itMapData != mapData.end(); itMapData++)
+	    {
+            vector<impactData> vecImpData = itMapData->second;
+            size_t nPartilcesOfEachType = vecImpData.size();
+            int row = itMapData->first;            
+            for (auto impData : vecImpData)
+            {
+                aveVeloComp[0] += fabs(impData.velocity[3]);
+                aveVeloComp[1] += fabs(impData.velocity[4]);
+                aveVeloComp[2] += fabs(impData.velocity[5]);
+            }
+            velocityInt[row - 1] = sqrt(pow(aveVeloComp[0], 2) + pow(aveVeloComp[1], 2) + pow(aveVeloComp[2], 2)) / nPartilcesOfEachType / 1000;
+            velocity[row -1] += velocityInt[row -1] / 3; 
+        }
+    }
+
+    //velocity[row - 1] = sqrt(pow(aveVeloComp[0], 2) + pow(aveVeloComp[1], 2) + pow(aveVeloComp[2], 2));
+    return velocity;
 }
