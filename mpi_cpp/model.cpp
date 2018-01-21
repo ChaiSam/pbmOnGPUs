@@ -645,12 +645,12 @@ int main(int argc, char *argv[])
     
     while (time <= finalTime)
     {
-        // if (time > premixTime + liqAddTime + stod(timeVal))
-        //     fIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
         vector<double> formationThroughAggregation(nCompartments, 0.0);
         vector<double> depletionThroughAggregation(nCompartments, 0.0);
         vector<double> formationThroughBreakage(nCompartments, 0.0);
         vector<double> depletionThroughBreakage(nCompartments, 0.0);
+        // if (time > premixTime + liqAddTime + stod(timeVal))
+        //     fIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
 
         for (int c = core_low; c < core_up; c++) //for (int c = 0; c < nCompartments; c++)
         {
