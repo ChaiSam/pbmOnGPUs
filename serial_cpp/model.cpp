@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#define TWOWAYCOUPLE true
+#define TWOWAYCOUPLE false
 #define MASTER 0
 
 //MACROS
@@ -33,9 +33,10 @@ using namespace std;
 int main(int argc, char *argv[])
 {
     //cout << "CodeBegins" << endl << endl;
+    //Read Dump Atom Files
     string startTimeStr;
     double startTime = 0.0;
-    //liggghtsData *lData = nullptr;
+    liggghtsData *lData = nullptr;
     parameterData *pData = nullptr;
 
     string coreVal;
@@ -44,7 +45,10 @@ int main(int argc, char *argv[])
     string timeVal;
     startTimeStr = string(timestring());
     if (argc < 5)
+    {
        cout << "All values aren't available as input parameters" << endl;
+       return 1;
+    }
 
     pbmInFilePath = string(argv[1]); 
     coreVal = string(argv[2]);
@@ -60,8 +64,7 @@ int main(int argc, char *argv[])
 
 
     //Read Dump Atom Files
-    liggghtsData *lData = liggghtsData::getInstance();
-    // lData->readLiggghtsDataFiles();
+    // lData->readLiggghtsDataFiles(coreVal, diaVal);
 
     //return 0;//to stop execution after reading liggghts data
 
@@ -88,7 +91,7 @@ int main(int argc, char *argv[])
     ////cout << "Begin assign value to vssArray" << endl;
     double ssVolCoeff = pData->ssVolCoeff;
     double ssVolBase = pData->ssVolBase;
-    for (size_t i = 0; i < nSecondSolidBins; i++)
+    for (size_t i = 0; i < nSecondSolidBins; i++) 
         vss[i] = ssVolCoeff * pow(ssVolBase, i); // m^3
 
     //cout << "End assign value to vssArray" << endl << endl;
@@ -140,14 +143,14 @@ int main(int argc, char *argv[])
     arrayOfDouble2D ssAgg = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
 
     //cout << "Begin initializing values to sAgg (MATLAB bsxfun @plus)" << endl;
-    for (int i = 0; i < nFirstSolidBins; i++)
-        for (int j = 0; j < nFirstSolidBins; j++)
+    for (size_t i = 0; i < nFirstSolidBins; i++)
+        for (size_t j = 0; j < nFirstSolidBins; j++)
             sAgg[i][j] = vs[j] + vs[i];
     //cout << "End initializing values to sAgg (MATLAB bsxfun @plus)" << endl << endl;
 
     //cout << "Begin initializing values to ssAgg (MATLAB bsxfun @plus)" << endl;
-    for (int i = 0; i < nSecondSolidBins; i++)
-        for (int j = 0; j < nSecondSolidBins; j++)
+    for (size_t i = 0; i < nSecondSolidBins; i++)
+        for (size_t j = 0; j < nSecondSolidBins; j++)
             ssAgg[i][j] = vss[j] + vss[i];
     //cout << "End initializing values to ssAgg (MATLAB bsxfun @plus)" << endl << endl;
 
@@ -157,7 +160,7 @@ int main(int argc, char *argv[])
     arrayOfInt2D ssAggregationCheck = getArrayOfInt2D(nSecondSolidBins, nSecondSolidBins);
 
     //cout << "Begin initializing values to sAggregationCheck" << endl;
-	for (size_t s1 = 0; s1 < nFirstSolidBins; s1++)
+    for (size_t s1 = 0; s1 < nFirstSolidBins; s1++)
         for (size_t s2 = 0; s2 < nFirstSolidBins; s2++)
             sAggregationCheck[s1][s2] = sAgg[s1][s2] <= vs[nFirstSolidBins - 1] ? 1 : 0;
     //cout << "End initializing values to sAggregationCheck" << endl;
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
 
     // end of repmat for  sAggregationCheck & ssAggregationCheck
 
-	arrayOfDouble2D sLow = sMeshXY;
+    arrayOfDouble2D sLow = sMeshXY;
     arrayOfDouble2D sHigh = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
     for (size_t i = 0; i < nSecondSolidBins - 1; i++)
         for (size_t j = 0; j < nSecondSolidBins; j++)
@@ -227,7 +230,7 @@ int main(int argc, char *argv[])
 
     //bsxfun @minus for sBreak & ssBreak
     //cout << "Creating sBreak & ssBreak and assigning zeros" << endl;
-	arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
+    arrayOfDouble2D sBreak = getArrayOfDouble2D(nFirstSolidBins, nFirstSolidBins);
     arrayOfDouble2D ssBreak = getArrayOfDouble2D(nSecondSolidBins, nSecondSolidBins);
 
     //cout << "Begin initializing values to sBreak (MATLAB bsxfun @minus)" << endl;
@@ -279,13 +282,13 @@ int main(int argc, char *argv[])
         for (size_t s2 = 0; s2 < nFirstSolidBins; s2++)
             sCheckB[s1][s2] = sLocBreak[s1][s2] >= 1 ? 1 : 0;
 
-    //cout << "End initializing values to sCheckB" << endl;
+    // cout << "End initializing values to sCheckB" << endl;
 
     //cout << "Begin initializing values to ssCheckB" << endl;
     for (size_t ss1 = 0; ss1 < nSecondSolidBins; ss1++)
         for (size_t ss2 = 0; ss2 < nSecondSolidBins; ss2++)
             ssCheckB[ss1][ss2] = ssLocBreak[ss1][ss2] >= 1 ? 1 : 0;
-    //cout << "End initializing values to ssCheckB" << endl;
+    // cout << "End initializing values to ssCheckB" << endl;
 
     //repmat/reshape for sIndB & ssIndB
     //cout << "Creating sIndB & ssIndB and assigning zeros" << endl;
@@ -405,15 +408,15 @@ int main(int argc, char *argv[])
     // use dem data ... make sure to comment section before this one which makes syn data
 
     lData = liggghtsData::getInstance();
+    // cout << "Got liggghts instance ldata val = " << lData <<endl;
 
-    if (!lData)
-        cout << "fis null" << endl;
+    // if (lData == 0)
+    //     cout << "fis null" << endl;
     lData->readLiggghtsDataFiles(coreVal, diaVal);
 
     vector<double> DEMDiameter = lData->getDEMParticleDiameters();
     if ((DEMDiameter).size() == 0)
     {
-        
         cout << "Diameter data is missing in LIGGGHTS output file" << endl;
         cout << "Input parameters for DEM core and diameter aren't matching with LIGGGHTS output file" << endl;
         return 1;
@@ -442,7 +445,7 @@ int main(int argc, char *argv[])
 	    return 1;
     }
 
-	DUMP2D(DEMCollisionData);
+    DUMP2D(DEMCollisionData);
     DUMP(DEMDiameter);
     DUMP(DEMImpactData);
     DUMP(velocity);
@@ -539,6 +542,7 @@ int main(int argc, char *argv[])
     arrayOfDouble2D depletionThroughAggregationOverTime;
     arrayOfDouble2D formationThroughBreakageOverTime;
     arrayOfDouble2D depletionThroughBreakageOverTime;
+    cout << "time" << endl;
 
     while (time <= finalTime)
     {
@@ -546,7 +550,7 @@ int main(int argc, char *argv[])
         vector<double> depletionThroughAggregation(nCompartments, 0.0);
         vector<double> formationThroughBreakage(nCompartments, 0.0);
         vector<double> depletionThroughBreakage(nCompartments, 0.0);
-        // if (time > PREMIXINGTIME + LIQUIDADDITIONTIME)
+        // if (time > premixTime + liqAddTime + stod(timeVal))
         //     fIn = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
         for (int c = 0; c < nCompartments; c++)
         {
@@ -604,8 +608,8 @@ int main(int argc, char *argv[])
         double maxGas = -DBL_MAX;
 
         for (int c = 0; c < nCompartments; c++)
-            for (int s = 0; s < nFirstSolidBins; s++)
-                for (int ss = 0; ss < nSecondSolidBins; ss++)
+            for (size_t s = 0; s < nFirstSolidBins; s++)
+                for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
                     if (fabs(fAllCompartments[c][s][ss]) > 1.0e-16)
                         maxAll = max(maxAll, -dfdtAllCompartments[c][s][ss] / fAllCompartments[c][s][ss]);
@@ -629,8 +633,8 @@ int main(int argc, char *argv[])
         int nanCount = 0;
         double minfAll = -DBL_MAX;
         for (int c = 0; c < nCompartments; c++)
-            for (int s = 0; s < nFirstSolidBins; s++)
-                for (int ss = 0; ss < nSecondSolidBins; ss++)
+            for (size_t s = 0; s < nFirstSolidBins; s++)
+                for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
                     double value = 0.0;
                     fAllCompartments[c][s][ss] += dfdtAllCompartments[c][s][ss] * timeStep;
@@ -651,12 +655,17 @@ int main(int argc, char *argv[])
                  
         int countnegfAll = 0;
         minfAll = getMinimumOf3DArray(fAllCompartments, countnegfAll);
-        if (minfAll < 0.0 /*&& fabs(minfAll) > 1e-16*/)
+        if (minfAll < -1.0e-16 &&  countnegfAll > 0.1 * nCompartments * nFirstSolidBins * nSecondSolidBins)
         {
+            //int mpi_err = 0;
+            cout << endl;
+            //DUMP3DCSV(dfdtAllCompartments);
+            //DUMP3DCSV(fAllCompartments);
+            //cout << "My process id = " << mpi_id << endl;
             cout << "minfAll" << minfAll << endl;
-            cout << endl
-                 << "******fAllCompartments has negative values********" << endl
-                 << endl;
+            cout << "******fAllCompartments has negative values********" << endl;
+            cout << "Number of negative values = " << countnegfAll << endl;
+            DUMP3DCSV(fAllCompartments);
             cout << "Aborting..." << endl;
             return 1;
         }
@@ -796,7 +805,7 @@ int main(int argc, char *argv[])
          << "nTimeSteps = " << nTimeSteps << endl
          << endl;
 
-    // arrayOfDouble3D dumpedLastValue = *(fAllCompartmentsOverTime.end() - 1);
+        //dump values for ratio plots
     dumpDiaCSV(Time, formationThroughAggregationOverTime, string("FormationThroughAggregation"));
     dumpDiaCSV(Time, depletionThroughAggregationOverTime, string("DepletionThroughAggregation"));
     dumpDiaCSV(Time, formationThroughBreakageOverTime, string("FormationThroughBreakage"));
@@ -850,12 +859,12 @@ int main(int argc, char *argv[])
 
     // for (size_t n = 1; n < nTimeSteps; n++)
     // {
-    //     for (int s = 0; s < nFirstSolidBins; s++)
-    //         for (int ss = 0; ss < nSecondSolidBins; ss++)
+    //     for (size_t s = 0; s < nFirstSolidBins; s++)
+    //         for (size_t ss = 0; ss < nSecondSolidBins; ss++)
     //         {
     //             timeStep = Time[n] - Time[n - 1];
     //             double value1 = fAllCompartmentsOverTime[n][nCompartments - 1][s][ss];
-    //             value1 *= (particleAverageVelocity[nCompartments - 1] / DISTANCEBETWEENCOMPARTMENTS) * timeStep;
+    //             value1 *= (particleAverageVelocity[nCompartments - 1] / distanceBetweenCompartments) * timeStep;
     //             double value2 = value1 * externalVolumeBinsAllCompartmentsOverTime[n][nCompartments - 1][s][ss];
     //             totalStuffLeavingOverTime[n] += value2;
 
@@ -868,8 +877,8 @@ int main(int argc, char *argv[])
 
     //     for (int c = 0; c < nCompartments; c++)
     //     {
-    //         for (int s = 0; s < nFirstSolidBins; s++)
-    //             for (int ss = 0; ss < nSecondSolidBins; ss++)
+    //         for (size_t s = 0; s < nFirstSolidBins; s++)
+    //             for (size_t ss = 0; ss < nSecondSolidBins; ss++)
     //             {
     //                 double value1 = fAllCompartmentsOverTime[n][c][s][ss];
     //                 double value2 = value1 * externalVolumeBinsAllCompartmentsOverTime[n][nCompartments - 1][s][ss];
@@ -953,13 +962,15 @@ int main(int argc, char *argv[])
     //         d90OverTime[n][c] = d90;
     //     }
     // }
-    // //cout << "End computing D10, D50, D90" << endl;
-    // //   DUMP2D(d10OverTime);
-    // //   DUMP2DCSV(d10OverTime);
-    // //   DUMP2D(d50OverTime);
-    // //   DUMP2DCSV(d50OverTime);
-    // //   DUMP2D(d90OverTime);
-    // //   DUMP2DCSV(d90OverTime);
+    //cout << "End computing D10, D50, D90" << endl;
+    // if (mpi_id == 0)
+    // {
+    //     string appendFileName = string("_") + coreVal + string("_") + diaVal;
+        
+
+    //     dumpDiaCSV(Time, d10OverTime, string("d10") + appendFileName);
+    //     dumpDiaCSV(Time, d50OverTime, string("d50") + appendFileName);
+    //     dumpDiaCSV(Time, d90OverTime, string("d90") + appendFileName);
 
     // //DUMPDIACSV(Time, d10OverTime);
     // //DUMPDIACSV(Time, d50OverTime);
