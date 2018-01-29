@@ -14,5 +14,8 @@ class LiggghtsData
     liggghtsData();
     bool checkFileConsistency(std::string collisionFile, std:: string impactFile);
 
+    std::map<double, mapCollisionData> mapCollisionDataOverTime;
+    std::map<double, mapImpactData> mapImpactDataOverTime;
+
     
 }

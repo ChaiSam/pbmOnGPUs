@@ -2,6 +2,7 @@
 #include <cmath>
 #include <float.h>
 #include <string>
+#include <iostream.h>
 
 #include "utility.h"
 
