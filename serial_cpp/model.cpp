@@ -14,7 +14,6 @@
 using namespace std;
 
 #define TWOWAYCOUPLE false
-#define MASTER 0
 
 //MACROS
 //Call to these macros will dump values to file name as variableName.txt
