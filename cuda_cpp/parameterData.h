@@ -1,7 +1,7 @@
 #ifndef PARAMETERDATA_H
 #define PARAMETERDATA_H
 
-#include "utility.h"
+#include "utility.cuh"
 
 // Class to provide input parameters to initiating PBM
 // Parameters are assigned either by reading PBM input files or values from parameters.h
