@@ -35,10 +35,10 @@ void free_double_vector_device(double **);
 void free_double_matrix_device(struct cudaPitchedPtr);
 
 void copy_double_vector_fromDtoH(double *, double *, unsigned int);
-void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr, struct cudaPitchedPtr, struct cudaExtent);
+void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr, double **, int, int, int);
 
 void copy_double_vector_fromHtoD(double *, double *, unsigned int);
-void copy_double_2Dmatrix_fromDtoH(struct cudaPitchedPtr, struct cudaPitchedPtr, struct cudaExtent);
+void copy_double_2Dmatrix_fromDtoH(double **, struct cudaPitchedPtr, int, int, int);
 
 std::vector<std::string> listFiles(std::string path, std::string ext);
 

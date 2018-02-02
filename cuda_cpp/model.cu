@@ -34,8 +34,8 @@ __global__ void initialization_kernel(double *d_vs1, double *d_vss1, struct cuda
 {
     int idx = threadIdx.x;
     int bdx = blockIdx.x;
-    // cout << "thread id = " << idx << endl;
-    // cout << "block id = " << bdx << endl;
+    printf("thread id = %d",idx);
+    printf("block id = %d", bdx);
 }
 
 
@@ -120,11 +120,8 @@ int main(int argc, char *argv[])
     struct cudaPitchedPtr d_sMeshXY = device_alloc_double_matrix(static_cast<unsigned int>(nFirstSolidBins), static_cast<unsigned int>(nSecondSolidBins));
     struct cudaPitchedPtr d_ssMeshXY = device_alloc_double_matrix(static_cast<unsigned int>(nFirstSolidBins), static_cast<unsigned int>(nSecondSolidBins));
 
-    d_vs = h_vs.data();
-    d_vss = h_vss.data();
-
-    copy_double_vector_fromDtoH(d_vs, h_vs.data(), h_vs.size() * sizeof(double));
-    copy_double_vector_fromDtoH(d_vss, h_vss.data(), h_vss.size() * sizeof(double));
+    copy_double_vector_fromHtoD(d_vs, h_vs.data(), h_vs.size());
+    copy_double_vector_fromHtoD(d_vss, h_vss.data(), h_vss.size());
 
     int nBlocks = NBLOCKS;
     int nThreads = NTHREADS;
@@ -139,8 +136,8 @@ int main(int argc, char *argv[])
     }
     cout << "Initialization complete" << endl;
 
-    copy_double_2Dmatrix_fromDtoH(h_sMeshXY, d_sMeshXY, make_cudaExtent(h_vs.size() * sizeof(double), h_vs.size() * sizeof(double), 1));
-    copy_double_2Dmatrix_fromDtoH(h_ssMeshXY, d_ssMeshXY, make_cudaExtent(h_vs.size() * sizeof(double), h_vss.size() * sizeof(double),1));
+    copy_double_2Dmatrix_fromDtoH(h_sMeshXY, d_sMeshXY, h_vs.size(), h_vs.size(), 1);
+    copy_double_2Dmatrix_fromDtoH(h_ssMeshXY, d_ssMeshXY, h_vss.size(), h_vss.size(), 1);
 
     for (size_t i = 0; i < h_vs.size(); i++)
     {

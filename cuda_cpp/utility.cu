@@ -111,7 +111,7 @@ struct cudaPitchedPtr device_alloc_double_matrix(unsigned int nX, unsigned int n
 {
     struct cudaPitchedPtr matrix;
 
-    if(cudaMalloc3D(&matrix, make_cudaExtent(nY * sizeof(double), nX, 1)) != cudaSuccess)
+    if(cudaMalloc3D(&matrix, make_cudaExtent(nY /* sizeof(double)*/, nX, 1)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to allocate memory for the 2D matrix on the device \n");
         cudaError_t error = cudaGetLastError();
@@ -165,7 +165,7 @@ void free_double_matrix_device(struct cudaPitchedPtr matrix)
 
 void copy_double_vector_fromHtoD(double *vectorD, double *vectorH, unsigned int vectorH_size)
 {
-    if ((cudaMemcpy(vectorD, vectorH, vectorH_size, cudaMemcpyHostToDevice)) != cudaSuccess)
+    if ((cudaMemcpy(vectorD, &vectorH, vectorH_size * sizeof(double), cudaMemcpyHostToDevice)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy vector from host to the device. \n");
         cudaError_t error = cudaGetLastError();
@@ -176,14 +176,25 @@ void copy_double_vector_fromHtoD(double *vectorD, double *vectorH, unsigned int 
 
 // Copy 2D matrix from the host to device 
 
-void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr d_2D, struct cudaPitchedPtr h_2D, struct cudaExtent e)
+void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr d_2D, double **h_2D, int x, int y, int z)
 {
     struct cudaMemcpy3DParms temp_3d;
+    temp_3d.srcPtr.ptr = h_2D;
+    temp_3d.srcPtr.pitch = z * sizeof(double);
+    temp_3d.srcPtr.xsize = x;
+    temp_3d.srcPtr.ysize = y;
+    temp_3d.dstPtr.ptr = d_2D.ptr;
+    temp_3d.dstPtr.pitch = d_2D.pitch;
+    temp_3d.extent.width = x * sizeof(double);
+    temp_3d.extent.height = y;
+    temp_3d.extent.depth = z;
+    temp_3d.kind = cudaMemcpyHostToDevice;
+    /*
     temp_3d.extent = e;
     temp_3d.kind = cudaMemcpyHostToDevice;
     temp_3d.dstPtr = d_2D;
     temp_3d.srcPtr = h_2D;
-
+    */
     if ((cudaMemcpy3D(&temp_3d)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy 2D matrix from host to the device. \n");
@@ -197,9 +208,9 @@ void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr d_2D, struct cudaPitche
 
 void copy_double_vector_fromDtoH(double *vectorH, double *vectorD, unsigned int vectorD_size)
 {
-    if ((cudaMemcpy(vectorH, vectorD, vectorD_size, cudaMemcpyDeviceToHost)) != cudaSuccess)
+    if ((cudaMemcpy(&vectorH, vectorD, vectorD_size * sizeof(double), cudaMemcpyDeviceToHost)) != cudaSuccess)
      {
-         fprintf(stderr, "Failed to copy vector from host to the device. \n");
+         fprintf(stderr, "Failed to copy vector from device to host. \n");
          cudaError_t error = cudaGetLastError();
          fprintf(stderr, "CUDA error: %s.\n",cudaGetErrorString(error));
          exit(EXIT_FAILURE);
@@ -208,14 +219,20 @@ void copy_double_vector_fromDtoH(double *vectorH, double *vectorD, unsigned int 
 
 // Copy 2D matrix from the host to device 
 
-void copy_double_2Dmatrix_fromDtoH(struct cudaPitchedPtr h_2D, struct cudaPitchedPtr d_2D, struct cudaExtent e)
+void copy_double_2Dmatrix_fromDtoH(double **h_2D, struct cudaPitchedPtr d_2D, int x, int y , int z)
 {
     struct cudaMemcpy3DParms temp_3d;
-    temp_3d.extent = e;
+    temp_3d.dstPtr.ptr = h_2D;
+    temp_3d.dstPtr.pitch = x * sizeof(double);
+    temp_3d.dstPtr.xsize = x;
+    temp_3d.dstPtr.ysize = y;
+    temp_3d.srcPtr.ptr = d_2D.ptr;
+    temp_3d.srcPtr.pitch = d_2D.pitch;
+    temp_3d.extent.width = x * sizeof(double);
+    temp_3d.extent.height = y;
+    temp_3d.extent.depth = z;
     temp_3d.kind = cudaMemcpyDeviceToHost;
-    temp_3d.srcPtr = d_2D;
-    temp_3d.dstPtr = h_2D;
-
+    cudaError_t err = cudaMemcpy3D(&temp_3d);
     if ((cudaMemcpy3D(&temp_3d)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy 2D matrix from device to the host. \n");
