@@ -3,7 +3,8 @@
 #target: dependencies
 #<tab>action
 
-CC=nvcc -std=c++11
+CC=nvcc -std=c++11 -arch=sm_52 -g -Xcompiler -rdynamic -lineinfo
+#ARCH= -arch=sm_52
 
 all: model.out
 

@@ -24,22 +24,19 @@ arrayOfDouble3D getArrayOfDouble3D(int n, int m, int p, double val = 0.0);
 arrayOfDouble4D getArrayOfDouble4D(int n, int m, int p, int q, double val = 0.0);
 
 double *alloc_double_vector(unsigned int);
-double **alloc_double_matrix(unsigned int, unsigned int);
 
+int *device_alloc_integer_vector(unsigned int);
 double *device_alloc_double_vector(unsigned int);
-struct cudaPitchedPtr device_alloc_double_matrix(unsigned int, unsigned int);
 
 void free_double_vector(double *);
-void free_double_matrix(double **); 
 void free_double_vector_device(double **);
 void free_double_matrix_device(struct cudaPitchedPtr);
 
 void copy_double_vector_fromDtoH(double *, double *, unsigned int);
-void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr, double **, int, int, int);
-
 void copy_double_vector_fromHtoD(double *, double *, unsigned int);
-void copy_double_2Dmatrix_fromDtoH(double **, struct cudaPitchedPtr, int, int, int);
 
+void copy_integer_vector_fromHtoD(int *, int *, unsigned int);
+void copy_integer_vector_fromDtoH(int *, int *, unsigned int);
 std::vector<std::string> listFiles(std::string path, std::string ext);
 
 #endif // UTILITY_H

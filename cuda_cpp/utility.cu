@@ -47,6 +47,53 @@ arrayOfDouble4D getArrayOfDouble4D(int n, int m, int p, int q, double val)
     return arrayDouble4D;
 }
 
+// linearizing arrays
+
+vector<double> linearize2DVector(arrayOfDouble2D array2D)
+{
+    // vector<double> data;
+    size_t dim1 = array2D.size();
+    size_t dim2 = array2D[0].size();
+    vector<double> data(dim1 * dim2, 0.0);
+    for (size_t d1 = 0; d1 < dim1; d1++)
+        for (size_t d2 = 0; d2 < dim2; d2++)
+                data[d1 * dim2 + d2] = array2D[d1][d2];
+
+    return data;
+}
+
+vector<double> linearize3DVector(arrayOfDouble3D array3D)
+{
+    // vector<double> data;
+    size_t dim1 = array3D.size();
+    size_t dim2 = array3D[0].size();
+    size_t dim3 = array3D[0][0].size();
+    vector<double> data(dim1 * dim2 * dim3, 0.0);
+    for (size_t d1 = 0; d1 < dim1; d1++)
+        for (size_t d2 = 0; d2 < dim2; d2++)
+            for (size_t d3 = 0; d3 < dim3; d3++)
+                data[d1 * dim2 * dim3 + d2 * dim3 + d3] = array3D[d1][d2][d3];
+
+    return data;
+}
+
+vector<double> linearize4DVector(arrayOfDouble4D array4D)
+{
+    // vector<double> data;
+    size_t dim1 = array4D.size();
+    size_t dim2 = array4D[0].size();
+    size_t dim3 = array4D[0][0].size();
+    size_t dim4 = array4D[0][0][0].size();
+    vector<double> data(dim1 * dim2 * dim3 * dim4, 0.0);
+    for (size_t d1 = 0; d1 < dim1; d1++)
+        for (size_t d2 = 0; d2 < dim2; d2++)
+            for (size_t d3 = 0; d3 < dim3; d3++)
+                for (size_t d4 = 0; d4 < dim4; d4 ++)
+                    data[d1 * dim2 * dim3 * dim4 + d2 * dim3 * dim4 + d3 * dim4 + d4] = array4D[d1][d2][d3][d4];
+
+    return data;
+}
+
 // allocate pointer for variables on the host
 
 double *alloc_double_vector(unsigned int nX)
@@ -62,31 +109,25 @@ double *alloc_double_vector(unsigned int nX)
     return vector_tmp;
 }
 
-// allocate pointer for a 2D matrix
-
-double **alloc_double_matrix(unsigned int nX, unsigned int nY) 
-{
-   long cnti;
-   double **matrix;
-
-   if((matrix = (double **) malloc((size_t) (nX * sizeof(double *)))) == NULL) 
-   {
-      fprintf(stderr, "Failed to allocate memory for the matrix.\n");
-      exit(EXIT_FAILURE);
-   }
-   if((matrix[0] = (double *) malloc((size_t) (nX * nY * sizeof(double)))) == NULL) 
-   {
-      fprintf(stderr, "Failed to allocate memory for the matrix.\n");
-      exit(EXIT_FAILURE);
-   }
-   for(cnti = 1; cnti < nX; cnti ++)
-      matrix[cnti] = matrix[cnti - 1] + nY;
-
-   return matrix;
-}
-
 
 // CUDA Allocation functions
+
+// allocating int vector on the device
+int *device_alloc_integer_vector(unsigned int nX)
+{
+    int *vector;
+
+    if (cudaMalloc((void **) &vector, nX * sizeof(int)) != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to allocate device memory for the CUDA integer vector.\n");
+        cudaError_t error = cudaGetLastError();
+        fprintf(stderr, "CUDA error: %s \n", cudaGetErrorString(error));
+        exit(EXIT_FAILURE);
+    }
+
+    return vector;
+}
+
 
 // allocating double vector on the device
 
@@ -105,22 +146,6 @@ double *device_alloc_double_vector(unsigned int nX)
     return vector;
 }
 
-// Allocating a 2D matrix on the device
-
-struct cudaPitchedPtr device_alloc_double_matrix(unsigned int nX, unsigned int nY)
-{
-    struct cudaPitchedPtr matrix;
-
-    if(cudaMalloc3D(&matrix, make_cudaExtent(nY /* sizeof(double)*/, nX, 1)) != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to allocate memory for the 2D matrix on the device \n");
-        cudaError_t error = cudaGetLastError();
-        fprintf(stderr, "CUDA error: %s \n", cudaGetErrorString(error));
-        exit(EXIT_FAILURE);
-    }
-
-    return matrix;
-}
 
 // Clearing Memory
 
@@ -129,12 +154,6 @@ struct cudaPitchedPtr device_alloc_double_matrix(unsigned int nX, unsigned int n
 void free_double_vector(double *vector) 
 {
     free((char *) vector);
-}
-
-void free_double_matrix(double **matrix) 
-{
-    free((char *) matrix[0]);
-    free((char *) matrix);
 }
 
 // Clearing menory from the device
@@ -150,22 +169,23 @@ void free_double_vector_device(double *vector)
     }
  }
 
-void free_double_matrix_device(struct cudaPitchedPtr matrix)
-{
-    if (cudaFree(matrix.ptr) != cudaSuccess)
-    {
-       fprintf(stderr, "Failed to free device memory for double matrix.\n");
-       cudaError_t error = cudaGetLastError();
-       fprintf(stderr, "CUDA error: %s\n", cudaGetErrorString(error));
-       exit(EXIT_FAILURE);
-    }
- }
 
  // Copying double vector from the host to device
 
 void copy_double_vector_fromHtoD(double *vectorD, double *vectorH, unsigned int vectorH_size)
 {
-    if ((cudaMemcpy(vectorD, &vectorH, vectorH_size * sizeof(double), cudaMemcpyHostToDevice)) != cudaSuccess)
+    if ((cudaMemcpy(vectorD, vectorH, vectorH_size * sizeof(double), cudaMemcpyHostToDevice)) != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to copy vector from host to the device. \n");
+        cudaError_t error = cudaGetLastError();
+        fprintf(stderr, "CUDA error: %s.\n",cudaGetErrorString(error));
+        exit(EXIT_FAILURE);
+    }
+}
+
+void copy_integer_vector_fromHtoD(int *vectorD, int *vectorH, unsigned int vectorH_size)
+{
+    if ((cudaMemcpy(vectorD, vectorH, vectorH_size * sizeof(int), cudaMemcpyHostToDevice)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy vector from host to the device. \n");
         cudaError_t error = cudaGetLastError();
@@ -176,39 +196,11 @@ void copy_double_vector_fromHtoD(double *vectorD, double *vectorH, unsigned int 
 
 // Copy 2D matrix from the host to device 
 
-void copy_double_2Dmatrix_fromHtoD(struct cudaPitchedPtr d_2D, double **h_2D, int x, int y, int z)
-{
-    struct cudaMemcpy3DParms temp_3d;
-    temp_3d.srcPtr.ptr = h_2D;
-    temp_3d.srcPtr.pitch = z * sizeof(double);
-    temp_3d.srcPtr.xsize = x;
-    temp_3d.srcPtr.ysize = y;
-    temp_3d.dstPtr.ptr = d_2D.ptr;
-    temp_3d.dstPtr.pitch = d_2D.pitch;
-    temp_3d.extent.width = x * sizeof(double);
-    temp_3d.extent.height = y;
-    temp_3d.extent.depth = z;
-    temp_3d.kind = cudaMemcpyHostToDevice;
-    /*
-    temp_3d.extent = e;
-    temp_3d.kind = cudaMemcpyHostToDevice;
-    temp_3d.dstPtr = d_2D;
-    temp_3d.srcPtr = h_2D;
-    */
-    if ((cudaMemcpy3D(&temp_3d)) != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy 2D matrix from host to the device. \n");
-        cudaError_t error = cudaGetLastError();
-        fprintf(stderr, "CUDA error: %s.\n",cudaGetErrorString(error));
-        exit(EXIT_FAILURE);
-    }
-}
-
 // Copying data from device to host
 
 void copy_double_vector_fromDtoH(double *vectorH, double *vectorD, unsigned int vectorD_size)
 {
-    if ((cudaMemcpy(&vectorH, vectorD, vectorD_size * sizeof(double), cudaMemcpyDeviceToHost)) != cudaSuccess)
+    if ((cudaMemcpy(vectorH, vectorD, vectorD_size * sizeof(double), cudaMemcpyDeviceToHost)) != cudaSuccess)
      {
          fprintf(stderr, "Failed to copy vector from device to host. \n");
          cudaError_t error = cudaGetLastError();
@@ -217,30 +209,18 @@ void copy_double_vector_fromDtoH(double *vectorH, double *vectorD, unsigned int 
      }
 }
 
-// Copy 2D matrix from the host to device 
-
-void copy_double_2Dmatrix_fromDtoH(double **h_2D, struct cudaPitchedPtr d_2D, int x, int y , int z)
+void copy_integer_vector_fromDtoH(int *vectorH, int *vectorD, unsigned int vectorD_size)
 {
-    struct cudaMemcpy3DParms temp_3d;
-    temp_3d.dstPtr.ptr = h_2D;
-    temp_3d.dstPtr.pitch = x * sizeof(double);
-    temp_3d.dstPtr.xsize = x;
-    temp_3d.dstPtr.ysize = y;
-    temp_3d.srcPtr.ptr = d_2D.ptr;
-    temp_3d.srcPtr.pitch = d_2D.pitch;
-    temp_3d.extent.width = x * sizeof(double);
-    temp_3d.extent.height = y;
-    temp_3d.extent.depth = z;
-    temp_3d.kind = cudaMemcpyDeviceToHost;
-    cudaError_t err = cudaMemcpy3D(&temp_3d);
-    if ((cudaMemcpy3D(&temp_3d)) != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy 2D matrix from device to the host. \n");
-        cudaError_t error = cudaGetLastError();
-        fprintf(stderr, "CUDA error: %s.\n",cudaGetErrorString(error));
-        exit(EXIT_FAILURE);
-    }
+    if ((cudaMemcpy(vectorH, vectorD, vectorD_size * sizeof(int), cudaMemcpyDeviceToHost)) != cudaSuccess)
+     {
+         fprintf(stderr, "Failed to copy vector from device to host. \n");
+         cudaError_t error = cudaGetLastError();
+         fprintf(stderr, "CUDA error: %s.\n",cudaGetErrorString(error));
+         exit(EXIT_FAILURE);
+     }
 }
+
+
 
 vector<string> listFiles(string path, string ext)
 {
