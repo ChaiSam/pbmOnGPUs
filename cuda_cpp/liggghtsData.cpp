@@ -205,7 +205,7 @@ vector<double> liggghtsData::getFinalDEMImpactData()
     return nImpacts;
 }
 
-arrayOfDouble2D liggghtsData::getfinalDEMCollisionData()
+arrayOfDouble2D liggghtsData::getFinalDEMCollisionData()
 {
     arrayOfDouble2D nCollisions;
 

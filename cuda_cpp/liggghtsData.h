@@ -25,7 +25,7 @@ class liggghtsData
       mapCollisionData getMapCollisionData(double time);
       mapImpactData getMapImpactData(double time);
 
-      arrayOfDouble2D getfinalDEMCollisionData();
+      arrayOfDouble2D getFinalDEMCollisionData();
       std::vector<double> getFinalDEMImpactData();
       std::vector<double> getDEMParticleDiameters();
       std::vector<double> getFinalDEMCollisionVelocity();
