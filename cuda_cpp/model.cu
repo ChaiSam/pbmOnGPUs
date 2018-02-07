@@ -83,6 +83,23 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
 }
 
 
+
+__global__ void launchCompartment() 
+{
+    int bix = blockIdx.x;
+    int biy = blockIdx.y;
+    int bdx = blockDim.x;
+    int bdy = blockDim.y;
+
+    int tix = threadIdx.x;
+    int tiy = threadIdx.y;
+    int dimx = gridDim.x;
+    int dimy = gridDim.y;
+
+    
+}
+
+
 int main(int argc, char *argv[])
 {
     cout << "Code begins..." << endl;
@@ -112,9 +129,9 @@ int main(int argc, char *argv[])
     pData->readPBMInputFile(pbmInFilePath);
 
     int nCompartments = pData->nCompartments;
-    // CompartmentIn CompartmentIn;
-    // PreviousCompartmentIn prevCompInData;
-    // CompartmentOut compartmentOut;
+    CompartmentIn CompartmentIn;
+    PreviousCompartmentIn prevCompInData;
+    CompartmentOut compartmentOut;
 
     unsigned int nFirstSolidBins = pData->nFirstSolidBins;
     unsigned int nSecondSolidBins = pData->nSecondSolidBins;
@@ -122,6 +139,7 @@ int main(int argc, char *argv[])
     size_t size1D = nFirstSolidBins;
     size_t size2D = nFirstSolidBins * nSecondSolidBins;
     size_t size3D = nFirstSolidBins * nSecondSolidBins * nCompartments;
+    size_t size4D = nFirstSolidBins * nFirstSolidBins * nSecondSolidBins * nSecondSolidBins;
 
     vector<double> h_vs(size1D, 0.0);
     vector<double> h_vss(size1D, 0.0);
@@ -157,9 +175,6 @@ int main(int argc, char *argv[])
     for (size_t i = 0; i < size2D; i++)
         h_fIn[i * particleIn.size() + i] = particleIn[i];
     
-    vector<double> h_sMeshXY(size2D, 0.0);
-    vector<double> h_ssMeshXY(size2D, 0.0);
-
     // allocation of memory for the matrices that will be copied onto the device from the host
     double *d_vs = device_alloc_double_vector(size1D);
     double *d_vss = device_alloc_double_vector(size1D);
@@ -197,8 +212,27 @@ int main(int argc, char *argv[])
     int *d_sIndB = device_alloc_integer_vector(size2D);
     int *d_ssIndB = device_alloc_integer_vector(size2D);
 
-    vector<int> h_sBreak(size2D, 0.0);
-    vector<int> h_ssBreak(size2D, 0.0);
+    // defining vectors for data required for compartment calculations
+    vector<double> h_sMeshXY(size2D, 0.0);
+    vector<double> h_ssMeshXY(size2D, 0.0);
+
+    vector<int> h_sAggregationCheck(size2D, 0);
+    vector<int> h_ssAggregationCheck(size2D, 0);
+
+    vector<double> h_sLow(size2D, 0.0);
+    vector<double> h_ssLow(size2D, 0.0);
+
+    vector<double> h_sHigh(size2D, 0.0);
+    vector<double> h_ssHigh(size2D, 0.0);
+
+    vector<int> h_sInd(size2D, 0);
+    vector<int> h_ssInd(size2D, 0);
+
+    vector<int> h_sCheckB(size2D, 0);
+    vector<int> h_ssCheckB(size2D, 0);
+
+    vector<int> h_sIndB(size2D, 0.0);
+    vector<int> h_ssIndB(size2D, 0.0);
 
     copy_double_vector_fromHtoD(d_vs, h_vs.data(), size1D);
     copy_double_vector_fromHtoD(d_vss, h_vss.data(), size1D);
@@ -218,9 +252,29 @@ int main(int argc, char *argv[])
     }
     cout << "Initialization complete" << endl;
 
+    // copy back data required for the compartment calculations
+     
+    copy_double_vector_fromDtoH(h_sMeshXY.data(), d_sMeshXY, size2D);
+    copy_double_vector_fromDtoH(h_ssMeshXY.data(), d_ssMeshXY, size2D);
 
-    copy_integer_vector_fromDtoH(h_sBreak.data(), d_ssIndB, size2D);
-    copy_integer_vector_fromDtoH(h_ssBreak.data(), d_ssIndB, size2D);
+    copy_integer_vector_fromDtoH(h_sAggregationCheck.data(), d_sAggregationCheck, size2D);
+    copy_integer_vector_fromDtoH(h_ssAggregationCheck.data(), d_ssAggregationCheck, size2D);
+
+    copy_double_vector_fromDtoH(h_sLow.data(), d_sLow, size2D);
+    copy_double_vector_fromDtoH(h_ssLow.data(), d_ssLow, size2D);
+
+    copy_double_vector_fromDtoH(h_sHigh.data(), d_sHigh, size2D);
+    copy_double_vector_fromDtoH(h_ssHigh.data(), d_ssHigh, size2D);
+
+    copy_integer_vector_fromDtoH(h_sInd.data(), d_sInd, size2D);
+    copy_integer_vector_fromDtoH(h_ssInd.data(), d_ssInd, size2D);
+
+    copy_integer_vector_fromDtoH(h_sCheckB.data(), d_sCheckB, size2D);
+    copy_integer_vector_fromDtoH(h_ssCheckB.data(), d_ssCheckB, size2D);
+
+    copy_integer_vector_fromDtoH(h_sIndB.data(), d_sIndB, size2D);
+    copy_integer_vector_fromDtoH(h_ssIndB.data(), d_ssIndB, size2D);
+
     cudaDeviceSynchronize();
 
     vector<double> h_fAllCompartments(size3D, 0.0);
@@ -282,6 +336,11 @@ int main(int argc, char *argv[])
     DUMP(DEMImpactData);
     DUMP(velocity);
 
+    //Initialize DEM data for compartment
+    compartmentDEMIn.DEMDiameter = DEMDiameter;
+    compartmentDEMIn.DEMCollisionData = DEMCollisionData;
+    compartmentDEMIn.DEMImpactData = DEMImpactData;
+
     vector<double> liquidAdditionRateAllCompartments(nCompartments, 0.0);
     double liqSolidRatio = pData->liqSolidRatio;
     double throughput = pData->throughput;
@@ -289,16 +348,93 @@ int main(int argc, char *argv[])
     double liquidAddRate = (liqSolidRatio * throughput) / (liqDensity * 3600);
     liquidAdditionRateAllCompartments[0] = liquidAddRate;
     
-    arrayOfDouble4D fAllCompartmentsOverTime;
-    arrayOfDouble4D externalVolumeBinsAllCompartmentsOverTime;
-    arrayOfDouble4D internalVolumeBinsAllCompartmentsOverTime;
-    arrayOfDouble4D liquidBinsAllCompartmentsOverTime;
-    arrayOfDouble4D gasBinsAllCompartmentsOverTime;
+    vector<double> fAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> externalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> internalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> liquidBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> gasBinsAllCompartmentsOverTime(size4D, 0.0);
 
     double granulatorLength = pData->granulatorLength;
     double partticleResTime = pData->partticleResTime;
     double particleAveVelo = granulatorLength /  partticleResTime;
     vector<double> particleAverageVelocity(nCompartments, particleAveVelo);
+
+    compartmentIn.vs = h_vs;
+    compartmentIn.vss = h_vss;
+
+    compartmentIn.diameter = diameter;
+
+    compartmentIn.sMeshXY = h_sMeshXY;
+    compartmentIn.ssMeshXY = h_ssMeshXY;
+
+    compartmentIn.sAggregationCheck = h_sAggregationCheck;
+    compartmentIn.ssAggregationCheck = h_ssAggregationCheck;
+
+    compartmentIn.sLow = h_sLow;
+    compartmentIn.sHigh = h_sHigh;
+
+    compartmentIn.ssLow = h_ssLow;
+    compartmentIn.ssHigh = h_vssHigh;
+
+    compartmentIn.sInd = h_sInd;
+    compartmentIn.ssInd = h_sInd;
+
+    compartmentIn.sCheckB = h_sCheckB;
+    compartmentIn.ssCheckB = h_ssCheckB;
+
+    compartmentIn.sIndB = h_sIndB;
+    compartmentIn.ssIndB = h_ssIndB;
+
+    vector<int> sieveGrid;
+    sieveGrid.push_back(38);
+    sieveGrid.push_back(63);
+    sieveGrid.push_back(90);
+    sieveGrid.push_back(125);
+    sieveGrid.push_back(250);
+    sieveGrid.push_back(355);
+    sieveGrid.push_back(500);
+    sieveGrid.push_back(710);
+    sieveGrid.push_back(850);
+    sieveGrid.push_back(1000);
+    sieveGrid.push_back(1400);
+    sieveGrid.push_back(2000);
+    sieveGrid.push_back(2380);
+    sieveGrid.push_back(4000);
+    size_t nSieveGrid = sieveGrid.size();
+
+    arrayOfDouble2D d10OverTime;
+    arrayOfDouble2D d50OverTime;
+    arrayOfDouble2D d90OverTime;
+
+    double time = stod(timeVal); // initial time to start PBM
+    double timeStep = 0.5; //1.0e-1;
+    vector<double> Time;
+
+    double lastTime = time;
+    int timeIdxCount = 0;
+    int lastTimeIdxCount = 0;
+
+    double premixTime = pData->premixTime;
+    double liqAddTime = pData->liqAddTime;
+    double postMixTime = pData->postMixTime;
+    double finalTime = premixTime + liqAddTime + postMixTime + stod(timeVal);
+    double initPorosity = pData->initPorosity;
+    
+    arrayOfDouble2D formationThroughAggregationOverTime;
+    arrayOfDouble2D depletionThroughAggregationOverTime;
+    arrayOfDouble2D formationThroughBreakageOverTime;
+    arrayOfDouble2D depletionThroughBreakageOverTime;
+    cout << "time" << endl;
+
+    while (time <= finalTime)
+    {
+    	vector<double> formationThroughAggregation(nCompartments, 0.0);
+        vector<double> depletionThroughAggregation(nCompartments, 0.0);
+        vector<double> formationThroughBreakage(nCompartments, 0.0);
+        vector<double> depletionThroughBreakage(nCompartments, 0.0);
+
+
+
 
 
 
