@@ -23,6 +23,10 @@ arrayOfDouble2D getArrayOfDouble2D(int n, int m, double val = 0.0);
 arrayOfDouble3D getArrayOfDouble3D(int n, int m, int p, double val = 0.0);
 arrayOfDouble4D getArrayOfDouble4D(int n, int m, int p, int q, double val = 0.0);
 
+std::vector<double> linearize2DVector(arrayOfDouble2D);
+std::vector<double> linearize3DVector(arrayOfDouble3D);
+std::vector<double> linearize4DVector(arrayOfDouble4D);
+
 double *alloc_double_vector(unsigned int);
 
 int *device_alloc_integer_vector(unsigned int);

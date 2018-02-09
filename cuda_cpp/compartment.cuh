@@ -6,50 +6,50 @@
 
 typedef struct
 {
-    arrayOfDouble2D fAll;
-    arrayOfDouble2D fLiquid;
-    arrayOfDouble2D fGas;
+    std::vector<double> fAll;
+    std::vector<double> fLiquid;
+    std::vector<double> fGas;
     double liquidAdditionRate;
 
     std::vector<double> vs;
     std::vector<double> vss;
 
-    arrayOfDouble2D sMeshXY;
-    arrayOfDouble2D ssMeshXY;
+    std::vector<double> sMeshXY;
+    std::vector<double> ssMeshXY;
 
-    arrayOfInt2D sAggregationCheck;
-    arrayOfInt2D ssAggregationCheck;
+    std::vector<int> sAggregationCheck;
+    std::vector<int> ssAggregationCheck;
 
-    arrayOfInt2D sInd;
-    arrayOfInt2D ssInd;
+    std::vector<int> sInd;
+    std::vector<int> ssInd;
 
-    arrayOfInt2D sIndB;
-    arrayOfInt2D ssIndB;
+    std::vector<int> sIndB;
+    std::vector<int> ssIndB;
 
-    arrayOfDouble2D sLow;
-    arrayOfDouble2D sHigh;
+    std::vector<double> sLow;
+    std::vector<double> sHigh;
 
-    arrayOfDouble2D ssLow;
-    arrayOfDouble2D ssHigh;
+    std::vector<double> ssLow;
+    std::vector<double> ssHigh;
 
-    arrayOfInt2D sCheckB;
-    arrayOfInt2D ssCheckB;
+    std::vector<int> sCheckB;
+    std::vector<int> ssCheckB;
 
-    arrayOfDouble2D diameter;
+    std::vector<double> diameter;
 
 } CompartmentIn;
 
 typedef struct
 {
-    arrayOfDouble2D dfAlldt;
-    arrayOfDouble2D dfLiquiddt;
-    arrayOfDouble2D dfGasdt;
-    arrayOfDouble2D liquidBins;
-    arrayOfDouble2D gasBins;
-    arrayOfDouble2D internalVolumeBins;
-    arrayOfDouble2D externalVolumeBins;
-    arrayOfDouble4D aggregationKernel;
-    arrayOfDouble4D breakageKernel;
+    std::vector<double> dfAlldt;
+    std::vector<double> dfLiquiddt;
+    std::vector<double> dfGasdt;
+    std::vector<double> liquidBins;
+    std::vector<double> gasBins;
+    std::vector<double> internalVolumeBins;
+    std::vector<double> externalVolumeBins;
+    std::vector<double> aggregationKernel;
+    std::vector<double> breakageKernel;
     double formationThroughAggregation;
     double depletionThroughAggregation;
     double formationThroughBreakage;
@@ -59,17 +59,17 @@ typedef struct
 typedef struct
 {
     std::vector<double> DEMDiameter;
-    arrayOfDouble2D DEMCollisionData;
+    std::vector<double> DEMCollisionData;
     std::vector<double> DEMImpactData;
 } CompartmentDEMIn;
 
 typedef struct
 {
-    arrayOfDouble2D fAllPreviousCompartment;
-    arrayOfDouble2D flPreviousCompartment;
-    arrayOfDouble2D fgPreviousCompartment;
-    arrayOfDouble2D fAllComingIn;
-    arrayOfDouble2D fgComingIn;
+    std::vector<double> fAllPreviousCompartment;
+    std::vector<double> flPreviousCompartment;
+    std::vector<double> fgPreviousCompartment;
+    std::vector<double> fAllComingIn;
+    std::vector<double> fgComingIn;
 } PreviousCompartmentIn;
 
 CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compartmentDEMIn, double time, double timeStep, double initialTime = 0.0);

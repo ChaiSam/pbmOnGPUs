@@ -4,16 +4,16 @@
 #include <string>
 #include <iostream>
 #include <stdio.h>
+#include <cuda_runtime.h>
 
 #include "utility.cuh"
 #include "parameterData.h"
 #include "liggghtsData.h"
+#include "compartment.cuh"
 
 using namespace std;
 
 #define TWOWAYCOUPLING false
-#define NTHREADS 16
-#define NBLOCKS 16
 
 // MACROS 
 // Calling macros for error check and dump data to files to VaribleName.txt
@@ -84,7 +84,10 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
 
 
 
-__global__ void launchCompartment() 
+__global__ void launchCompartment(PreviousCompartmentIn *prevCompInData, CompartmentIn *compartmentIn, CompartmentDEMIn *compartmentDEMIn, double time, double timeStep, double initialTime, 
+                                double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
+                                double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments, size_t size2D, size_t size3D, 
+                                size_t size4D, double *d_fIn, double initPorosity) 
 {
     int bix = blockIdx.x;
     int biy = blockIdx.y;
@@ -95,6 +98,27 @@ __global__ void launchCompartment()
     int tiy = threadIdx.y;
     int dimx = gridDim.x;
     int dimy = gridDim.y;
+
+    int idx = bix * bdx * bdy + tiy * bdx + tix;
+    int 2didx = bix * bdx + tix;
+
+    if (tiy == 0)
+    {
+        compartmentIn->fAll[tix] = d_fAllCompartments[2didx];
+        compartmentIn->fLiquid[tix] = d_flAllCompartments[2didx];
+        compartmentIn->fGas[tix] = d_fgAllCompartments[2didx];
+        compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[2didx];
+
+        if (bix == 0)
+        {
+            prevCompInData->fAllComingIn[tix] = d_fIn[tix];
+            double value = initPorosity * timeStep;
+            prevCompInData->fgComingIn[tix] = d_fIn[tix] * (compartmentIn->fAll)
+        }
+    }
+
+    
+
 
     
 }
@@ -129,9 +153,10 @@ int main(int argc, char *argv[])
     pData->readPBMInputFile(pbmInFilePath);
 
     int nCompartments = pData->nCompartments;
-    CompartmentIn CompartmentIn;
-    PreviousCompartmentIn prevCompInData;
-    CompartmentOut compartmentOut;
+    CompartmentIn compartmentIn, *d_compartmentIn;
+    PreviousCompartmentIn prevCompInData, *d_prevCompInData;
+    CompartmentOut compartmentOut, *d_compartmentOut;
+    CompartmentDEMIn compartmentDEMIn, *d_compartmentDEMIn;
 
     unsigned int nFirstSolidBins = pData->nFirstSolidBins;
     unsigned int nSecondSolidBins = pData->nSecondSolidBins;
@@ -155,10 +180,12 @@ int main(int argc, char *argv[])
     for (size_t i = 0; i < nSecondSolidBins; i++) 
         h_vss[i] = ssVolCoeff * pow(ssVolBase, i); // m^3
 
-    arrayOfDouble2D diameter = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+    arrayOfDouble2D diameter1 = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
     for (size_t s = 0; s < nFirstSolidBins; s++)
         for (size_t ss = 0; ss < nSecondSolidBins; ss++)
-            diameter[s][ss] = cbrt((6/M_PI) * (h_vs[s] + h_vss[ss]));
+            diameter1[s][ss] = cbrt((6/M_PI) * (h_vs[s] + h_vss[ss]));
+
+    vector<double> diameter = linearize2DVector(diameter1);
     
     vector<double> particleIn;
     particleIn.push_back(726657587.0);
@@ -237,10 +264,10 @@ int main(int argc, char *argv[])
     copy_double_vector_fromHtoD(d_vs, h_vs.data(), size1D);
     copy_double_vector_fromHtoD(d_vss, h_vss.data(), size1D);
 
-    int nBlocks = NBLOCKS;
-    int nThreads = NTHREADS;
+    int nBlocks = nFirstSolidBins;
+    int nThreads = nSecondSolidBins;
 
-    initialization_kernel<<<16,16>>>(d_vs, d_vss, size2D, fsVolCoeff, ssVolCoeff, fsVolBase, ssVolBase, d_sAgg,d_ssAgg, d_sAggregationCheck, d_ssAggregationCheck, 
+    initialization_kernel<<<nBlocks,nThreads>>>(d_vs, d_vss, size2D, fsVolCoeff, ssVolCoeff, fsVolBase, ssVolBase, d_sAgg,d_ssAgg, d_sAggregationCheck, d_ssAggregationCheck, 
                                     d_sLow, d_ssLow, d_sHigh, d_ssHigh, d_sMeshXY, d_ssMeshXY, d_sLoc, d_ssLoc, d_sInd, d_ssInd, d_sBreak, d_ssBreak, d_sLocBreak, d_ssLocBreak,
                                     d_sCheckB, d_ssCheckB, d_sIndB, d_ssIndB);
     cudaError_t err = cudaSuccess;
@@ -338,7 +365,7 @@ int main(int argc, char *argv[])
 
     //Initialize DEM data for compartment
     compartmentDEMIn.DEMDiameter = DEMDiameter;
-    compartmentDEMIn.DEMCollisionData = DEMCollisionData;
+    compartmentDEMIn.DEMCollisionData = linearize2DVector(DEMCollisionData);
     compartmentDEMIn.DEMImpactData = DEMImpactData;
 
     vector<double> liquidAdditionRateAllCompartments(nCompartments, 0.0);
@@ -348,16 +375,19 @@ int main(int argc, char *argv[])
     double liquidAddRate = (liqSolidRatio * throughput) / (liqDensity * 3600);
     liquidAdditionRateAllCompartments[0] = liquidAddRate;
     
-    vector<double> fAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> externalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> internalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> liquidBinsAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> gasBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> h_fAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> h_externalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> h_internalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> h_liquidBinsAllCompartmentsOverTime(size4D, 0.0);
+    vector<double> h_gasBinsAllCompartmentsOverTime(size4D, 0.0);
 
     double granulatorLength = pData->granulatorLength;
     double partticleResTime = pData->partticleResTime;
     double particleAveVelo = granulatorLength /  partticleResTime;
     vector<double> particleAverageVelocity(nCompartments, particleAveVelo);
+
+
+    //Initialize input data for compartment
 
     compartmentIn.vs = h_vs;
     compartmentIn.vss = h_vss;
@@ -374,7 +404,7 @@ int main(int argc, char *argv[])
     compartmentIn.sHigh = h_sHigh;
 
     compartmentIn.ssLow = h_ssLow;
-    compartmentIn.ssHigh = h_vssHigh;
+    compartmentIn.ssHigh = h_ssHigh;
 
     compartmentIn.sInd = h_sInd;
     compartmentIn.ssInd = h_sInd;
@@ -402,9 +432,9 @@ int main(int argc, char *argv[])
     sieveGrid.push_back(4000);
     size_t nSieveGrid = sieveGrid.size();
 
-    arrayOfDouble2D d10OverTime;
-    arrayOfDouble2D d50OverTime;
-    arrayOfDouble2D d90OverTime;
+    vector<double> d10OverTime(size2D, 0.0);
+    vector<double> d50OverTime(size2D, 0.0);
+    vector<double> d90OverTime(size2D, 0.0);
 
     double time = stod(timeVal); // initial time to start PBM
     double timeStep = 0.5; //1.0e-1;
@@ -420,28 +450,107 @@ int main(int argc, char *argv[])
     double finalTime = premixTime + liqAddTime + postMixTime + stod(timeVal);
     double initPorosity = pData->initPorosity;
     
-    arrayOfDouble2D formationThroughAggregationOverTime;
-    arrayOfDouble2D depletionThroughAggregationOverTime;
-    arrayOfDouble2D formationThroughBreakageOverTime;
-    arrayOfDouble2D depletionThroughBreakageOverTime;
+    vector<double> formationThroughAggregationOverTime;
+    vector<double> depletionThroughAggregationOverTime;
+    vector<double> formationThroughBreakageOverTime;
+    vector<double> depletionThroughBreakageOverTime;
     cout << "time" << endl;
+
+    dim3 compKernel_nblocks, compKernel_nthreads;
+    compKernel_nblocks = dim3(nCompartments,1,1);
+    compKernel_nthreads = dim3(size2D, size2D,1);
+
+    vector<double> temp(size2D, 0);
+    prevCompInData.fAllPreviousCompartment = temp;
+    prevCompInData.flPreviousCompartment = temp;
+    prevCompInData.fgPreviousCompartment = temp;
+    prevCompInData.fAllComingIn = temp;
+    prevCompInData.fgComingIn = temp;
+
+    // int compKernel_nblocks = nCompartments;
+    // int compKernel_nthreads = size2D * size2D;
+
+    // allocating memory for structures used for compartment calculations
+
+    err = cudaMalloc(&d_compartmentIn, sizeof(CompartmentIn));
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to  cudaMalloc : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    err = cudaMalloc(&d_prevCompInData, sizeof(PreviousCompartmentIn));
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to  cudaMalloc : prevCompInData (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    err = cudaMalloc(&d_compartmentDEMIn, sizeof(CompartmentDEMIn));
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to  cudaMalloc : compartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    // copying data to the allocated GPU
+
+    }
+    cudaMemcpy(d_compartmentIn, &compartmentIn, sizeof(CompartmentIn), cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to cudaMemcpy : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    cudaMemcpy(d_prevCompInData, &prevCompInData, sizeof(PreviousCompartmentIn), cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to cudaMemcpy : PreviousCompartmentIn (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    cudaMemcpy(d_compartmentDEMIn, &compartmentDEMIn, sizeof(CompartmentDEMIn), cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to cudaMemcpy : CompartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    
+    vector<double> h_formationThroughAggregation(nCompartments, 0.0);
+    vector<double> h_depletionThroughAggregation(nCompartments, 0.0);
+    vector<double> h_formationThroughBreakage(nCompartments, 0.0);
+    vector<double> h_depletionThroughBreakage(nCompartments, 0.0);
+
+    double *d_formationThroughAggregation = device_alloc_double_vector(nCompartments);
+    double *d_depletionThroughAggregation = device_alloc_double_vector(nCompartments);
+    double *d_formationThroughBreakage = device_alloc_double_vector(nCompartments);
+    double *d_depletionThroughBreakage = device_alloc_double_vector(nCompartments);
+
+    double *d_fAllCompartments = device_alloc_double_vector(size3D);
+    double *d_flAllCompartments = device_alloc_double_vector(size3D);
+    double *d_fgAllCompartments = device_alloc_double_vector(size3D);
+    double *d_liquidAdditionRateAllCompartments = device_alloc_double_vector(nCompartments);
+
+    double *d_fIn = device_alloc_double_vector(size2D);
+
+    copy_double_vector_fromHtoD(d_liquidAdditionRateAllCompartments, liquidAdditionRateAllCompartments.data(), nCompartments);
+    copy_double_vector_fromHtoD(d_fIn, h_fIn.data(), size2D);
+
 
     while (time <= finalTime)
     {
-    	vector<double> formationThroughAggregation(nCompartments, 0.0);
-        vector<double> depletionThroughAggregation(nCompartments, 0.0);
-        vector<double> formationThroughBreakage(nCompartments, 0.0);
-        vector<double> depletionThroughBreakage(nCompartments, 0.0);
+        copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
+        copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
+        copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
 
+        launchCompartment<<<compKernel_nblocks,compKernel_nthreads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, time, timeStep, stod(timeVal),
+                            d_formationThroughAggregation, d_depletionThroughAggregation, d_formationThroughBreakage, d_depletionThroughBreakage, d_fAllCompartments, 
+                            d_flAllCompartments, d_fgAllCompartments, d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity);
 
-
-
-
-
-
-
-
-
+    }
 
     cudaFree(d_vs);
     cudaFree(d_vss);
