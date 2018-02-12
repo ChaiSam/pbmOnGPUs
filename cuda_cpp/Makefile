@@ -3,7 +3,7 @@
 #target: dependencies
 #<tab>action
 
-CC=nvcc -std=c++11 -arch=sm_52 -g -Xcompiler -rdynamic -lineinfo
+CC=nvcc -std=c++11 -arch=sm_52 -g -Xcompiler -rdynamic -lineinfo -rdc=true
 #ARCH= -arch=sm_52
 
 all: model.out
@@ -11,8 +11,11 @@ all: model.out
 model.out: model.o liggghtsData.o atomFileParser.o parameterData.o utility.o
 	$(CC) model.o liggghtsData.o atomFileParser.o parameterData.o utility.o -o model.out
 
-model.o: model.cu liggghtsData.h utility.cuh  parameterData.h
+model.o: model.cu liggghtsData.h compartment.cuh utility.cuh  parameterData.h
 	$(CC) -c model.cu
+
+compartment.o: compartment.cu compartment.cuh liggghtsData.h utility.h parameterData.h
+	$(CC) -c compartment.cu
 
 liggghtsData.o: liggghtsData.cpp liggghtsData.h atomFileParser.h utility.cuh parameterData.h
 	$(CC) -c liggghtsData.cpp

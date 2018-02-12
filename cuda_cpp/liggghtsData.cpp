@@ -6,7 +6,7 @@
 #include "liggghtsData.h"
 #include "parameterData.h"
 
-#define ATOMFILEPATH "./sampledumpfile/"
+#define ATOMFILEPATH "./sampledumpfiles/"
 
 using namespace std;
 
@@ -90,14 +90,15 @@ void liggghtsData::readLiggghtsDataFiles(string coreVal, string diaVal)
 
     vector<string> collisionFileList;
     vector<string> impactFileList;
+    sort(fileList.begin(), fileList.end());
 
     for(auto fileName : fileList)
     {
-        if(!(fileName.substr(0, lengthsubStrCollision)).compare(subStrCollision));
+        if(!(fileName.substr(0, lengthsubStrCollision)).compare(subStrCollision))
             collisionFileList.push_back(fileName);
         
         if(!(fileName.substr(0, lengthsubStrImpact)).compare(subStrImpact))
-            impactFileList.push_back(fileName);       
+            impactFileList.push_back(fileName);
     }
 
     size_t nCountCollisionFiles = collisionFileList.size();
@@ -194,7 +195,7 @@ vector<double> liggghtsData::getFinalDEMImpactData()
     parameterData *pData = parameterData::getInstance();
     unsigned int nDEMBins =  pData->nDEMBins;
 
-    nImpacts.reserve(nDEMBins);
+    nImpacts.resize(nDEMBins);
 
     for (auto itMapData = mapData.begin(); itMapData != mapData.end(); itMapData++)
     {

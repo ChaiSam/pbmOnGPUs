@@ -9,7 +9,7 @@
 
 using namespace std;
 
-__global__ void performCompartmentCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compDEMIn, double time, double timeStep, double initialTime)
+__global__ void performAggCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compDEMIn, double time, double timeStep, double initialTime)
 {
     CompartmentOut compOut;
 }

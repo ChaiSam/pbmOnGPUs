@@ -135,7 +135,7 @@ double *device_alloc_double_vector(unsigned int nX)
 {
     double *vector;
 
-    if (cudaMalloc((void **) &vector, nX * sizeof(double)) != cudaSuccess)
+    if (cudaMalloc((void**) &vector, nX * sizeof(double)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to allocate device memory for the CUDA double vector.\n");
         cudaError_t error = cudaGetLastError();
@@ -144,6 +144,17 @@ double *device_alloc_double_vector(unsigned int nX)
     }
 
     return vector;
+}
+
+void device_alloc_double_vector(double * d, unsigned int nX)
+{
+  if (cudaMalloc((void**) &d, nX * sizeof(double)) != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to allocate device memory for the CUDA double vector.\n");
+        cudaError_t error = cudaGetLastError();
+        fprintf(stderr, "CUDA error: %s \n", cudaGetErrorString(error));
+        exit(EXIT_FAILURE);
+    }  
 }
 
 

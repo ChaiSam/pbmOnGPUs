@@ -31,6 +31,7 @@ double *alloc_double_vector(unsigned int);
 
 int *device_alloc_integer_vector(unsigned int);
 double *device_alloc_double_vector(unsigned int);
+void device_alloc_double_vector(double * d, unsigned int);
 
 void free_double_vector(double *);
 void free_double_vector_device(double **);
