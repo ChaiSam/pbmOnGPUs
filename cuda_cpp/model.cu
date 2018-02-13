@@ -100,20 +100,20 @@ __global__ void launchCompartment(PreviousCompartmentIn *prevCompInData, Compart
     int dimy = gridDim.y;
 
     int idx = bix * bdx * bdy + tiy * bdx + tix;
-    int 2didx = bix * bdx + tix;
+    int ddx = bix * bdx + tix;
 
     if (tiy == 0)
     {
-        compartmentIn->fAll[tix] = d_fAllCompartments[2didx];
-        compartmentIn->fLiquid[tix] = d_flAllCompartments[2didx];
-        compartmentIn->fGas[tix] = d_fgAllCompartments[2didx];
-        compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[2didx];
+        compartmentIn->fAll[tix] = d_fAllCompartments[ddx];
+        compartmentIn->fLiquid[tix] = d_flAllCompartments[ddx];
+        compartmentIn->fGas[tix] = d_fgAllCompartments[ddx];
+        compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[ddx];
 
         if (bix == 0)
         {
             prevCompInData->fAllComingIn[tix] = d_fIn[tix];
             double value = initPorosity * timeStep;
-            prevCompInData->fgComingIn[tix] = d_fIn[tix] * (compartmentIn->fAll)
+            // prevCompInData->fgComingIn[tix] = d_fIn[tix] * (compartmentIn->fAll)
         }
     }
 
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
     
     vector<double> h_fIn(size2D, 0.0);
     for (size_t i = 0; i < size2D; i++)
-        h_fIn[i * particleIn.size() + i] = particleIn[i];
+        h_fIn[i * size1D + i] = particleIn[i];
     
     // allocation of memory for the matrices that will be copied onto the device from the host
     double *d_vs = device_alloc_double_vector(size1D);
@@ -364,9 +364,9 @@ int main(int argc, char *argv[])
     DUMP(velocity);
 
     //Initialize DEM data for compartment
-    compartmentDEMIn.DEMDiameter = DEMDiameter;
-    compartmentDEMIn.DEMCollisionData = linearize2DVector(DEMCollisionData);
-    compartmentDEMIn.DEMImpactData = DEMImpactData;
+    compartmentDEMIn.DEMDiameter = DEMDiameter.data();
+    compartmentDEMIn.DEMCollisionData = linearize2DVector(DEMCollisionData).data();
+    compartmentDEMIn.DEMImpactData = DEMImpactData.data();
 
     vector<double> liquidAdditionRateAllCompartments(nCompartments, 0.0);
     double liqSolidRatio = pData->liqSolidRatio;
@@ -389,31 +389,31 @@ int main(int argc, char *argv[])
 
     //Initialize input data for compartment
 
-    compartmentIn.vs = h_vs;
-    compartmentIn.vss = h_vss;
+    compartmentIn.vs = h_vs.data();
+    compartmentIn.vss = h_vss.data();
 
-    compartmentIn.diameter = diameter;
+    compartmentIn.diameter = diameter.data();
 
-    compartmentIn.sMeshXY = h_sMeshXY;
-    compartmentIn.ssMeshXY = h_ssMeshXY;
+    compartmentIn.sMeshXY = h_sMeshXY.data();
+    compartmentIn.ssMeshXY = h_ssMeshXY.data();
 
-    compartmentIn.sAggregationCheck = h_sAggregationCheck;
-    compartmentIn.ssAggregationCheck = h_ssAggregationCheck;
+    compartmentIn.sAggregationCheck = h_sAggregationCheck.data();
+    compartmentIn.ssAggregationCheck = h_ssAggregationCheck.data();
 
-    compartmentIn.sLow = h_sLow;
-    compartmentIn.sHigh = h_sHigh;
+    compartmentIn.sLow = h_sLow.data();
+    compartmentIn.sHigh = h_sHigh.data();
 
-    compartmentIn.ssLow = h_ssLow;
-    compartmentIn.ssHigh = h_ssHigh;
+    compartmentIn.ssLow = h_ssLow.data();
+    compartmentIn.ssHigh = h_ssHigh.data();
 
-    compartmentIn.sInd = h_sInd;
-    compartmentIn.ssInd = h_sInd;
+    compartmentIn.sInd = h_sInd.data();
+    compartmentIn.ssInd = h_ssInd.data();
 
-    compartmentIn.sCheckB = h_sCheckB;
-    compartmentIn.ssCheckB = h_ssCheckB;
+    compartmentIn.sCheckB = h_sCheckB.data();
+    compartmentIn.ssCheckB = h_ssCheckB.data();
 
-    compartmentIn.sIndB = h_sIndB;
-    compartmentIn.ssIndB = h_ssIndB;
+    compartmentIn.sIndB = h_sIndB.data();
+    compartmentIn.ssIndB = h_ssIndB.data();
 
     vector<int> sieveGrid;
     sieveGrid.push_back(38);
@@ -461,11 +461,11 @@ int main(int argc, char *argv[])
     compKernel_nthreads = dim3(size2D, size2D,1);
 
     vector<double> temp(size2D, 0);
-    prevCompInData.fAllPreviousCompartment = temp;
-    prevCompInData.flPreviousCompartment = temp;
-    prevCompInData.fgPreviousCompartment = temp;
-    prevCompInData.fAllComingIn = temp;
-    prevCompInData.fgComingIn = temp;
+    prevCompInData.fAllPreviousCompartment = temp.data();
+    prevCompInData.flPreviousCompartment = temp.data();
+    prevCompInData.fgPreviousCompartment = temp.data();
+    prevCompInData.fAllComingIn = temp.data();
+    prevCompInData.fgComingIn = temp.data();
 
     // int compKernel_nblocks = nCompartments;
     // int compKernel_nthreads = size2D * size2D;
@@ -496,7 +496,6 @@ int main(int argc, char *argv[])
 
     // copying data to the allocated GPU
 
-    }
     cudaMemcpy(d_compartmentIn, &compartmentIn, sizeof(CompartmentIn), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
