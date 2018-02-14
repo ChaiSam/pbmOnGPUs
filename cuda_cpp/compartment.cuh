@@ -74,6 +74,6 @@ typedef struct
 
 // CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compartmentDEMIn, double time, double timeStep, double initialTime = 0.0);
 
-__global__ void performAggCalculations(PreviousCompartmentIn, CompartmentIn, CompartmentDEMIn, double time, double, double);
+__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, double, double, double);
 
 #endif // COMPARTMENT_CUH

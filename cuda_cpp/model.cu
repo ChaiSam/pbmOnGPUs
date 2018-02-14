@@ -82,12 +82,10 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
         d_ssIndB[bdx * bix + idx] = bdx + 1;
 }
 
-
-
-__global__ void launchCompartment(PreviousCompartmentIn *prevCompInData, CompartmentIn *compartmentIn, CompartmentDEMIn *compartmentDEMIn, double time, double timeStep, double initialTime, 
-                                double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
-                                double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments, size_t size2D, size_t size3D, 
-                                size_t size4D, double *d_fIn, double initPorosity) 
+__global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompartmentIn *d_prevCompInData, CompartmentOut *d_compartmentOut, CompartmentDEMIn *d_compartmentDEMIn, 
+                                double time, double timeStep, double initialTime, double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, 
+                                double *d_depletionThroughBreakage, double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments, 
+                                size_t size2D, size_t size3D, size_t size4D, double *d_fIn, double initPorosity)
 {
     int bix = blockIdx.x;
     int biy = blockIdx.y;
@@ -104,16 +102,28 @@ __global__ void launchCompartment(PreviousCompartmentIn *prevCompInData, Compart
 
     if (tiy == 0)
     {
-        compartmentIn->fAll[tix] = d_fAllCompartments[ddx];
-        compartmentIn->fLiquid[tix] = d_flAllCompartments[ddx];
-        compartmentIn->fGas[tix] = d_fgAllCompartments[ddx];
-        compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[ddx];
+        d_compartmentIn->fAll[tix] = d_fAllCompartments[ddx];
+        d_compartmentIn->fLiquid[tix] = d_flAllCompartments[ddx];
+        d_compartmentIn->fGas[tix] = d_fgAllCompartments[ddx];
+        d_compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[ddx];
 
         if (bix == 0)
         {
-            prevCompInData->fAllComingIn[tix] = d_fIn[tix];
+            d_prevCompInData->fAllComingIn[tix] = d_fIn[tix];
             double value = initPorosity * timeStep;
-            // prevCompInData->fgComingIn[tix] = d_fIn[tix] * (compartmentIn->fAll)
+            d_prevCompInData->fgComingIn[tix] = d_fIn[tix] * (d_compartmentIn->vs[tix % 16] + d_compartmentIn->vss[tix % 16]) * value;
+        }
+
+        else
+        {
+            d_prevCompInData->fAllPreviousCompartment[tix] = d_fAllCompartments[(bix - 1) * bdx + tix];
+            d_prevCompInData->flPreviousCompartment[tix] = d_flAllCompartments[(bix - 1) * bdx + tix];
+            d_prevCompInData->fgPreviousCompartment[tix] = d_fgAllCompartments[(bix - 1) * bdx + tix];
+        }
+
+        if (tix == 0)
+        {
+            performAggCalculations<<<1, (256, 256)>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, time, timeStep, initialTime);
         }
     }
 
@@ -153,10 +163,10 @@ int main(int argc, char *argv[])
     pData->readPBMInputFile(pbmInFilePath);
 
     int nCompartments = pData->nCompartments;
-    CompartmentIn compartmentIn, *d_compartmentIn;
-    PreviousCompartmentIn prevCompInData, *d_prevCompInData;
-    CompartmentOut compartmentOut, *d_compartmentOut;
-    CompartmentDEMIn compartmentDEMIn, *d_compartmentDEMIn;
+    CompartmentIn compartmentIn;
+    PreviousCompartmentIn prevCompInData;
+    CompartmentOut compartmentOut;
+    CompartmentDEMIn compartmentDEMIn;
 
     unsigned int nFirstSolidBins = pData->nFirstSolidBins;
     unsigned int nSecondSolidBins = pData->nSecondSolidBins;
@@ -545,7 +555,7 @@ int main(int argc, char *argv[])
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
 
-        launchCompartment<<<compKernel_nblocks,compKernel_nthreads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, time, timeStep, stod(timeVal),
+        launchCompartment<<<compKernel_nblocks,compKernel_nthreads>>>(time, timeStep, stod(timeVal),
                             d_formationThroughAggregation, d_depletionThroughAggregation, d_formationThroughBreakage, d_depletionThroughBreakage, d_fAllCompartments, 
                             d_flAllCompartments, d_fgAllCompartments, d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity);
 

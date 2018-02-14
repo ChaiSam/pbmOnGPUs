@@ -8,13 +8,13 @@ CC=nvcc -std=c++11 -arch=sm_52 -g -Xcompiler -rdynamic -lineinfo -rdc=true
 
 all: model.out
 
-model.out: model.o liggghtsData.o atomFileParser.o parameterData.o utility.o
-	$(CC) model.o liggghtsData.o atomFileParser.o parameterData.o utility.o -o model.out
+model.out: model.o compartment.o liggghtsData.o atomFileParser.o parameterData.o utility.o
+	$(CC) model.o compartment.o liggghtsData.o atomFileParser.o parameterData.o utility.o -o model.out
 
 model.o: model.cu liggghtsData.h compartment.cuh utility.cuh  parameterData.h
 	$(CC) -c model.cu
 
-compartment.o: compartment.cu compartment.cuh liggghtsData.h utility.h parameterData.h
+compartment.o: compartment.cu compartment.cuh liggghtsData.h utility.cuh parameterData.h
 	$(CC) -c compartment.cu
 
 liggghtsData.o: liggghtsData.cpp liggghtsData.h atomFileParser.h utility.cuh parameterData.h
@@ -22,6 +22,7 @@ liggghtsData.o: liggghtsData.cpp liggghtsData.h atomFileParser.h utility.cuh par
 
 atomFileParser.o: atomFileParser.cpp atomFileParser.h
 	$(CC) -c atomFileParser.cpp
+
 parameterData.o: parameterData.cpp parameterData.h utility.cuh parameters.h
 	$(CC) -c parameterData.cpp
 
