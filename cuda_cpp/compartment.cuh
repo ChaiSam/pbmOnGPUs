@@ -50,6 +50,7 @@ typedef struct
     double *externalVolumeBins;
     double *aggregationKernel;
     double *breakageKernel;
+    double *collisionFrequency;
     double formationThroughAggregation;
     double depletionThroughAggregation;
     double formationThroughBreakage;
@@ -61,6 +62,12 @@ typedef struct
     double *DEMDiameter;
     double *DEMCollisionData;
     double *DEMImpactData;
+    double *colProbability;
+    double *brProbability;
+    double *colEfficiency;
+    double *colFrequency;
+    double *velocityCol;
+    double uCriticalCol;
 } CompartmentDEMIn;
 
 typedef struct
@@ -90,6 +97,7 @@ typedef struct
 
 typedef struct
 {
+    double aggKernelConst;
     double *depletionOfGasThroughAggregation;
     double *depletionOfLiquidThroughAggregation;
     double *birthThroughAggregation;
@@ -148,6 +156,6 @@ typedef struct
 
 // CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, CompartmentIn compartmentIn, CompartmentDEMIn compartmentDEMIn, double time, double timeStep, double initialTime = 0.0);
 
-__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double);
+__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double);
 
 #endif // COMPARTMENT_CUH
