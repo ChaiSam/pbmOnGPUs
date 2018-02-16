@@ -94,59 +94,61 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     int bdy = blockDim.y;
 
     int tix = threadIdx.x;
-    int tiy = threadIdx.y;
-    int dimx = gridDim.x;
-    int dimy = gridDim.y;
+    // int tiy = threadIdx.y;
 
-    int idx = bix * bdx * bdy + tiy * bdx + tix;
+    // int idx = bix * bdx * bdy + tiy * bdx + tix;
     int ddx = bix * bdx + tix;
+    __syncthreads();
+    //if (tiy == 0)
 
-    if (tiy == 0)
+    d_compartmentIn->fAll[tix] = d_fAllCompartments[tix];
+    d_compartmentIn->fLiquid[tix] = d_flAllCompartments[tix];
+    d_compartmentIn->fGas[tix] = d_fgAllCompartments[tix];
+    d_compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[tix];
+
+    if (bix == 0)
     {
-        d_compartmentIn->fAll[tix] = d_fAllCompartments[ddx];
-        d_compartmentIn->fLiquid[tix] = d_flAllCompartments[ddx];
-        d_compartmentIn->fGas[tix] = d_fgAllCompartments[ddx];
-        d_compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[ddx];
-
-        if (bix == 0)
-        {
-            d_prevCompInData->fAllComingIn[tix] = d_fIn[tix];
-            double value = initPorosity * timeStep;
-            d_prevCompInData->fgComingIn[tix] = d_fIn[tix] * (d_compartmentIn->vs[tix % 16] + d_compartmentIn->vss[tix % 16]) * value;
-        }
-
-        else
-        {
-            d_prevCompInData->fAllPreviousCompartment[tix] = d_fAllCompartments[(bix - 1) * bdx + tix];
-            d_prevCompInData->flPreviousCompartment[tix] = d_flAllCompartments[(bix - 1) * bdx + tix];
-            d_prevCompInData->fgPreviousCompartment[tix] = d_fgAllCompartments[(bix - 1) * bdx + tix];
-        }
-
-        if (fabs(d_compartmentIn->fAll[tix] > 1e-16))
-        {
-            d_compartmentOut->liquidBins[tix] = d_compartmentIn->fLiquid[tix] / d_compartmentIn->fAll[tix];
-            d_compartmentOut->gasBins[tix] = d_compartmentIn->fGas[tix] / d_compartmentIn->fAll[tix];
-        }
-        else
-        {
-            d_compartmentOut->liquidBins[tix] = 0.0;
-            d_compartmentOut->gasBins[tix] = 0.0;
-        }
-
-        printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
-
-        if (tix == 0)
-        {
-            performAggCalculations<<<1,(256,256)>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep);
-            cudaError_t err = cudaSuccess;
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                printf("Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
-            }
-            printf("comp done \n");
-        }
+        d_prevCompInData->fAllComingIn[tix] = d_fIn[tix];
+        double value = initPorosity * timeStep;
+        d_prevCompInData->fgComingIn[tix] = d_fIn[tix] * (d_compartmentIn->vs[tix % 16] + d_compartmentIn->vss[tix % 16]) * value;
     }
+
+    else
+    {
+        d_prevCompInData->fAllPreviousCompartment[tix] = d_fAllCompartments[(bix - 1) * bdx + tix];
+        d_prevCompInData->flPreviousCompartment[tix] = d_flAllCompartments[(bix - 1) * bdx + tix];
+        d_prevCompInData->fgPreviousCompartment[tix] = d_fgAllCompartments[(bix - 1) * bdx + tix];
+    }
+
+    if (fabs(d_compartmentIn->fAll[tix] > 1e-16))
+    {
+        d_compartmentOut->liquidBins[tix] = d_compartmentIn->fLiquid[tix] / d_compartmentIn->fAll[tix];
+        d_compartmentOut->gasBins[tix] = d_compartmentIn->fGas[tix] / d_compartmentIn->fAll[tix];
+    }
+    else
+    {
+        d_compartmentOut->liquidBins[tix] = 0.0;
+        d_compartmentOut->gasBins[tix] = 0.0;
+    }
+
+    printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
+    dim3 compKernel_nblocks, compKernel_nthreads;
+    compKernel_nblocks = dim3(1,1,1);
+    compKernel_nthreads = dim3(size2D, size2D,1);
+
+    if (tix == 0)
+    {
+        performAggCalculations<<<(1,1,1),(256,256,1)>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep);
+        cudaDeviceSynchronize();
+        cudaError_t err = cudaSuccess;
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            printf("Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
+        }
+        printf("comp done \n");
+    }
+
     cudaDeviceSynchronize();
 }
 
@@ -544,6 +546,10 @@ int main(int argc, char *argv[])
     compartmentIn.sIndB = h_sIndB.data();
     compartmentIn.ssIndB = h_ssIndB.data();
 
+    compartmentIn.fAll = alloc_double_vector(size2D);
+    compartmentIn.fLiquid = alloc_double_vector(size2D);
+    compartmentIn.fGas = alloc_double_vector(size2D);
+
     vector<int> sieveGrid;
     sieveGrid.push_back(38);
     sieveGrid.push_back(63);
@@ -584,17 +590,16 @@ int main(int argc, char *argv[])
     vector<double> depletionThroughBreakageOverTime;
     cout << "time" << endl;
 
-    dim3 compKernel_nblocks, compKernel_nthreads;
-    compKernel_nblocks = dim3(nCompartments,1,1);
-    compKernel_nthreads = dim3(size2D, size2D,1);
+    
 
     vector<double> temp(size2D, 0);
     vector<double> temp4(size4D, 0);
-    prevCompInData.fAllPreviousCompartment = temp.data();
-    prevCompInData.flPreviousCompartment = temp.data();
-    prevCompInData.fgPreviousCompartment = temp.data();
-    prevCompInData.fAllComingIn = temp.data();
-    prevCompInData.fgComingIn = temp.data();
+    prevCompInData.fAllPreviousCompartment = alloc_double_vector(size2D);
+    prevCompInData.flPreviousCompartment = alloc_double_vector(size2D);
+    prevCompInData.fgPreviousCompartment = alloc_double_vector(size2D);
+    prevCompInData.fAllComingIn = alloc_double_vector(size2D);
+    prevCompInData.fgComingIn = alloc_double_vector(size2D);
+
 
     // defining compartment varibale pointers
 
@@ -602,80 +607,84 @@ int main(int argc, char *argv[])
     AggregationCompVar aggCompVar, *d_aggCompVar;
     BreakageCompVar brCompVar, *d_brCompVar;
 
-    compVar.internalLiquid = temp.data();
-    compVar.externalLiquid = temp.data();
-    compVar.externalLiquidContent = temp.data();
-    compVar.volumeBins = temp.data();
-    compVar.aggregationRate = temp4.data();
-    compVar.breakageRate = temp4.data();
-    compVar.particleMovement = temp.data();
-    compVar.liquidMovement = temp.data();
-    compVar.gasMovement = temp.data();
-    compVar.liquidBins = temp.data();
-    compVar.gasBins = temp.data();
+    compVar.internalLiquid = alloc_double_vector(size2D);
+    compVar.externalLiquid = alloc_double_vector(size2D);;
+    compVar.externalLiquidContent = alloc_double_vector(size2D);;
+    compVar.volumeBins = alloc_double_vector(size2D);;
+    compVar.aggregationRate = alloc_double_vector(size4D);
+    compVar.breakageRate = alloc_double_vector(size4D);
+    compVar.particleMovement = alloc_double_vector(size2D);;
+    compVar.liquidMovement = alloc_double_vector(size2D);;
+    compVar.gasMovement = alloc_double_vector(size2D);;
+    compVar.liquidBins = alloc_double_vector(size2D);;
+    compVar.gasBins = alloc_double_vector(size2D);
 
     // compartmentOut
 
-    compartmentOut.dfAlldt = temp.data();
-    compartmentOut.dfLiquiddt = temp.data();
-    compartmentOut.dfGasdt = temp.data();
-    compartmentOut.liquidBins = temp.data();
-    compartmentOut.gasBins = temp.data();
-    compartmentOut.internalVolumeBins = temp.data();
-    compartmentOut.externalVolumeBins = temp.data();
-    compartmentOut.aggregationKernel = temp4.data();
-    compartmentOut.breakageKernel = temp4.data();
+    compartmentOut.dfAlldt = alloc_double_vector(size2D);
+    compartmentOut.dfLiquiddt = alloc_double_vector(size2D);
+    compartmentOut.dfGasdt = alloc_double_vector(size2D);
+    compartmentOut.liquidBins = alloc_double_vector(size2D);
+    compartmentOut.gasBins = alloc_double_vector(size2D);
+    compartmentOut.internalVolumeBins = alloc_double_vector(size2D);
+    compartmentOut.externalVolumeBins = alloc_double_vector(size2D);
+    compartmentOut.aggregationKernel = alloc_double_vector(size4D);
+    compartmentOut.breakageKernel = alloc_double_vector(size4D);
+   
+
+    compartmentDEMIn.colEfficiency = alloc_double_vector(size4D);
 
     double aggKernelConst = pData->aggKernelConst;
     aggCompVar.aggKernelConst = pData->aggKernelConst;
-    aggCompVar.depletionOfGasThroughAggregation = temp.data();
-    aggCompVar.depletionOfLiquidThroughAggregation = temp.data();
-    aggCompVar.birthThroughAggregation = temp.data();
-    aggCompVar.firstSolidBirthThroughAggregation = temp.data();
-    aggCompVar.secondSolidBirthThroughAggregation = temp.data();
-    aggCompVar.liquidBirthThroughAggregation = temp.data();
-    aggCompVar.gasBirthThroughAggregation = temp.data();
-    aggCompVar.firstSolidVolumeThroughAggregation = temp.data();
-    aggCompVar.secondSolidVolumeThroughAggregation = temp.data();
-    aggCompVar.birthAggLowLow = temp.data();
-    aggCompVar.birthAggHighHigh = temp.data();
-    aggCompVar.birthAggLowHigh = temp.data();
-    aggCompVar.birthAggHighLow = temp.data();
-    aggCompVar.birthAggLowLowLiq = temp.data();
-    aggCompVar.birthAggHighHighLiq = temp.data();
-    aggCompVar.birthAggLowHighLiq = temp.data();
-    aggCompVar.birthAggHighLowLiq = temp.data();
-    aggCompVar.birthAggLowLowGas = temp.data();
-    aggCompVar.birthAggHighHighGas = temp.data();
-    aggCompVar.birthAggLowHighGas = temp.data();
-    aggCompVar.birthAggHighLowGas = temp.data();
-    aggCompVar.formationThroughAggregationCA = temp.data();
-    aggCompVar.formationOfLiquidThroughAggregationCA = temp.data();
-    aggCompVar.formationOfGasThroughAggregationCA = temp.data();
-    aggCompVar.depletionThroughAggregation = temp.data();
-    aggCompVar.depletionThroughBreakage = temp.data();
-    aggCompVar.depletionOfGasThroughBreakage = temp.data();
-    aggCompVar.depletionOfLiquidthroughBreakage = temp.data();
+    aggCompVar.depletionOfGasThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.depletionOfLiquidThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.birthThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.firstSolidBirthThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.secondSolidBirthThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.liquidBirthThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.gasBirthThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.firstSolidVolumeThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.secondSolidVolumeThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.birthAggLowLow = alloc_double_vector(size2D);
+    aggCompVar.birthAggHighHigh = alloc_double_vector(size2D);
+    aggCompVar.birthAggLowHigh = alloc_double_vector(size2D);
+    aggCompVar.birthAggHighLow = alloc_double_vector(size2D);
+    aggCompVar.birthAggLowLowLiq = alloc_double_vector(size2D);
+    aggCompVar.birthAggHighHighLiq = alloc_double_vector(size2D);
+    aggCompVar.birthAggLowHighLiq = alloc_double_vector(size2D);
+    aggCompVar.birthAggHighLowLiq = alloc_double_vector(size2D);
+    aggCompVar.birthAggLowLowGas = alloc_double_vector(size2D);
+    aggCompVar.birthAggHighHighGas = alloc_double_vector(size2D);
+    aggCompVar.birthAggLowHighGas = alloc_double_vector(size2D);
+    aggCompVar.birthAggHighLowGas = alloc_double_vector(size2D);
+    aggCompVar.formationThroughAggregationCA = alloc_double_vector(size2D);
+    aggCompVar.formationOfLiquidThroughAggregationCA = alloc_double_vector(size2D);
+    aggCompVar.formationOfGasThroughAggregationCA = alloc_double_vector(size2D);
+    aggCompVar.depletionThroughAggregation = alloc_double_vector(size2D);
+    aggCompVar.depletionThroughBreakage = alloc_double_vector(size2D);
+    aggCompVar.depletionOfGasThroughBreakage = alloc_double_vector(size2D);
+    aggCompVar.depletionOfLiquidthroughBreakage = alloc_double_vector(size2D);
 
-    brCompVar.birthThroughBreakage1 = temp.data();
-    brCompVar.birthThroughBreakage2 = temp.data();
-    brCompVar.firstSolidBirthThroughBreakage = temp.data();
-    brCompVar.secondSolidBirthThroughBreakage = temp.data();
-    brCompVar.liquidBirthThroughBreakage1 = temp.data();
-    brCompVar.gasBirthThroughBreakage1 = temp.data();
-    brCompVar.liquidBirthThroughBreakage2 = temp.data();
-    brCompVar.gasBirthThroughBreakage2 = temp.data();
-    brCompVar.firstSolidVolumeThroughBreakage = temp.data();
-    brCompVar.secondSolidVolumeThroughBreakage = temp.data();
-    brCompVar.fractionBreakage00 = temp.data();
-    brCompVar.fractionBreakage01 = temp.data();
-    brCompVar.fractionBreakage10 = temp.data();
-    brCompVar.fractionBreakage11 = temp.data();
-    brCompVar.formationThroughBreakageCA = temp.data();
-    brCompVar.formationOfLiquidThroughBreakageCA = temp.data();
-    brCompVar.formationOfGasThroughBreakageCA = temp.data();
-    brCompVar.transferThroughLiquidAddition = temp.data();
-    brCompVar.transferThroughConsolidation = temp.data();
+    brCompVar.birthThroughBreakage1 = alloc_double_vector(size2D);
+    brCompVar.birthThroughBreakage2 = alloc_double_vector(size2D);
+    brCompVar.firstSolidBirthThroughBreakage = alloc_double_vector(size2D);
+    brCompVar.secondSolidBirthThroughBreakage = alloc_double_vector(size2D);
+    brCompVar.liquidBirthThroughBreakage1 = alloc_double_vector(size2D);
+    brCompVar.gasBirthThroughBreakage1 = alloc_double_vector(size2D);
+    brCompVar.liquidBirthThroughBreakage2 = alloc_double_vector(size2D);
+    brCompVar.gasBirthThroughBreakage2 = alloc_double_vector(size2D);
+    brCompVar.firstSolidVolumeThroughBreakage = alloc_double_vector(size2D);
+    brCompVar.secondSolidVolumeThroughBreakage = alloc_double_vector(size2D);
+    brCompVar.fractionBreakage00 = alloc_double_vector(size2D);
+    brCompVar.fractionBreakage01 = alloc_double_vector(size2D);
+    brCompVar.fractionBreakage10 = alloc_double_vector(size2D);
+    brCompVar.fractionBreakage11 = alloc_double_vector(size2D);
+    brCompVar.formationThroughBreakageCA = alloc_double_vector(size2D);
+    brCompVar.formationOfLiquidThroughBreakageCA = alloc_double_vector(size2D);
+    brCompVar.formationOfGasThroughBreakageCA = alloc_double_vector(size2D);
+    brCompVar.transferThroughLiquidAddition = alloc_double_vector(size2D);
+    brCompVar.transferThroughConsolidation = alloc_double_vector(size2D);
+
 
     // allocating memory for structures used for compartment calculations
 
@@ -719,6 +728,13 @@ int main(int argc, char *argv[])
     if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to  cudaMalloc : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    err = cudaMalloc(&d_compartmentOut, sizeof(CompartmentOut));
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to  cudaMalloc : d_compartmentOut (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 
@@ -766,6 +782,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to cudaMemcpy : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    cudaMemcpy(d_compartmentOut, &compartmentOut, sizeof(CompartmentOut), cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to cudaMemcpy : compartmentOut (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
 
     vector<double> h_formationThroughAggregation(nCompartments, 0.0);
     vector<double> h_depletionThroughAggregation(nCompartments, 0.0);
@@ -792,16 +815,32 @@ int main(int argc, char *argv[])
     h_results = (CompartmentOut *)malloc(sizeof(CompartmentOut));
 
     h_demr = (CompartmentDEMIn *)malloc(sizeof(CompartmentDEMIn));
+
+    // dim3 compKernel_nblocks, compKernel_nthreads;
+    // compKernel_nblocks = dim3(nCompartments,1,1);
+    // compKernel_nthreads = dim3(size2D, size2D,1);
+    int compKernel_nblocks = 16;
+    int compKernel_nthreads = size2D * size2D;
     while (time <= finalTime)
     {
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
+        
+        launchCompartment<<<16,256>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
+                                                    time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
+                                                    d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
+                                                    d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep);
 
-        launchCompartment<<<compKernel_nblocks, compKernel_nthreads>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
-                                                                       time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,
-                                                                       d_formationThroughBreakage, d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments,
-                                                                       d_fgAllCompartments, d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep);
+        cudaDeviceSynchronize();
+        err = cudaSuccess;
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            fprintf(stderr, "Failed to launch launchCompartment kernel (error code %s)!\n", cudaGetErrorString(err));
+            exit(EXIT_FAILURE);
+        }
+
         cudaDeviceSynchronize();
         cout << "Compartment started " << endl;
         err = cudaMemcpy(h_results, d_compartmentOut, sizeof(CompartmentOut), cudaMemcpyDeviceToHost);
@@ -818,12 +857,11 @@ int main(int argc, char *argv[])
         }
         time = finalTime + 5.0;
     }
-    vector<double> h(size4D, 0.0);
-    for (int i = 0; i < size4D; i++)
-    {
-        cout << "At i = " << i << "  kernel = " << h_demr->colEfficiency[i] << endl;
-    }
-
+    // vector<double> h(size4D, 0.0);
+    // for (int i = 0; i < size4D; i++)
+    // {
+    //     cout << "At i = " << i << "  kernel = " << h_results->aggregationKernel[i] << endl;
+    // }
     cudaFree(d_vs);
     cudaFree(d_vss);
     // cudaFree(d_sMeshXY);
