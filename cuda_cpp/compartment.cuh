@@ -4,43 +4,91 @@
 #include <vector>
 #include "utility.cuh"
 
-typedef struct
+// typedef struct
+// {
+//     double *fAll;
+//     double *fLiquid;
+//     double *fGas;
+//     double liquidAdditionRate;
+
+//     double *vs;
+//     double *vss;
+
+//     double *sMeshXY;
+//     double *ssMeshXY;
+
+//     int *sAggregationCheck;
+//     int *ssAggregationCheck;
+
+//     int *sInd;
+//     int *ssInd;
+
+//     int *sIndB;
+//     int *ssIndB;
+
+//     double *sLow;
+//     double *sHigh;
+
+//     double *ssLow;
+//     double *ssHigh;
+
+//     int *sCheckB;
+//     int *ssCheckB;
+
+//     double *diameter;
+
+// } CompartmentIn;
+
+class CompartmentIn
 {
+public:
     double *fAll;
     double *fLiquid;
     double *fGas;
     double liquidAdditionRate;
-
     double *vs;
     double *vss;
-
     double *sMeshXY;
     double *ssMeshXY;
-
     int *sAggregationCheck;
     int *ssAggregationCheck;
-
     int *sInd;
     int *ssInd;
-
     int *sIndB;
     int *ssIndB;
-
     double *sLow;
     double *sHigh;
-
     double *ssLow;
     double *ssHigh;
-
     int *sCheckB;
     int *ssCheckB;
-
     double *diameter;
 
-} CompartmentIn;
+    CompartmentIn(unsigned int, unsigned int, unsigned int);
 
-typedef struct
+};
+
+// typedef struct
+// {
+//     double *dfAlldt;
+//     double *dfLiquiddt;
+//     double *dfGasdt;
+//     double *liquidBins;
+//     double *gasBins;
+//     double *internalVolumeBins;
+//     double *externalVolumeBins;
+//     double *aggregationKernel;
+//     double *breakageKernel;
+//     double *collisionFrequency;
+//     double formationThroughAggregation;
+//     double depletionThroughAggregation;
+//     double formationThroughBreakage;
+//     double depletionThroughBreakage;
+// } CompartmentOut;
+
+class CompartmentOut
 {
+public:
     double *dfAlldt;
     double *dfLiquiddt;
     double *dfGasdt;
@@ -55,10 +103,26 @@ typedef struct
     double depletionThroughAggregation;
     double formationThroughBreakage;
     double depletionThroughBreakage;
-} CompartmentOut;
 
-typedef struct
+    CompartmentOut(unsigned int, unsigned int, unsigned int);
+};
+
+// typedef struct
+// {
+//     double *DEMDiameter;
+//     double *DEMCollisionData;
+//     double *DEMImpactData;
+//     double *colProbability;
+//     double *brProbability;
+//     double *colEfficiency;
+//     double *colFrequency;
+//     double *velocityCol;
+//     double uCriticalCol;
+// } CompartmentDEMIn;
+
+class CompartmentDEMIn
 {
+public:
     double *DEMDiameter;
     double *DEMCollisionData;
     double *DEMImpactData;
@@ -68,19 +132,50 @@ typedef struct
     double *colFrequency;
     double *velocityCol;
     double uCriticalCol;
-} CompartmentDEMIn;
 
-typedef struct
+    CompartmentDEMIn(unsigned int, unsigned int, unsigned int);
+};
+
+// typedef struct
+// {
+//     double *fAllPreviousCompartment;
+//     double *flPreviousCompartment;
+//     double *fgPreviousCompartment;
+//     double *fAllComingIn;
+//     double *fgComingIn;
+// } PreviousCompartmentIn;
+
+class PreviousCompartmentIn
 {
+public:
     double *fAllPreviousCompartment;
     double *flPreviousCompartment;
     double *fgPreviousCompartment;
     double *fAllComingIn;
     double *fgComingIn;
-} PreviousCompartmentIn;
 
-typedef struct
+    PreviousCompartmentIn(unsigned int, unsigned int, unsigned int);
+};
+
+
+// typedef struct
+// {
+//     double *internalLiquid;
+//     double *externalLiquid;
+//     double *externalLiquidContent;
+//     double *volumeBins;
+//     double *aggregationRate;
+//     double *breakageRate;
+//     double *particleMovement;
+//     double *liquidMovement;
+//     double *gasMovement;
+//     double *liquidBins;
+//     double *gasBins;
+// } CompartmentVar;
+
+class CompartmentVar
 {
+public:
     double *internalLiquid;
     double *externalLiquid;
     double *externalLiquidContent;
@@ -92,12 +187,15 @@ typedef struct
     double *gasMovement;
     double *liquidBins;
     double *gasBins;
-} CompartmentVar;
+
+    CompartmentVar(unsigned int, unsigned int, unsigned int);
+};
+
 
 
 typedef struct
 {
-    double aggKernelConst;
+    double *aggKernelConst;
     double *depletionOfGasThroughAggregation;
     double *depletionOfLiquidThroughAggregation;
     double *birthThroughAggregation;

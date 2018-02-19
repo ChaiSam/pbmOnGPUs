@@ -96,6 +96,18 @@ vector<double> linearize4DVector(arrayOfDouble4D array4D)
 
 // allocate pointer for variables on the host
 
+int *alloc_integer_vector(unsigned int nX)
+{
+    int *vector_tmp;
+
+    if((vector_tmp = (int *) malloc((size_t) (nX * sizeof(int)))) == NULL)
+    {
+        fprintf(stderr, "failed to alllocate memory for the pointer. \n");
+        exit(EXIT_FAILURE);
+    }
+    return vector_tmp;
+}
+
 double *alloc_double_vector(unsigned int nX)
 {
     double *vector_tmp;
@@ -105,7 +117,6 @@ double *alloc_double_vector(unsigned int nX)
         fprintf(stderr, "failed to alllocate memory for the pointer. \n");
         exit(EXIT_FAILURE);
     }
-
     return vector_tmp;
 }
 
@@ -143,12 +154,12 @@ double *device_alloc_double_vector(unsigned int nX)
         exit(EXIT_FAILURE);
     }
 
-    return vector;
+    return (double *) vector;
 }
 
-void device_alloc_double_vector(double * d, unsigned int nX)
+void device_alloc_double_vector(double ** d, unsigned int nX)
 {
-  if (cudaMalloc((void**) &d, nX * sizeof(double)) != cudaSuccess)
+  if (cudaMalloc((void**) d, nX * sizeof(double)) != cudaSuccess)
     {
         fprintf(stderr, "Failed to allocate device memory for the CUDA double vector.\n");
         cudaError_t error = cudaGetLastError();
