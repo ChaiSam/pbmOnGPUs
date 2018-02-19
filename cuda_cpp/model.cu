@@ -607,17 +607,46 @@ int main(int argc, char *argv[])
     AggregationCompVar aggCompVar, *d_aggCompVar;
     BreakageCompVar brCompVar, *d_brCompVar;
 
+    // Allocating the arrays for each pointer of the compVar
     compVar.internalLiquid = alloc_double_vector(size2D);
-    compVar.externalLiquid = alloc_double_vector(size2D);;
-    compVar.externalLiquidContent = alloc_double_vector(size2D);;
-    compVar.volumeBins = alloc_double_vector(size2D);;
+    compVar.externalLiquid = alloc_double_vector(size2D);
+    compVar.externalLiquidContent = alloc_double_vector(size2D);
+    compVar.volumeBins = alloc_double_vector(size2D);
     compVar.aggregationRate = alloc_double_vector(size4D);
     compVar.breakageRate = alloc_double_vector(size4D);
-    compVar.particleMovement = alloc_double_vector(size2D);;
-    compVar.liquidMovement = alloc_double_vector(size2D);;
-    compVar.gasMovement = alloc_double_vector(size2D);;
-    compVar.liquidBins = alloc_double_vector(size2D);;
+    compVar.particleMovement = alloc_double_vector(size2D);
+    compVar.liquidMovement = alloc_double_vector(size2D);
+    compVar.gasMovement = alloc_double_vector(size2D);
+    compVar.liquidBins = alloc_double_vector(size2D);
     compVar.gasBins = alloc_double_vector(size2D);
+
+    // Allocating compVar pointers on the GPU device
+    
+    d_compVar->internalLiquid = device_alloc_double_vector(size2D);
+    d_compVar->externalLiquid = device_alloc_double_vector(size2D);
+    d_compVar->externalLiquidContent = device_alloc_double_vector(size2D);
+    d_compVar->volumeBins = device_alloc_double_vector(size2D);
+    d_compVar->aggregationRate = device_alloc_double_vector(size4D);
+    d_compVar->breakageRate = device_alloc_double_vector(size4D);
+    d_compVar->particleMovement = device_alloc_double_vector(size2D);
+    d_compVar->liquidMovement = device_alloc_double_vector(size2D);
+    d_compVar->gasMovement = device_alloc_double_vector(size2D);
+    d_compVar->liquidBins = device_alloc_double_vector(size2D);
+    d_compVar->gasBins = device_alloc_double_vector(size2D);
+
+    // Copying data into the device from the host
+
+    copy_double_vector_fromHtoD(d_compVar->internalLiquid, compVar.internalLiquid, size2D);
+    copy_double_vector_fromHtoD(d_compVar->externalLiquid, compVar.externalLiquid, size2D);
+    copy_double_vector_fromHtoD(d_compVar->externalLiquidContent, compVar.externalLiquidContent, size2D);
+    copy_double_vector_fromHtoD(d_compVar->volumeBins, compVar.volumeBins, size2D);
+    copy_double_vector_fromHtoD(d_compVar->aggregationRate, compVar.aggregationRate, size4D);
+    copy_double_vector_fromHtoD(d_compVar->breakageRate, compVar.breakageRate, size4D);
+    copy_double_vector_fromHtoD(d_compVar->particleMovement, compVar.particleMovement, size2D);
+    copy_double_vector_fromHtoD(d_compVar->liquidMovement, compVar.liquidMovement, size2D);
+    copy_double_vector_fromHtoD(d_compVar->gasMovement, compVar.gasMovement, size2D);
+    copy_double_vector_fromHtoD(d_compVar->liquidBins, compVar.liquidBins, size2D);
+    copy_double_vector_fromHtoD(d_compVar->gasBins, compVar.gasBins, size2D);
 
     // compartmentOut
 
@@ -631,11 +660,55 @@ int main(int argc, char *argv[])
     compartmentOut.aggregationKernel = alloc_double_vector(size4D);
     compartmentOut.breakageKernel = alloc_double_vector(size4D);
    
+    // Allocating the compartment out variables for the device
+
+    d_compartmentOut->dfAlldt = device_alloc_double_vector(size2D);
+    d_compartmentOut->dfLiquiddt = device_alloc_double_vector(size2D);
+    d_compartmentOut->dfGasdt = device_alloc_double_vector(size2D);
+    d_compartmentOut->liquidBins = device_alloc_double_vector(size2D);
+    d_compartmentOut->gasBins = device_alloc_double_vector(size2D);
+    d_compartmentOut->internalVolumeBins = device_alloc_double_vector(size2D);
+    d_compartmentOut->externalVolumeBins = device_alloc_double_vector(size2D);
+    d_compartmentOut->aggregationKernel = device_alloc_double_vector(size4D);
+    d_compartmentOut->breakageKernel = device_alloc_double_vector(size4D);
+
+    copy_double_vector_fromHtoD(d_compartmentOut->dfAlldt, compartmentOut.dfAlldt, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->dfLiquiddt, compartmentOut.dfLiquiddt, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->dfGasdt, compartmentOut.dfGasdt, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->liquidBins, compartmentOut.liquidBins, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->gasBins, compartmentOut.gasBins, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->internalVolumeBins, compartmentOut.internalVolumeBins, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->externalVolumeBins, compartmentOut.externalVolumeBins, size2D);
+    copy_double_vector_fromHtoD(d_compartmentOut->aggregationKernel, compartmentOut.aggregationKernel, size4D);
+    copy_double_vector_fromHtoD(d_compartmentOut->breakageKernel, compartmentOut.breakageKernel, size4D);
 
     compartmentDEMIn.colEfficiency = alloc_double_vector(size4D);
 
+    // Allocating the compartmentDEMIn pointers to the device and copying the data
+
+    
+    d_compartmentDEMIn->DEMDiameter = device_alloc_double_vector(size1D);
+    d_compartmentDEMIn->DEMCollisionData = device_alloc_double_vector(size2D);
+    d_compartmentDEMIn->DEMImpactData = device_alloc_double_vector(size1D);
+    d_compartmentDEMIn->colProbability = device_alloc_double_vector(size1D);
+    d_compartmentDEMIn->brProbability = device_alloc_double_vector(size1D);
+    d_compartmentDEMIn->colEfficiency = device_alloc_double_vector(size4D);
+    d_compartmentDEMIn->colFrequency = device_alloc_double_vector(size4D);
+    d_compartmentDEMIn->velocityCol = device_alloc_double_vector(size2D);
+
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->DEMDiameter, compartmentDEMIn.DEMDiameter, size1D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->DEMCollisionData, compartmentDEMIn.DEMCollisionData, size2D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->DEMImpactData, compartmentDEMIn.DEMImpactData, size1D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->colProbability, compartmentDEMIn.colProbability, size1D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->brProbability, compartmentDEMIn.brProbability, size1D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->colEfficiency, compartmentDEMIn.colEfficiency, size4D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->colFrequency, compartmentDEMIn.colFrequency, size4D);
+    copy_double_vector_fromHtoD(d_compartmentDEMIn->velocityCol, compartmentDEMIn.velocityCol, size2D);
+
+
+    // Defining aggregration parameters and also allocating them on the deivce and copying the data
     double aggKernelConst = pData->aggKernelConst;
-    aggCompVar.aggKernelConst = pData->aggKernelConst;
+    aggCompVar.aggKernelConst = aggKernelConst;
     aggCompVar.depletionOfGasThroughAggregation = alloc_double_vector(size2D);
     aggCompVar.depletionOfLiquidThroughAggregation = alloc_double_vector(size2D);
     aggCompVar.birthThroughAggregation = alloc_double_vector(size2D);
@@ -665,6 +738,69 @@ int main(int argc, char *argv[])
     aggCompVar.depletionOfGasThroughBreakage = alloc_double_vector(size2D);
     aggCompVar.depletionOfLiquidthroughBreakage = alloc_double_vector(size2D);
 
+    d_aggCompVar->aggKernelConst = device_alloc_double_vector(1);
+    d_aggCompVar->depletionOfGasThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->depletionOfLiquidThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->firstSolidBirthThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->secondSolidBirthThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->liquidBirthThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->gasBirthThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->firstSolidVolumeThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->secondSolidVolumeThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggLowLow = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggHighHigh = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggLowHigh = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggHighLow = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggLowLowLiq = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggHighHighLiq = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggLowHighLiq = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggHighLowLiq = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggLowLowGas = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggHighHighGas = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggLowHighGas = device_alloc_double_vector(size2D);
+    d_aggCompVar->birthAggHighLowGas = device_alloc_double_vector(size2D);
+    d_aggCompVar->formationThroughAggregationCA = device_alloc_double_vector(size2D);
+    d_aggCompVar->formationOfLiquidThroughAggregationCA = device_alloc_double_vector(size2D);
+    d_aggCompVar->formationOfGasThroughAggregationCA = device_alloc_double_vector(size2D);
+    d_aggCompVar->depletionThroughAggregation = device_alloc_double_vector(size2D);
+    d_aggCompVar->depletionThroughBreakage = device_alloc_double_vector(size2D);
+    d_aggCompVar->depletionOfGasThroughBreakage = device_alloc_double_vector(size2D);
+    d_aggCompVar->depletionOfLiquidthroughBreakage = device_alloc_double_vector(size2D);
+
+    copy_double_vector_fromHtoD(d_aggCompVar->aggKernel, aggCompVar.a, 1);
+    copy_double_vector_fromHtoD(d_aggCompVar->depletionOfGasThroughAggregation, aggCompVar.depletionOfGasThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->depletionOfLiquidThroughAggregation, aggCompVar.depletionOfLiquidThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthThroughAggregation, aggCompVar.birthThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->firstSolidBirthThroughAggregation, aggCompVar.firstSolidBirthThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->secondSolidBirthThroughAggregation, aggCompVar.secondSolidBirthThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->liquidBirthThroughAggregation, aggCompVar.liquidBirthThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->gasBirthThroughAggregation, aggCompVar.gasBirthThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->firstSolidVolumeThroughAggregation, aggCompVar.firstSolidVolumeThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->secondSolidVolumeThroughAggregation, aggCompVar.secondSolidVolumeThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggLowLow, aggCompVar.birthAggLowLow, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggHighHigh, aggCompVar.birthAggHighHigh, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggLowHigh, aggCompVar.birthAggLowHigh, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggHighLow, aggCompVar.birthAggHighLow, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggLowLowLiq, aggCompVar.birthAggLowLowLiq, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggHighHighLiq, aggCompVar.birthAggHighHighLiq, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggLowHighLiq, aggCompVar.birthAggLowHighLiq, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggHighLowLiq, aggCompVar.birthAggHighLowLiq, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggLowLowGas, aggCompVar.birthAggLowLowGas, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggHighHighGas, aggCompVar.birthAggHighHighGas, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggLowHighGas, aggCompVar.birthAggLowHighGas, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->birthAggHighLowGas, aggCompVar.birthAggHighLowGas, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->formationThroughAggregationCA, aggCompVar.formationThroughAggregationCA, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->formationOfLiquidThroughAggregationCA, aggCompVar.formationOfLiquidThroughAggregationCA, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->formationOfGasThroughAggregationCA, aggCompVar.formationOfGasThroughAggregationCA, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->depletionThroughAggregation, aggCompVar.depletionThroughAggregation, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->depletionThroughBreakage, aggCompVar.depletionThroughBreakage, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->depletionOfGasThroughBreakage, aggCompVar.depletionOfGasThroughBreakage, size2D);
+    copy_double_vector_fromHtoD(d_aggCompVar->depletionOfLiquidthroughBreakage, aggCompVar.depletionOfLiquidthroughBreakage, size2D);
+
+
+    // Allocating and copying device pointers for breakage
+
     brCompVar.birthThroughBreakage1 = alloc_double_vector(size2D);
     brCompVar.birthThroughBreakage2 = alloc_double_vector(size2D);
     brCompVar.firstSolidBirthThroughBreakage = alloc_double_vector(size2D);
@@ -686,109 +822,149 @@ int main(int argc, char *argv[])
     brCompVar.transferThroughConsolidation = alloc_double_vector(size2D);
 
 
-    // allocating memory for structures used for compartment calculations
+    d_brCompVar->birthThroughBreakage1 = device_alloc_double_vector(size2D);
+    d_brCompVar->birthThroughBreakage2 = device_alloc_double_vector(size2D);
+    d_brCompVar->firstSolidBirthThroughBreakage = device_alloc_double_vector(size2D);
+    d_brCompVar->secondSolidBirthThroughBreakage = device_alloc_double_vector(size2D);
+    d_brCompVar->liquidBirthThroughBreakage1 = device_alloc_double_vector(size2D);
+    d_brCompVar->gasBirthThroughBreakage1 = device_alloc_double_vector(size2D);
+    d_brCompVar->liquidBirthThroughBreakage2 = device_alloc_double_vector(size2D);
+    d_brCompVar->gasBirthThroughBreakage2 = device_alloc_double_vector(size2D);
+    d_brCompVar->firstSolidVolumeThroughBreakage = device_alloc_double_vector(size2D);
+    d_brCompVar->secondSolidVolumeThroughBreakage = device_alloc_double_vector(size2D);
+    d_brCompVar->fractionBreakage00 = device_alloc_double_vector(size2D);
+    d_brCompVar->fractionBreakage01 = device_alloc_double_vector(size2D);
+    d_brCompVar->fractionBreakage10 = device_alloc_double_vector(size2D);
+    d_brCompVar->fractionBreakage11 = device_alloc_double_vector(size2D);
+    d_brCompVar->formationThroughBreakageCA = device_alloc_double_vector(size2D);
+    d_brCompVar->formationOfLiquidThroughBreakageCA = device_alloc_double_vector(size2D);
+    d_brCompVar->formationOfGasThroughBreakageCA = device_alloc_double_vector(size2D);
+    d_brCompVar->transferThroughLiquidAddition = device_alloc_double_vector(size2D);
+    d_brCompVar->transferThroughConsolidation = device_alloc_double_vector(size2D);
 
-    err = cudaMalloc(&d_compartmentIn, sizeof(CompartmentIn));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    err = cudaMalloc(&d_prevCompInData, sizeof(PreviousCompartmentIn));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : prevCompInData (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    err = cudaMalloc(&d_compartmentDEMIn, sizeof(CompartmentDEMIn));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : compartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    err = cudaMalloc(&d_compVar, sizeof(CompartmentVar));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : CompartmentVar (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    err = cudaMalloc(&d_aggCompVar, sizeof(AggregationCompVar));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : AggregationCompVar (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    err = cudaMalloc(&d_brCompVar, sizeof(BreakageCompVar));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    err = cudaMalloc(&d_compartmentOut, sizeof(CompartmentOut));
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to  cudaMalloc : d_compartmentOut (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
+    copy_double_vector_fromHtoD(d_brCompVar->birthThroughBreakage1, brCompVar.birthThroughBreakage1, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->birthThroughBreakage2, brCompVar.birthThroughBreakage2, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->firstSolidBirthThroughBreakage, brCompVar.firstSolidBirthThroughBreakage, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->secondSolidBirthThroughBreakage, brCompVar.secondSolidBirthThroughBreakage, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->liquidBirthThroughBreakage1, brCompVar.liquidBirthThroughBreakage1, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->gasBirthThroughBreakage1, brCompVar.gasBirthThroughBreakage1, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->liquidBirthThroughBreakage2, brCompVar.liquidBirthThroughBreakage2, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->gasBirthThroughBreakage2, brCompVar.gasBirthThroughBreakage2, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->firstSolidVolumeThroughBreakage, brCompVar.firstSolidVolumeThroughBreakage, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->secondSolidVolumeThroughBreakage, brCompVar.secondSolidVolumeThroughBreakage, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->fractionBreakage00, brCompVar.fractionBreakage00, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->fractionBreakage01, brCompVar.fractionBreakage01, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->fractionBreakage10, brCompVar.fractionBreakage10, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->fractionBreakage11, brCompVar.fractionBreakage11, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->formationThroughBreakageCA, brCompVar.formationThroughBreakageCA, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->formationOfLiquidThroughBreakageCA, brCompVar.formationOfLiquidThroughBreakageCA, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->formationOfGasThroughBreakageCA, brCompVar.formationOfGasThroughBreakageCA, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->transferThroughLiquidAddition, brCompVar.transferThroughLiquidAddition, size2D);
+    copy_double_vector_fromHtoD(d_brCompVar->transferThroughConsolidation, brCompVar.transferThroughConsolidation, size2D);
 
-    // copying data to the allocated GPU
+    // // allocating memory for structures used for compartment calculations
 
-    cudaMemcpy(d_compartmentIn, &compartmentIn, sizeof(CompartmentIn), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    cudaMemcpy(d_prevCompInData, &prevCompInData, sizeof(PreviousCompartmentIn), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : PreviousCompartmentIn (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    cudaMemcpy(d_compartmentDEMIn, &compartmentDEMIn, sizeof(CompartmentDEMIn), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : CompartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    cudaMemcpy(d_aggCompVar, &aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : AggregationCompVar (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    cudaMemcpy(d_compVar, &compVar, sizeof(CompartmentVar), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : CompartmentVar (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    cudaMemcpy(d_brCompVar, &brCompVar, sizeof(BreakageCompVar), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-    cudaMemcpy(d_compartmentOut, &compartmentOut, sizeof(CompartmentOut), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to cudaMemcpy : compartmentOut (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
+    // err = cudaMalloc(&d_compartmentIn, sizeof(CompartmentIn));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // err = cudaMalloc(&d_prevCompInData, sizeof(PreviousCompartmentIn));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : prevCompInData (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // err = cudaMalloc(&d_compartmentDEMIn, sizeof(CompartmentDEMIn));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : compartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // err = cudaMalloc(&d_compVar, sizeof(CompartmentVar));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : CompartmentVar (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // err = cudaMalloc(&d_aggCompVar, sizeof(AggregationCompVar));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : AggregationCompVar (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // err = cudaMalloc(&d_brCompVar, sizeof(BreakageCompVar));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // err = cudaMalloc(&d_compartmentOut, sizeof(CompartmentOut));
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to  cudaMalloc : d_compartmentOut (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+
+    // // copying data to the allocated GPU
+
+    // cudaMemcpy(d_compartmentIn, &compartmentIn, sizeof(CompartmentIn), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // cudaMemcpy(d_prevCompInData, &prevCompInData, sizeof(PreviousCompartmentIn), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : PreviousCompartmentIn (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // cudaMemcpy(d_compartmentDEMIn, &compartmentDEMIn, sizeof(CompartmentDEMIn), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : CompartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // cudaMemcpy(d_aggCompVar, &aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : AggregationCompVar (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // cudaMemcpy(d_compVar, &compVar, sizeof(CompartmentVar), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : CompartmentVar (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // cudaMemcpy(d_brCompVar, &brCompVar, sizeof(BreakageCompVar), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
+    // cudaMemcpy(d_compartmentOut, &compartmentOut, sizeof(CompartmentOut), cudaMemcpyHostToDevice);
+    // err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    // {
+    //     fprintf(stderr, "Failed to cudaMemcpy : compartmentOut (error code %s)!\n", cudaGetErrorString(err));
+    //     exit(EXIT_FAILURE);
+    // }
 
     vector<double> h_formationThroughAggregation(nCompartments, 0.0);
     vector<double> h_depletionThroughAggregation(nCompartments, 0.0);
