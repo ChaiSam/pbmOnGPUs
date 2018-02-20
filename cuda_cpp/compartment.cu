@@ -37,9 +37,13 @@ __global__ void performAggCalculations(PreviousCompartmentIn *prevCompIn, Compar
         compartmentDEMIn->colEfficiency[idx4] = 0.0;
     compartmentDEMIn->colFrequency[idx4] = (compartmentDEMIn->DEMCollisionData[tix] * timeStep) / demTimeStep;
 
-    compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst[0] * compartmentDEMIn->colFrequency[idx4] * compartmentDEMIn->colEfficiency[idx4];
-    printf("Value of kernel at %d and %d is %f ", tix, tiy, compartmentOut->aggregationKernel[idx4]);
+    compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst * compartmentDEMIn->colFrequency[idx4] * compartmentDEMIn->colEfficiency[idx4];
+    printf("Value of kernel at %d and %d is %f \n", tix, tiy, compartmentOut->aggregationKernel[idx4]);
 }
+
+
+
+// ============ Constructors for the Classes =================
 
 
 CompartmentVar :: CompartmentVar(unsigned int nX2, unsigned int nX4, unsigned int check)
@@ -50,8 +54,8 @@ CompartmentVar :: CompartmentVar(unsigned int nX2, unsigned int nX4, unsigned in
         externalLiquid = alloc_double_vector(nX2);
         externalLiquidContent = alloc_double_vector(nX2);
         volumeBins = alloc_double_vector(nX2);
-        aggregationRate = alloc_double_vector(nX2);
-        breakageRate = alloc_double_vector(nX2);
+        aggregationRate = alloc_double_vector(nX4);
+        breakageRate = alloc_double_vector(nX4);
         particleMovement = alloc_double_vector(nX2);
         liquidMovement = alloc_double_vector(nX2);
         gasMovement = alloc_double_vector(nX2);
@@ -65,8 +69,8 @@ CompartmentVar :: CompartmentVar(unsigned int nX2, unsigned int nX4, unsigned in
         externalLiquid = device_alloc_double_vector(nX2);
         externalLiquidContent = device_alloc_double_vector(nX2);
         volumeBins = device_alloc_double_vector(nX2);
-        aggregationRate = device_alloc_double_vector(nX2);
-        breakageRate = device_alloc_double_vector(nX2);
+        aggregationRate = device_alloc_double_vector(nX4);
+        breakageRate = device_alloc_double_vector(nX4);
         particleMovement = device_alloc_double_vector(nX2);
         liquidMovement = device_alloc_double_vector(nX2);
         gasMovement = device_alloc_double_vector(nX2);
@@ -162,27 +166,27 @@ CompartmentDEMIn :: CompartmentDEMIn(unsigned int nX2, unsigned int nX4, unsigne
 {
     if (check == 0)
     {
-        DEMDiameter = alloc_double_vector(nX2);
+        DEMDiameter = alloc_double_vector(sqrt(nX2));
         DEMCollisionData = alloc_double_vector(nX2);
-        DEMImpactData = alloc_double_vector(nX2);
-        colProbability = alloc_double_vector(nX2);
-        brProbability = alloc_double_vector(nX2);
-        colEfficiency = alloc_double_vector(nX2);
-        colFrequency = alloc_double_vector(nX2);
-        velocityCol = alloc_double_vector(nX2);
+        DEMImpactData = alloc_double_vector(sqrt(nX2));
+        colProbability = alloc_double_vector(sqrt(nX2));
+        brProbability = alloc_double_vector(sqrt(nX2));
+        colEfficiency = alloc_double_vector(nX4);
+        colFrequency = alloc_double_vector(nX4);
+        velocityCol = alloc_double_vector(sqrt(nX2));
         uCriticalCol = 0.0;
     }
 
     else if (check == 1)
     {
-        DEMDiameter = device_alloc_double_vector(nX2);
+        DEMDiameter = device_alloc_double_vector(sqrt(nX2));
         DEMCollisionData = device_alloc_double_vector(nX2);
-        DEMImpactData = device_alloc_double_vector(nX2);
-        colProbability = device_alloc_double_vector(nX2);
-        brProbability = device_alloc_double_vector(nX2);
-        colEfficiency = device_alloc_double_vector(nX2);
-        colFrequency = device_alloc_double_vector(nX2);
-        velocityCol = device_alloc_double_vector(nX2);
+        DEMImpactData = device_alloc_double_vector(sqrt(nX2));
+        colProbability = device_alloc_double_vector(sqrt(nX2));
+        brProbability = device_alloc_double_vector(sqrt(nX2));
+        colEfficiency = device_alloc_double_vector(nX4);
+        colFrequency = device_alloc_double_vector(nX4);
+        velocityCol = device_alloc_double_vector(sqrt(nX2));
         uCriticalCol = 0.0;
     }
 
@@ -231,4 +235,127 @@ CompartmentOut :: CompartmentOut(unsigned int nX2, unsigned int nX4, unsigned in
 
     else
         printf("\n Wrong Value of check passed in CompartmentOut call \n");
+}
+
+BreakageCompVar :: BreakageCompVar(unsigned int nX2, unsigned int nX4, unsigned int check)
+{
+    if (check == 0)
+    {
+        birthThroughBreakage1 = alloc_double_vector(nX2);
+        birthThroughBreakage2 = alloc_double_vector(nX2);
+        firstSolidBirthThroughBreakage = alloc_double_vector(nX2);
+        secondSolidBirthThroughBreakage = alloc_double_vector(nX2);
+        liquidBirthThroughBreakage1 = alloc_double_vector(nX2);
+        gasBirthThroughBreakage1 = alloc_double_vector(nX2);
+        liquidBirthThroughBreakage2 = alloc_double_vector(nX2);
+        gasBirthThroughBreakage2 = alloc_double_vector(nX2);
+        firstSolidVolumeThroughBreakage = alloc_double_vector(nX2);
+        secondSolidVolumeThroughBreakage = alloc_double_vector(nX2);
+        fractionBreakage00 = alloc_double_vector(nX2);
+        fractionBreakage01 = alloc_double_vector(nX2);
+        fractionBreakage10 = alloc_double_vector(nX2);
+        fractionBreakage11 = alloc_double_vector(nX2);
+        formationThroughBreakageCA = alloc_double_vector(nX2);
+        formationOfLiquidThroughBreakageCA = alloc_double_vector(nX2);
+        formationOfGasThroughBreakageCA = alloc_double_vector(nX2);
+        transferThroughLiquidAddition = alloc_double_vector(nX2);
+        transferThroughConsolidation = alloc_double_vector(nX2);
+    }
+
+    else if (check == 1)
+    {
+        birthThroughBreakage1 = device_alloc_double_vector(nX2);
+        birthThroughBreakage2 = device_alloc_double_vector(nX2);
+        firstSolidBirthThroughBreakage = device_alloc_double_vector(nX2);
+        secondSolidBirthThroughBreakage = device_alloc_double_vector(nX2);
+        liquidBirthThroughBreakage1 = device_alloc_double_vector(nX2);
+        gasBirthThroughBreakage1 = device_alloc_double_vector(nX2);
+        liquidBirthThroughBreakage2 = device_alloc_double_vector(nX2);
+        gasBirthThroughBreakage2 = device_alloc_double_vector(nX2);
+        firstSolidVolumeThroughBreakage = device_alloc_double_vector(nX2);
+        secondSolidVolumeThroughBreakage = device_alloc_double_vector(nX2);
+        fractionBreakage00 = device_alloc_double_vector(nX2);
+        fractionBreakage01 = device_alloc_double_vector(nX2);
+        fractionBreakage10 = device_alloc_double_vector(nX2);
+        fractionBreakage11 = device_alloc_double_vector(nX2);
+        formationThroughBreakageCA = device_alloc_double_vector(nX2);
+        formationOfLiquidThroughBreakageCA = device_alloc_double_vector(nX2);
+        formationOfGasThroughBreakageCA = device_alloc_double_vector(nX2);
+        transferThroughLiquidAddition = device_alloc_double_vector(nX2);
+        transferThroughConsolidation = device_alloc_double_vector(nX2);
+    }
+
+    else
+        printf("\n Wrong Value of check passed in BreakageCompVar call \n");
+}
+
+AggregationCompVar :: AggregationCompVar(unsigned int nX2, unsigned int nX4, unsigned int check)
+{
+    if (check == 0)
+    {
+        aggKernelConst = 0.0;
+        depletionOfGasThroughAggregation = alloc_double_vector(nX2);
+        depletionOfLiquidThroughAggregation = alloc_double_vector(nX2);
+        birthThroughAggregation = alloc_double_vector(nX2);
+        firstSolidBirthThroughAggregation = alloc_double_vector(nX2);
+        secondSolidBirthThroughAggregation = alloc_double_vector(nX2);
+        liquidBirthThroughAggregation = alloc_double_vector(nX2);
+        gasBirthThroughAggregation = alloc_double_vector(nX2);
+        firstSolidVolumeThroughAggregation = alloc_double_vector(nX2);
+        secondSolidVolumeThroughAggregation = alloc_double_vector(nX2);
+        birthAggLowLow = alloc_double_vector(nX2);
+        birthAggHighHigh = alloc_double_vector(nX2);
+        birthAggLowHigh = alloc_double_vector(nX2);
+        birthAggHighLow = alloc_double_vector(nX2);
+        birthAggLowLowLiq = alloc_double_vector(nX2);
+        birthAggHighHighLiq = alloc_double_vector(nX2);
+        birthAggLowHighLiq = alloc_double_vector(nX2);
+        birthAggHighLowLiq = alloc_double_vector(nX2);
+        birthAggLowLowGas = alloc_double_vector(nX2);
+        birthAggHighHighGas = alloc_double_vector(nX2);
+        birthAggLowHighGas = alloc_double_vector(nX2);
+        birthAggHighLowGas = alloc_double_vector(nX2);
+        formationThroughAggregationCA = alloc_double_vector(nX2);
+        formationOfLiquidThroughAggregationCA = alloc_double_vector(nX2);
+        formationOfGasThroughAggregationCA = alloc_double_vector(nX2);
+        depletionThroughAggregation = alloc_double_vector(nX2);
+        depletionThroughBreakage = alloc_double_vector(nX2);
+        depletionOfGasThroughBreakage = alloc_double_vector(nX2);
+        depletionOfLiquidthroughBreakage = alloc_double_vector(nX2);
+    }
+
+    else if (check == 1)
+    {
+        aggKernelConst = 0.0;
+        depletionOfGasThroughAggregation = device_alloc_double_vector(nX2);
+        depletionOfLiquidThroughAggregation = device_alloc_double_vector(nX2);
+        birthThroughAggregation = device_alloc_double_vector(nX2);
+        firstSolidBirthThroughAggregation = device_alloc_double_vector(nX2);
+        secondSolidBirthThroughAggregation = device_alloc_double_vector(nX2);
+        liquidBirthThroughAggregation = device_alloc_double_vector(nX2);
+        gasBirthThroughAggregation = device_alloc_double_vector(nX2);
+        firstSolidVolumeThroughAggregation = device_alloc_double_vector(nX2);
+        secondSolidVolumeThroughAggregation = device_alloc_double_vector(nX2);
+        birthAggLowLow = device_alloc_double_vector(nX2);
+        birthAggHighHigh = device_alloc_double_vector(nX2);
+        birthAggLowHigh = device_alloc_double_vector(nX2);
+        birthAggHighLow = device_alloc_double_vector(nX2);
+        birthAggLowLowLiq = device_alloc_double_vector(nX2);
+        birthAggHighHighLiq = device_alloc_double_vector(nX2);
+        birthAggLowHighLiq = device_alloc_double_vector(nX2);
+        birthAggHighLowLiq = device_alloc_double_vector(nX2);
+        birthAggLowLowGas = device_alloc_double_vector(nX2);
+        birthAggHighHighGas = device_alloc_double_vector(nX2);
+        birthAggLowHighGas = device_alloc_double_vector(nX2);
+        birthAggHighLowGas = device_alloc_double_vector(nX2);
+        formationThroughAggregationCA = device_alloc_double_vector(nX2);
+        formationOfLiquidThroughAggregationCA = device_alloc_double_vector(nX2);
+        formationOfGasThroughAggregationCA = device_alloc_double_vector(nX2);
+        depletionThroughAggregation = device_alloc_double_vector(nX2);
+        depletionThroughBreakage = device_alloc_double_vector(nX2);
+        depletionOfGasThroughBreakage = device_alloc_double_vector(nX2);
+        depletionOfLiquidthroughBreakage = device_alloc_double_vector(nX2);
+    }
+    else
+        printf("\n Wrong Value of check passed in BreakageCompVar call \n");
 }

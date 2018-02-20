@@ -33,6 +33,8 @@ using namespace std;
 // extern __shared__ double *d_sMeshXY, *d_ssMeshXY;
 
 
+// ==================================== INITIALIZATION KERNEL ===================================================
+
 __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D, double fsVolCoeff, double ssVolCoeff, double fsVolBase, double ssVolBase, double *d_sAgg, 
                                       double *d_ssAgg, int *d_sAggregationCheck, int *d_ssAggregationCheck, double *d_sLow, double *d_ssLow, double *d_sHigh, double *d_ssHigh, 
                                       double *d_sMeshXY, double *d_ssMeshXY, int *d_sLoc, int *d_ssLoc, int *d_sInd, int *d_ssInd, double *d_sBreak, double *d_ssBreak, 
@@ -81,6 +83,8 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
     if (d_ssIndB[bdx * bix + idx] < 1)
         d_ssIndB[bdx * bix + idx] = bdx + 1;
 }
+
+// ================================= COMPARTMENT LAUNCH KERNEL ============================================================
 
 __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompartmentIn *d_prevCompInData, CompartmentOut *d_compartmentOut, CompartmentDEMIn *d_compartmentDEMIn,
                                   CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, BreakageCompVar *d_brCompVar, double time, double timeStep, double initialTime,
@@ -131,14 +135,14 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_compartmentOut->gasBins[tix] = 0.0;
     }
 
-    printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
+    // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
     dim3 compKernel_nblocks, compKernel_nthreads;
     compKernel_nblocks = dim3(1,1,1);
     compKernel_nthreads = dim3(size2D, size2D,1);
 
     if (tix == 0)
     {
-        performAggCalculations<<<1,1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep);
+        performAggCalculations<<<1,256>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep);
         cudaDeviceSynchronize();
         cudaError_t err = cudaSuccess;
         err = cudaGetLastError();
@@ -152,6 +156,8 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     cudaDeviceSynchronize();
 }
 
+
+// ===================================== MAIN FUNCTION ======================================================
 
 int main(int argc, char *argv[])
 {
@@ -191,11 +197,10 @@ int main(int argc, char *argv[])
     size_t size3D = size2D * nCompartments;
     size_t size4D = size2D * size2D;
 
-    CompartmentIn compartmentIn(size2D, size4D, 0),*d_compartmentIn;
-    d_compartmentIn = new CompartmentIn(size2D, size4D, 1);
-    PreviousCompartmentIn prevCompInData(size2D, size4D, 0), *d_prevCompInData;
-    CompartmentOut compartmentOut(size2D, size4D, 0), *d_compartmentOut;
-    CompartmentDEMIn compartmentDEMIn(size2D, size4D, 0), *d_compartmentDEMIn;
+    CompartmentIn compartmentIn(size2D, size4D, 0), x_compartmentIn(size2D, size4D, 1), *d_compartmentIn;
+    PreviousCompartmentIn prevCompInData(size2D, size4D, 0), x_prevCompInData(size2D, size4D, 1), *d_prevCompInData;
+    CompartmentOut compartmentOut(size2D, size4D, 0), x_compartmentOut(size2D, size4D, 1), *d_compartmentOut;
+    CompartmentDEMIn compartmentDEMIn(size2D, size4D, 0), x_compartmentDEMIn(size2D, size4D, 1), *d_compartmentDEMIn;
 
 
     vector<double> h_vs(size1D, 0.0);
@@ -401,7 +406,7 @@ int main(int argc, char *argv[])
 
     double demTimeStep = pData->demTimeStep;
 
-    compartmentDEMIn.velocityCol = colVelocity.data();
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.velocityCol, colVelocity.data(), size1D);
 
     double inverseDiameterSum = 0.0;
     double inverseMassSum = 0.0;
@@ -422,7 +427,7 @@ int main(int argc, char *argv[])
     double harmonic_diameter = sized / inverseDiameterSum;
     double harmonic_mass = sized / inverseMassSum;
     double uCritical = (10 + (1 / coefOfRest)) * log((liqThick / surfAsp)) * (3 * M_PI * pow(harmonic_diameter, 2) * bindVisc) / (8 * harmonic_mass);
-    compartmentDEMIn.uCriticalCol = uCritical;
+    x_compartmentDEMIn.uCriticalCol = uCritical;
     // cout << "Critical velocity for agg is " << uCritical << endl;
 
         int veloSize = colVelocity.size();
@@ -448,7 +453,7 @@ int main(int argc, char *argv[])
 
     
 
-    compartmentDEMIn.colProbability = colProbablityOfVelocity.data();
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.colProbability, colProbablityOfVelocity.data(), size1D);
 
     // vector<double> impactFrequency = DEMImpactData;
     // for (int s = 0; s < nFirstSolidBins; s++)
@@ -490,7 +495,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    compartmentDEMIn.brProbability = breakageProbablityOfVelocity.data();
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.brProbability, breakageProbablityOfVelocity.data(), size1D);
+
+    cout << "HII" << endl;
 
     DUMP2D(DEMCollisionData);
     DUMP(DEMDiameter);
@@ -498,9 +505,9 @@ int main(int argc, char *argv[])
     DUMP(velocity);
 
     //Initialize DEM data for compartment
-    compartmentDEMIn.DEMDiameter = DEMDiameter.data();
-    compartmentDEMIn.DEMCollisionData = linearize2DVector(DEMCollisionData).data();
-    compartmentDEMIn.DEMImpactData = DEMImpactData.data();
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.DEMDiameter, DEMDiameter.data(), size1D);
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.DEMCollisionData, linearize2DVector(DEMCollisionData).data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.DEMImpactData, DEMImpactData.data(), size1D);
 
     vector<double> liquidAdditionRateAllCompartments(nCompartments, 0.0);
     double liqSolidRatio = pData->liqSolidRatio;
@@ -523,27 +530,23 @@ int main(int argc, char *argv[])
 
     //Initialize input data for compartment
 
-    compartmentIn.vs = h_vs.data();
-    compartmentIn.vss = h_vss.data();
-    compartmentIn.diameter = diameter.data();
-    compartmentIn.sMeshXY = h_sMeshXY.data();
-    compartmentIn.ssMeshXY = h_ssMeshXY.data();
-    compartmentIn.sAggregationCheck = h_sAggregationCheck.data();
-    compartmentIn.ssAggregationCheck = h_ssAggregationCheck.data();
-    compartmentIn.sLow = h_sLow.data();
-    compartmentIn.sHigh = h_sHigh.data();
-    compartmentIn.ssLow = h_ssLow.data();
-    compartmentIn.ssHigh = h_ssHigh.data();
-    compartmentIn.sInd = h_sInd.data();
-    compartmentIn.ssInd = h_ssInd.data();
-    compartmentIn.sCheckB = h_sCheckB.data();
-    compartmentIn.ssCheckB = h_ssCheckB.data();
-    compartmentIn.sIndB = h_sIndB.data();
-    compartmentIn.ssIndB = h_ssIndB.data();
-
-    // compartmentIn.fAll = alloc_double_vector(size2D);
-    // compartmentIn.fLiquid = alloc_double_vector(size2D);
-    // compartmentIn.fGas = alloc_double_vector(size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.vs, h_vs.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.vss, h_vss.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.diameter, diameter.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.sMeshXY, h_sMeshXY.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.ssMeshXY, h_ssMeshXY.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.sAggregationCheck, h_sAggregationCheck.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.ssAggregationCheck, h_ssAggregationCheck.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.sLow, h_sLow.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.sHigh, h_sHigh.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.ssLow, h_ssLow.data(), size2D);
+    copy_double_vector_fromHtoD(x_compartmentIn.ssHigh, h_ssHigh.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.sInd, h_sInd.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.ssInd, h_ssInd.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.sCheckB, h_sCheckB.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.ssCheckB, h_ssCheckB.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.sIndB, h_sIndB.data(), size2D);
+    copy_integer_vector_fromHtoD(x_compartmentIn.ssIndB, h_ssIndB.data(), size2D);
 
     vector<int> sieveGrid;
     sieveGrid.push_back(38);
@@ -589,18 +592,12 @@ int main(int argc, char *argv[])
 
     vector<double> temp(size2D, 0);
     vector<double> temp4(size4D, 0);
-    prevCompInData.fAllPreviousCompartment = alloc_double_vector(size2D);
-    prevCompInData.flPreviousCompartment = alloc_double_vector(size2D);
-    prevCompInData.fgPreviousCompartment = alloc_double_vector(size2D);
-    prevCompInData.fAllComingIn = alloc_double_vector(size2D);
-    prevCompInData.fgComingIn = alloc_double_vector(size2D);
-
 
     // defining compartment varibale pointers
 
     CompartmentVar compVar(size2D, size4D, 0), d_compVarCpy(size2D, size4D, 1), *d_compVar;
-    AggregationCompVar aggCompVar, *d_aggCompVar;
-    BreakageCompVar brCompVar, *d_brCompVar;
+    AggregationCompVar aggCompVar(size2D, size4D, 0), x_aggCompVar(size2D, size4D, 1), *d_aggCompVar;
+    BreakageCompVar brCompVar(size2D, size4D, 0), x_brCompVar(size2D, size4D, 1), *d_brCompVar;
 
     // allocating memory for structures used for compartment calculations
 
@@ -611,13 +608,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to  cudaMalloc : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    // err = cudaMalloc(&x_compartmentIn, sizeof(CompartmentIn));
-    // err = cudaGetLastError();
-    // if (err != cudaSuccess)
-    // {
-    //     fprintf(stderr, "Failed to  cudaMalloc : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
-    //     exit(EXIT_FAILURE);
-    // }
     err = cudaMalloc(&d_prevCompInData, sizeof(PreviousCompartmentIn));
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -663,21 +653,21 @@ int main(int argc, char *argv[])
 
     //  // copying data to the allocated GPU
 
-    cudaMemcpy(d_compartmentIn, &compartmentIn, sizeof(CompartmentIn), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_compartmentIn, &x_compartmentIn, sizeof(CompartmentIn), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to cudaMemcpy : CompartmentIn (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    cudaMemcpy(d_prevCompInData, &prevCompInData, sizeof(PreviousCompartmentIn), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_prevCompInData, &x_prevCompInData, sizeof(PreviousCompartmentIn), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to cudaMemcpy : PreviousCompartmentIn (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    cudaMemcpy(d_compartmentDEMIn, &compartmentDEMIn, sizeof(CompartmentDEMIn), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_compartmentDEMIn, &x_compartmentDEMIn, sizeof(CompartmentDEMIn), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -712,6 +702,11 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to cudaMemcpy : CompartmentVar (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+
+    double aggKernelConst = pData->aggKernelConst;
+    x_aggCompVar.aggKernelConst = aggKernelConst;
+
+
     // cudaMemcpy(d_brCompVar, &brCompVar, sizeof(BreakageCompVar), cudaMemcpyHostToDevice);
     // err = cudaGetLastError();
     // if (err != cudaSuccess)
@@ -998,7 +993,7 @@ int main(int argc, char *argv[])
     //     fprintf(stderr, "Failed to cudaMemcpy : CompartmentDEMIn (error code %s)!\n", cudaGetErrorString(err));
     //     exit(EXIT_FAILURE);
     // }
-    cudaMemcpy(d_aggCompVar, &aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_aggCompVar, &x_aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -1012,14 +1007,14 @@ int main(int argc, char *argv[])
     //     fprintf(stderr, "Failed to cudaMemcpy : CompartmentVar (error code %s)!\n", cudaGetErrorString(err));
     //     exit(EXIT_FAILURE);
     // }
-    cudaMemcpy(d_brCompVar, &brCompVar, sizeof(BreakageCompVar), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_brCompVar, &x_brCompVar, sizeof(BreakageCompVar), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to cudaMemcpy : BreakageCompVar (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-    cudaMemcpy(d_compartmentOut, &compartmentOut, sizeof(CompartmentOut), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_compartmentOut, &x_compartmentOut, sizeof(CompartmentOut), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
