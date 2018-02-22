@@ -90,7 +90,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
                                   CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, BreakageCompVar *d_brCompVar, double time, double timeStep, double initialTime,
                                   double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
                                   double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments,
-                                  unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep)
+                                  unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep, int nFirstSolidBins, int nSecondSolidBins)
 {
     int bix = blockIdx.x;
     int biy = blockIdx.y;
@@ -140,18 +140,16 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     compKernel_nblocks = dim3(1,1,1);
     compKernel_nthreads = dim3(size2D, size2D,1);
     __syncthreads();
-    if (tix == 0)
+
+    performAggCalculations<<<1,256>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
+    cudaDeviceSynchronize();
+    cudaError_t err = cudaSuccess;
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
     {
-        performAggCalculations<<<1,256>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep);
-        cudaDeviceSynchronize();
-        cudaError_t err = cudaSuccess;
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            printf("Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
-        }
-        printf("comp done \n");
+        printf("Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
     }
+    printf("comp done \n");
     __syncthreads();
 }
 
@@ -741,7 +739,7 @@ int main(int argc, char *argv[])
         launchCompartment<<<16,256>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
                                                     time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
-                                                    d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep);
+                                                    d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins);
 
         cudaDeviceSynchronize();
         err = cudaSuccess;
