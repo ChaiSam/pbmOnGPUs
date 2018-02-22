@@ -9,8 +9,8 @@
 
 using namespace std;
 
-__global__ void performAggCalculations(PreviousCompartmentIn *prevCompIn, CompartmentIn *compartmentIn, CompartmentDEMIn *compartmentDEMIn, 
-                                        CompartmentOut *compartmentOut, CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, 
+__global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, CompartmentIn *d_compartmentIn, CompartmentDEMIn *d_compartmentDEMIn, 
+                                        CompartmentOut *d_compartmentOut, CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, 
                                         double time, double timeStep, double initialTime, double demTimeStep)
 {
     int bix = blockIdx.x;
@@ -23,22 +23,22 @@ __global__ void performAggCalculations(PreviousCompartmentIn *prevCompIn, Compar
     int dimx = gridDim.x;
     int dimy = gridDim.y;
 
-    int idx4 = tiy * bdx + tix;
+    int idx4 = tix * bdx + tix;
 
     double criticalExternalLiquid = 0.2;
-    bool flag1 = (compartmentIn->fAll[tix] >= 0.0) && (compartmentIn->fAll[tiy] >= 0.0);
-    bool flag2 = ((d_compVar->externalLiquid[tix] + d_compVar->externalLiquid[tiy]) / (compartmentIn->fAll[tiy] * compartmentIn->vs[tiy % 16] + compartmentIn->fAll[tix] * compartmentIn->vss[tix % 16]));
-    bool flag3 = (compartmentDEMIn->velocityCol[tiy % 16] < compartmentDEMIn->uCriticalCol);
+    bool flag1 = (d_compartmentIn->fAll[tix] >= 0.0) && (d_compartmentIn->fAll[tiy] >= 0.0);
+    bool flag2 = ((d_compVar->externalLiquid[tix] + d_compVar->externalLiquid[tiy]) / (d_compartmentIn->fAll[tiy] * d_compartmentIn->vs[tiy % 16] + d_compartmentIn->fAll[tix] * d_compartmentIn->vss[tix % 16]));
+    bool flag3 = (d_compartmentDEMIn->velocityCol[tiy % 16] < d_compartmentDEMIn->uCriticalCol);
     if (flag1 && flag2 && flag3)
     {
-        compartmentDEMIn->colEfficiency[idx4] = compartmentDEMIn->colProbability[tix % 16];
+        d_compartmentDEMIn->colEfficiency[idx4] = d_compartmentDEMIn->colProbability[tix % 16];
     }
     else
-        compartmentDEMIn->colEfficiency[idx4] = 0.0;
-    compartmentDEMIn->colFrequency[idx4] = (compartmentDEMIn->DEMCollisionData[tix] * timeStep) / demTimeStep;
+        d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
+    d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[tix] * timeStep) / demTimeStep;
 
-    compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst * compartmentDEMIn->colFrequency[idx4] * compartmentDEMIn->colEfficiency[idx4];
-    printf("Value of kernel at %d and %d is %f \n", tix, tiy, compartmentOut->aggregationKernel[idx4]);
+    d_compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst * d_compartmentDEMIn->colFrequency[idx4] * d_compartmentDEMIn->colEfficiency[idx4];
+    printf("Value of kernel at %d and %d is %f \n", tix, tiy, d_compartmentOut->aggregationKernel[idx4]);
 }
 
 
@@ -206,9 +206,9 @@ CompartmentOut :: CompartmentOut(unsigned int nX2, unsigned int nX4, unsigned in
         gasBins = alloc_double_vector(nX2);
         internalVolumeBins = alloc_double_vector(nX2);
         externalVolumeBins = alloc_double_vector(nX2);
-        aggregationKernel = alloc_double_vector(nX2);
-        breakageKernel = alloc_double_vector(nX2);
-        collisionFrequency = alloc_double_vector(nX2);
+        aggregationKernel = alloc_double_vector(nX4);
+        breakageKernel = alloc_double_vector(nX4);
+        collisionFrequency = alloc_double_vector(nX4);
         formationThroughAggregation = 0.0;
         depletionThroughAggregation = 0.0;
         formationThroughBreakage = 0.0;
@@ -224,9 +224,9 @@ CompartmentOut :: CompartmentOut(unsigned int nX2, unsigned int nX4, unsigned in
         gasBins = device_alloc_double_vector(nX2);
         internalVolumeBins = device_alloc_double_vector(nX2);
         externalVolumeBins = device_alloc_double_vector(nX2);
-        aggregationKernel = device_alloc_double_vector(nX2);
-        breakageKernel = device_alloc_double_vector(nX2);
-        collisionFrequency = device_alloc_double_vector(nX2);
+        aggregationKernel = device_alloc_double_vector(nX4);
+        breakageKernel = device_alloc_double_vector(nX4);
+        collisionFrequency = device_alloc_double_vector(nX4);
         formationThroughAggregation = 0.0;
         depletionThroughAggregation = 0.0;
         formationThroughBreakage = 0.0;
