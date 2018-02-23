@@ -66,7 +66,9 @@ public:
     double *colEfficiency;
     double *colFrequency;
     double *velocityCol;
+    double *impactFrequency;
     double uCriticalCol;
+    double ubreak;
 
     CompartmentDEMIn(unsigned int, unsigned int, unsigned int);
 };
@@ -137,6 +139,7 @@ public:
 class BreakageCompVar
 {
 public:
+    double brkKernelConst;
     double *birthThroughBreakage1;
     double *birthThroughBreakage2;
     double *firstSolidBirthThroughBreakage;

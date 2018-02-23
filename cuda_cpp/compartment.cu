@@ -187,7 +187,37 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
 
 }
 
+// ==================== BREAKAGE COMPARTMENT CALCULATIONS ===========================================
 
+__global__ void performBreakageCalcs(PreviousCompartmentIn *d_prevCompIn, CompartmentIn *d_compartmentIn, CompartmentDEMIn *d_compartmentDEMIn, 
+                                        CompartmentOut *d_compartmentOut, CompartmentVar *d_compVar, BreakageCompVar *d_brCompVar, 
+                                        double time, double timeStep, double initialTime, double demTimeStep, int blx, int tlx, int mbdx, int nFirstSolidBins, int nSecondSolidBins)
+{
+    int tix = threadIdx.x;
+
+    int val1 = tlx % nFirstSolidBins; // s
+    int val2 = tix % nSecondSolidBins; // ss
+    int s3 = val1 * nFirstSolidBins + val2;
+
+    d_compartmentDEMIn->impactFrequency[tix % nFirstSolidBins] = (d_compartmentDEMIn->DEMImpactData[tix % nFirstSolidBins] * timeStep) / demTimeStep;
+    int idx4 = blx * mbdx * bdx + tlx * bdx + tix;
+
+    d_compartmentOut->breakageKernel[idx4] = d_compartmentDEMIn->impactFrequency[tix % nFirstSolidBins] * d_compartmentDEMIn->brProbability[tix % nFirstSolidBins] * d_brCompVar->brkKernelConst;
+
+    d_brCompVar->breakageRate[idx4] = d_compartmentIn->sCheckB[tlx] * d_compartmentIn->ssCheckB[tix] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[tlx];
+    
+    __syncthreads();
+    
+    int idx3 = blx * mbdx + tlx; 
+    d_brCompVar->depletionThroughBreakage[idx3] += d_brCompVar->breakageRate[idx4];
+    d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->liquidBins[idx3];
+    d_brCompVar->depletionOfGasThroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut[idx3];
+
+    d_brCompVar->birthThroughBreakage1[idx3] = d_brCompVar->breakageRate[idx4];
+
+    
+
+}
 
 // ============ Constructors for the Classes =================
 
@@ -320,7 +350,9 @@ CompartmentDEMIn :: CompartmentDEMIn(unsigned int nX2, unsigned int nX4, unsigne
         colEfficiency = alloc_double_vector(nX4);
         colFrequency = alloc_double_vector(nX4);
         velocityCol = alloc_double_vector(sqrt(nX2));
+        impactFrequency = alloc_double_vector(sqrt(nX2));
         uCriticalCol = 0.0;
+        ubreak = 0.0;
     }
 
     else if (check == 1)
@@ -333,7 +365,9 @@ CompartmentDEMIn :: CompartmentDEMIn(unsigned int nX2, unsigned int nX4, unsigne
         colEfficiency = device_alloc_double_vector(nX4);
         colFrequency = device_alloc_double_vector(nX4);
         velocityCol = device_alloc_double_vector(sqrt(nX2));
+        impactFrequency = alloc_double_vector(sqrt(nX2));
         uCriticalCol = 0.0;
+        ubreak = 0.0;
     }
 
     else 
@@ -387,6 +421,7 @@ BreakageCompVar :: BreakageCompVar(unsigned int nX2, unsigned int nX4, unsigned 
 {
     if (check == 0)
     {
+        brkKernelConst = 0.0;
         birthThroughBreakage1 = alloc_double_vector(nX2);
         birthThroughBreakage2 = alloc_double_vector(nX2);
         firstSolidBirthThroughBreakage = alloc_double_vector(nX2);
@@ -413,6 +448,7 @@ BreakageCompVar :: BreakageCompVar(unsigned int nX2, unsigned int nX4, unsigned 
 
     else if (check == 1)
     {
+        brkKernelConst = 0.0;
         birthThroughBreakage1 = device_alloc_double_vector(nX2);
         birthThroughBreakage2 = device_alloc_double_vector(nX2);
         firstSolidBirthThroughBreakage = device_alloc_double_vector(nX2);

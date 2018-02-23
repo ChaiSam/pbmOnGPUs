@@ -149,7 +149,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     {
         printf("Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
     }
-    printf("comp done \n");
+    // printf("comp done \n");
     __syncthreads();
 }
 
@@ -464,7 +464,8 @@ int main(int argc, char *argv[])
 
     double critStDefNum = pData->critStDefNum;
     double initPorosity = pData->initPorosity;
-    // double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / compartmentIn->diameter[0]);
+    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / compartmentIn->diameter[0]);
+    x_compartmentDEMIn.Ubreak = Ubreak;
 
     int size1 = velocity.size();
     double sum = 0.0;
@@ -679,6 +680,9 @@ int main(int argc, char *argv[])
     double aggKernelConst = pData->aggKernelConst;
     x_aggCompVar.aggKernelConst = aggKernelConst;
 
+    double brkKernelConst = pData->brkKernelConst;
+    x.d_brCompVar.brkKernelConst = brkKernelConst;
+
 
     cudaMemcpy(d_aggCompVar, &x_aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
@@ -761,7 +765,7 @@ int main(int argc, char *argv[])
         time = finalTime + 5.0;
     }
     // vector<double> h(size4D, 0.0);
-    for (int i = 0; i < size4D; i++)
+    for (int i = 0; i < size5D; i++)
     {
         cout << "At i = " << i << "  kernel = " << compartmentOut.aggregationKernel[i] << endl;
     }
