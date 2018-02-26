@@ -90,49 +90,52 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
                                   CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, BreakageCompVar *d_brCompVar, double time, double timeStep, double initialTime,
                                   double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
                                   double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments,
-                                  unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep, int nFirstSolidBins, int nSecondSolidBins)
+                                  unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep, int nFirstSolidBins, int nSecondSolidBins,
+                                  double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments)
 {
     int bix = blockIdx.x;
     int biy = blockIdx.y;
     int bdx = blockDim.x;
     int bdy = blockDim.y;
+    int gdx = gridDim.x;
 
     int tix = threadIdx.x;
     // int tiy = threadIdx.y;
 
     // int idx = bix * bdx * bdy + tiy * bdx + tix;
     int ddx = bix * bdx + tix;
+    int idx3 = bix * bdx + tix;
     __syncthreads();
     //if (tiy == 0)
    
-    d_compartmentIn->fAll[tix] = d_fAllCompartments[tix];
-    d_compartmentIn->fLiquid[tix] = d_flAllCompartments[tix];
-    d_compartmentIn->fGas[tix] = d_fgAllCompartments[tix];
-    d_compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[tix];
+    d_compartmentIn->fAll[idx3] = d_fAllCompartments[idx3];
+    d_compartmentIn->fLiquid[idx3] = d_flAllCompartments[idx3];
+    d_compartmentIn->fGas[idx3] = d_fgAllCompartments[idx3];
+    d_compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[tix % (size3D / size2D)];
 
     if (bix == 0)
     {
-        d_prevCompInData->fAllComingIn[tix] = d_fIn[tix];
+        d_prevCompInData->fAllComingIn[idx3] = d_fIn[tix];
         double value = initPorosity * timeStep;
-        d_prevCompInData->fgComingIn[tix] = d_fIn[tix] * (d_compartmentIn->vs[tix % 16] + d_compartmentIn->vss[tix % 16]) * value;
+        d_prevCompInData->fgComingIn[idx3] = d_fIn[idx3] * (d_compartmentIn->vs[idx3 % 16] + d_compartmentIn->vss[idx3 % 16]) * value;
     }
 
     else
     {
-        d_prevCompInData->fAllPreviousCompartment[tix] = d_fAllCompartments[(bix - 1) * bdx + tix];
-        d_prevCompInData->flPreviousCompartment[tix] = d_flAllCompartments[(bix - 1) * bdx + tix];
-        d_prevCompInData->fgPreviousCompartment[tix] = d_fgAllCompartments[(bix - 1) * bdx + tix];
+        d_prevCompInData->fAllPreviousCompartment[idx3] = d_fAllCompartments[(bix - 1) * bdx + tix];
+        d_prevCompInData->flPreviousCompartment[idx3] = d_flAllCompartments[(bix - 1) * bdx + tix];
+        d_prevCompInData->fgPreviousCompartment[idx3] = d_fgAllCompartments[(bix - 1) * bdx + tix];
     }
 
     if (fabs(d_compartmentIn->fAll[tix] > 1e-16))
     {
-        d_compartmentOut->liquidBins[tix] = d_compartmentIn->fLiquid[tix] / d_compartmentIn->fAll[tix];
-        d_compartmentOut->gasBins[tix] = d_compartmentIn->fGas[tix] / d_compartmentIn->fAll[tix];
+        d_compartmentOut->liquidBins[idx3] = d_compartmentIn->fLiquid[idx3] / d_compartmentIn->fAll[idx3];
+        d_compartmentOut->gasBins[idx3] = d_compartmentIn->fGas[idx3] / d_compartmentIn->fAll[idx3];
     }
     else
     {
-        d_compartmentOut->liquidBins[tix] = 0.0;
-        d_compartmentOut->gasBins[tix] = 0.0;
+        d_compartmentOut->liquidBins[idx3] = 0.0;
+        d_compartmentOut->gasBins[idx3] = 0.0;
     }
 
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
@@ -162,10 +165,78 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         printf("Failed to launch streams2 kernel (error code %s)!\n", cudaGetErrorString(result2));
     }
 
-
-   
-    // printf("comp done \n");
+    d_compVar->meshXYSum[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
     __syncthreads();
+    
+    double maxValue = -DBL_MAX;
+    for (size_t d1 = bix * bdx; d1 < (bix+1) * bdx; d1++)
+    {
+        maxValue = max(maxValue, d_compVar->meshXYSum[d1]);
+    }
+    double valueMeshXY = 1 - (d_compartmentIn->sMeshXY[idx3] + d_compartmentIn->ssMeshXY[idx3]) / maxValue;
+    double distanceBetweenCompartments = granulatorLength / nCompartments;
+    double particleAverageVelocity = granulatorLength /  partticleResTime;
+    double distanceMoved = particleAverageVelocity * timeStep / distanceBetweenCompartments;// value renamed as distanceMoved
+
+    d_compVar->particleMovement[idx3] = d_prevCompInData->fAllComingIn[idx3];
+    d_compVar->particleMovement[idx3] += d_prevCompInData->fAllPreviousCompartment[idx3] * distanceMoved * maxValue;
+    d_compVar->particleMovement[idx3] -= d_compartmentIn->fAll[idx3] * distanceMoved;
+
+    d_compVar->liquidMovement[idx3] = d_prevCompInData->flPreviousCompartment[idx3] * distanceMoved * maxValue;
+    d_compVar->liquidMovement[idx3] -= d_compartmentIn->fLiquid[idx3] * distanceMoved;
+
+    d_compVar->gasMovement[idx3] = d_prevCompInData->fgComingIn[idx3];
+    d_compVar->gasMovement[idx3] += d_prevCompInData->fgPreviousCompartment[idx3] * distanceMoved * maxValue;
+    d_compVar->gasMovement[idx3] -= d_compartmentIn->fGas[idx3] * distanceMoved;
+
+    double finalTime = premixTime + liqAddTime + initialTime;
+    if (time >= premixTime && time <= finalTime)
+        d_compartmentIn->liquidAdditionRate *= timeStep;
+    else
+        d_compartmentIn->liquidAdditionRate = 0.0;
+
+    __syncthreads();
+    double totalSolidvolume = 0.0;
+    for (int i = bix * bdx; i < (bix+1) * bdx; i++)
+        totalSolidvolume += d_compartmentIn->fAll[i] + (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]);
+
+    d_compartmentOut->dfAlldt[idx3] = d_compVar->particleMovement[idx3];
+    d_compartmentOut->dfAlldt[idx3] += d_aggCompVar->formationThroughAggregationCA[idx3] - d_aggCompVar->depletionThroughAggregation[idx3];
+    d_compartmentOut->dfAlldt[idx3] += d_brCompVar->birthThroughBreakage1[idx3] + d_brCompVar->formationThroughBreakageCA[idx3] - d_brCompVar->depletionThroughBreakage[idx3];
+
+     if (totalSolidvolume > 1.0e-16)
+        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) / totalSolidvolume;
+
+    d_compartmentOut->dfLiquiddt[idx3] = d_compVar->liquidMovement[idx3];
+    d_compartmentOut->dfLiquiddt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughLiquidAddition[idx3];
+    d_compartmentOut->dfLiquiddt[idx3] += d_aggCompVar->formationOfLiquidThroughAggregationCA[idx3] - d_aggCompVar->depletionOfLiquidThroughAggregation[idx3];
+    d_compartmentOut->dfLiquiddt[idx3] += d_brCompVar->liquidBirthThroughBreakage1[idx3] + d_brCompVar->formationOfLiquidThroughBreakageCA[idx3];
+    d_compartmentOut->dfLiquiddt[idx3] -= d_brCompVar->depletionOfLiquidthroughBreakage[idx3];
+
+    if(d_compartmentIn->fGas[idx3] > 1.0e-16)
+    {
+        d_brCompVar->transferThroughConsolidation[idx3] = consConst * d_compartmentOut->internalVolumeBins[idx3] * ((1 - minPorosity) / (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]));
+        d_brCompVar->transferThroughConsolidation[idx3] *= (d_compartmentOut->gasBins[idx3] - (minPorosity / (1-minPorosity)) * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) + d_compVar->internalLiquid[idx3]);
+    }
+
+    d_compartmentOut->dfGasdt[idx3] = d_compVar->gasMovement[idx3];
+    d_compartmentOut->dfGasdt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughConsolidation[idx3];
+    d_compartmentOut->dfGasdt[idx3] += d_aggCompVar->formationOfGasThroughAggregationCA[idx3] - d_aggCompVar->depletionOfGasThroughAggregation[idx3];
+    d_compartmentOut->dfGasdt[idx3] += d_brCompVar->gasBirthThroughBreakage1[idx3] + d_brCompVar->formationOfGasThroughBreakageCA[idx3];
+    d_compartmentOut->dfGasdt[idx3] -= d_brCompVar->depletionOfGasThroughBreakage[idx3];
+
+    __syncthreads();
+
+    if (tix == 0)
+    {
+        for (int i = bix * bdx; i < (bix +1) * bdx; i++)
+        {
+            d_compartmentOut->formationThroughAggregation[bix] += d_aggCompVar->formationThroughAggregationCA[i];
+            d_compartmentOut->depletionThroughAggregation[bix] += d_aggCompVar->depletionThroughAggregation[i];
+            d_compartmentOut->formationThroughBreakage[bix] += d_brCompVar->formationThroughBreakageCA[i];
+            d_compartmentOut->depletionThroughBreakage[bix] += d_brCompVar->depletionThroughBreakage[i];
+        }
+    }
 }
 
 
@@ -596,10 +667,10 @@ int main(int argc, char *argv[])
     double postMixTime = pData->postMixTime;
     double finalTime = premixTime + liqAddTime + postMixTime + stod(timeVal);
 
-    vector<double> formationThroughAggregationOverTime;
-    vector<double> depletionThroughAggregationOverTime;
-    vector<double> formationThroughBreakageOverTime;
-    vector<double> depletionThroughBreakageOverTime;
+    arrayOfDouble2D formationThroughAggregationOverTime;
+    arrayOfDouble2D depletionThroughAggregationOverTime;
+    arrayOfDouble2D formationThroughBreakageOverTime;
+    arrayOfDouble2D depletionThroughBreakageOverTime;
     cout << "time" << endl;
 
     // defining compartment varibale pointers
@@ -749,6 +820,14 @@ int main(int argc, char *argv[])
     // compKernel_nthreads = dim3(size2D, size2D,1);
     int compKernel_nblocks = 16;
     int compKernel_nthreads = size2D * size2D;
+
+    // double granulatorLength = pData->granulatorLength;
+    // double partticleResTime = pData->partticleResTime;
+    // double premixTime = pData->premixTime;
+    // double liqAddTime = pData->liqAddTime;
+    double consConst = pData->consConst;
+    double minPorosity = pData->minPorosity;
+
     while (time <= finalTime)
     {
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
@@ -758,10 +837,11 @@ int main(int argc, char *argv[])
         launchCompartment<<<16,256>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
                                                     time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
-                                                    d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins);
+                                                    d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
+                                                    granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments);
 
         cudaDeviceSynchronize();
-        err = cudaSuccess;
+        err = cudaSuccess; // check kernel launach
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -769,15 +849,213 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         cout << "Compartment ended " << endl;
+
+        // Copying data strcutres reqd for calculation
         err = cudaMemcpy(&h_results, d_compartmentOut, sizeof(CompartmentOut), cudaMemcpyDeviceToHost);
         if (err != cudaSuccess)
         {
             fprintf(stderr, "Failed to cudaMemcpy : CompartmentOut D to Hmake (error code %s)!\n", cudaGetErrorString(err));
             exit(EXIT_FAILURE);
         }
-        // copy_double_vector_fromDtoH(h_results.aggregationKernel, d_compartmentOut->aggregationKernel, size4D);
-        copy_double_vector_fromDtoH(compartmentOut.aggregationKernel, h_results.aggregationKernel, size5D);
-        time = finalTime + 5.0;
+        // copy necessary variables back to the CPU
+        copy_double_vector_fromDtoH(compartmentOut.dfAlldt, h_results.dfAlldt, size3D);
+        copy_double_vector_fromDtoH(compartmentOut.dfLiquiddt, h_results.dfLiquiddt, size3D);
+        copy_double_vector_fromDtoH(compartmentOut.dfGasdt, h_results.dfGasdt, size3D);
+
+        copy_double_vector_fromDtoH(compartmentOut.liquidBins, h_results.liquidBins, size3D);
+        copy_double_vector_fromDtoH(compartmentOut.gasBins, h_results.gasBins, size3D);
+
+
+        copy_double_vector_fromDtoH(compartmentOut.formationThroughAggregation, h_results.formationThroughAggregation, size1D);
+        copy_double_vector_fromDtoH(compartmentOut.depletionThroughAggregation, h_results.depletionThroughAggregation, size1D);
+        copy_double_vector_fromDtoH(compartmentOut.formationThroughBreakage, h_results.formationThroughBreakage, size1D);
+        copy_double_vector_fromDtoH(compartmentOut.depletionThroughBreakage, h_results.depletionThroughBreakage, size1D);
+
+        copy_double_vector_fromHtoD(h_fAllCompartments.data(), d_fAllCompartments, size3D);
+        copy_double_vector_fromHtoD(h_flAllCompartments.data(), d_flAllCompartments, size3D);
+        copy_double_vector_fromHtoD(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
+
+
+        vector<double> tmp(size1D, 0.0); 
+        formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation);
+        depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation);
+        formationThroughBreakageOverTime.push_back(compartmentOut.formationThroughBreakage);
+        depletionThroughBreakageOverTime.push_back(compartmentOut.depletionThroughBreakage);
+
+        double maxofthree = -DBL_MAX;
+        double maxAll = -DBL_MAX;
+        double maxLiquid = -DBL_MAX;
+        double maxGas = -DBL_MAX;
+
+        for (size_t i = 0; i < size3D; i++)
+        {
+            if (fabs(h_fAllCompartments[i]) > 1.0e-16)
+                maxAll = max(maxAll, -compartmentOut.dfAlldt[i] / h_fAllCompartments[i]);
+            if (fabs(h_flAllCompartments[i]) > 1.0e-16)
+                maxLiquid = max(maxLiquid, -compartmentOut.dfLiquiddt[i] / h_flAllCompartments[i]);
+            if (fabs(h_fgAllCompartments[i]) > 1.0e-16)
+                maxGas = max(maxGas, -compartmentOut.dfGasdt[i] / h_fgAllCompartments[i]);
+            maxofthree = max(maxofthree, max(maxAll, max(maxLiquid, maxGas)));
+        }
+
+        cout << "maxAll = " << maxAll << endl;
+        cout << "maxLiquid = " << maxLiquid << endl;
+        cout << "maxGas = " << maxGas << endl;
+        cout << "maxofthree = " << maxofthree << endl;
+
+        while (maxofthree < 0.1 / timeStep && timeStep < 0.25)
+            timeStep *= 2.0;
+
+        while (maxofthree > 0.1 / timeStep && timeStep > 5.0e-5)
+            timeStep /= 2.0;
+
+        int nanCount = 0;
+        double minfAll = -DBL_MAX;
+        for (size_t i = 0; i < size3D; i++)
+        {
+            double value = 0.0;
+            h_fAllCompartments[i] += compartmentOut.dfAlldt[i] * timeStep;
+            if (std::isnan(h_fAllCompartments[i]))
+                nanCount++;
+
+            value = h_flAllCompartments[i] + compartmentOut.dfLiquiddt[i] * timeStep;
+            h_flAllCompartments[i] = value > 0.0 ? value : 0.0;
+            value = h_fgAllCompartments[i] + compartmentOut.dfGasdt[i] * timeStep;
+            h_fgAllCompartments[i] = value > 0.0 ? value : 0.0;
+        }
+
+        if (nanCount)
+            cout << endl << "*****fAllCompartments has " << nanCount << "nan values******" << endl << endl;
+
+        int countnegfAll = 0;
+
+        minfAll = getMinimumOfArray(h_fAllCompartments);
+        if (minfAll < -1.0e-16 &&  countnegfAll > 0.1 * nCompartments * nFirstSolidBins * nSecondSolidBins)
+        {
+            //int mpi_err = 0;
+            cout << endl;
+            //DUMP3DCSV(dfdtAllCompartments);
+            //DUMP3DCSV(fAllCompartments);
+            //cout << "My process id = " << mpi_id << endl;
+            cout << "minfAll" << minfAll << endl;
+            cout << "******fAllCompartments has negative values********" << endl;
+            cout << "Number of negative values = " << countnegfAll << endl;
+            DUMPCSV(h_fAllCompartments);
+            cout << "Aborting..." << endl;
+            return 1;
+        }
+
+        // BIN recalculation 
+
+        double granSatFactor = pData->granSatFactor;
+        for (int c = 0; c < nCompartments; c++)
+        {
+            arrayOfDouble2D liquidBins = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+            arrayOfDouble2D gasBins = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+            arrayOfDouble2D internalLiquid = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+            arrayOfDouble2D externalLiquid = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+            for (size_t s = 0; s < nFirstSolidBins; s++)
+                for (size_t ss = 0; ss < nSecondSolidBins; ss++)
+                {
+                    int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                    if (fabs(h_fAllCompartments[m]) > 1.0e-16)
+                    {
+                        liquidBins[s][ss] = h_flAllCompartments[m] / h_fAllCompartments[m];
+                        gasBins[s][ss] = h_fgAllCompartments[m] / h_fAllCompartments[m];
+                    }
+                    internalLiquid[s][ss] = min(granSatFactor * gasBins[s][ss], liquidBins[s][ss]);
+                    externalLiquid[s][ss] = max(0.0, liquidBins[s][ss] - internalLiquid[s][ss]);
+
+                    double value = compartmentIn.sMeshXY[s * nFirstSolidBins + ss] + compartmentIn.ssMeshXY[s* nFirstSolidBins + ss] + gasBins[s][ss];
+                    internalVolumeBins[s][ss] = value + internalLiquid[s][ss];
+                    externalVolumeBins[s][ss] = value + liquidBins[s][ss];
+                }
+            liquidBinsAllCompartments[c] = liquidBins;
+            gasBinsAllCompartments[c] = gasBins;
+            externalVolumeBinsAllCompartments[c] = externalVolumeBins;
+            internalVolumeBinsAllCompartments[c] = internalVolumeBins;
+        }
+
+        vector<double> d10OverCompartment(nCompartments, 0.0);
+        vector<double> d50OverCompartment(nCompartments, 0.0);
+        vector<double> d90OverCompartment(nCompartments, 0.0);
+
+        for (int c = 0; c < nCompartments; c++)
+        {
+            arrayOfDouble2D diameter = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+            for (size_t s = 0; s < nFirstSolidBins; s++)
+                for (size_t ss = 0; ss < nSecondSolidBins; ss++)
+                {
+                    int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                    diameter[s][ss] = cbrt((6 / M_PI) * externalVolumeBinsAllCompartments[m]) * 1.0e6;
+                }
+
+
+            vector<double> totalVolumeGrid(nSieveGrid, 0.0);
+            for (size_t d = 0; d < nSieveGrid - 1; d++)
+                for (size_t s = 0; s < nFirstSolidBins; s++)
+                    for (size_t ss = 0; ss < nSecondSolidBins; ss++)
+                    {
+                        int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                        if (diameter[s][ss] < sieveGrid[d + 1] && diameter[s][ss] >= sieveGrid[d])
+                            totalVolumeGrid[d] += fAllCompartments[m] * externalVolumeBinsAllCompartments[m];
+                    }
+
+            double sum = 0.0;
+            for (size_t d = 0; d < nSieveGrid; d++)
+                sum += totalVolumeGrid[d];
+
+            vector<double> volumeDistribution(nSieveGrid, 0.0);
+            for (size_t d = 0; d < nSieveGrid; d++)
+                volumeDistribution[d] = totalVolumeGrid[d] / sum;
+
+            vector<double> cumulativeVolumeDistribution(nSieveGrid, 0.0);
+            sum = 0.0;
+            for (size_t d = 0; d < nSieveGrid; d++)
+            {
+                sum += volumeDistribution[d];
+                cumulativeVolumeDistribution[d] = sum;
+            }
+            double d10 = 0.1 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
+            double d50 = 0.5 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
+            double d90 = 0.9 * (sieveGrid[1] / cumulativeVolumeDistribution[0]);
+
+            for (size_t d = 1; d < nSieveGrid; d++)
+            {
+                double value1 = (sieveGrid[d] - sieveGrid[d - 1]) / (cumulativeVolumeDistribution[d] - cumulativeVolumeDistribution[d - 1]);
+                double value2 = sieveGrid[d - 1];
+                if (cumulativeVolumeDistribution[d - 1] < 0.5 && cumulativeVolumeDistribution[d] >= 0.5)
+                {
+                    double value = 0.5 - cumulativeVolumeDistribution[d - 1];
+                    d50 = value * value1 + value2;
+                }
+                if (cumulativeVolumeDistribution[d - 1] < 0.1 && cumulativeVolumeDistribution[d] >= 0.1)
+                {
+                    double value = 0.1 - cumulativeVolumeDistribution[d - 1];
+                    d10 = value * value1 + value2;
+                }
+                if (cumulativeVolumeDistribution[d - 1] < 0.1 && cumulativeVolumeDistribution[d] >= 0.1)
+                {
+                    double value = 0.9 - cumulativeVolumeDistribution[d - 1];
+                    d90 = value * value1 + value2;
+                }
+            }
+            
+            d10OverCompartment[c] = d10;
+            d50OverCompartment[c] = d50;
+            d10OverCompartment[c] = d90;
+        }
+
+        //SAVING OVER TIME
+        //cout << endl <<  "************Saving over time" << endl << endl;
+        fAllCompartmentsOverTime.push_back(fAllCompartments);
+        externalVolumeBinsAllCompartmentsOverTime.push_back(externalVolumeBinsAllCompartments);
+        internalVolumeBinsAllCompartmentsOverTime.push_back(internalVolumeBinsAllCompartments);
+        liquidBinsAllCompartmentsOverTime.push_back(liquidBinsAllCompartments);
+        gasBinsAllCompartmentsOverTime.push_back(gasBinsAllCompartments);
+
+        timeIdxCount++;
+        time += timeStep;
     }
     // vector<double> h(size4D, 0.0);
     // for (int i = 0; i < size5D; i++)

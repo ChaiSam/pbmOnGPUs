@@ -94,6 +94,15 @@ vector<double> linearize4DVector(arrayOfDouble4D array4D)
     return data;
 }
 
+double getMinimumOfArray(vector<double> vec)
+{
+    double minValue = DBL_MAX;
+    for (auto v : vec)
+        minValue = min(minValue, v);
+
+    return minValue;
+}
+
 // allocate pointer for variables on the host
 
 int *alloc_integer_vector(unsigned int nX)

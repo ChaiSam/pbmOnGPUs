@@ -27,6 +27,9 @@ std::vector<double> linearize2DVector(arrayOfDouble2D);
 std::vector<double> linearize3DVector(arrayOfDouble3D);
 std::vector<double> linearize4DVector(arrayOfDouble4D);
 
+double getMinimumOfArray(std::vector<double>);
+
+
 int *alloc_integer_vector(unsigned int);
 double *alloc_double_vector(unsigned int);
 

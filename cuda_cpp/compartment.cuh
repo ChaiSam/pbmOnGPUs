@@ -47,10 +47,10 @@ public:
     double *aggregationKernel;
     double *breakageKernel;
     double *collisionFrequency;
-    double formationThroughAggregation;
-    double depletionThroughAggregation;
-    double formationThroughBreakage;
-    double depletionThroughBreakage;
+    double *formationThroughAggregation;
+    double *depletionThroughAggregation;
+    double *formationThroughBreakage;
+    double *depletionThroughBreakage;
 
     CompartmentOut(unsigned int, unsigned int, unsigned int);
 };
@@ -99,6 +99,7 @@ public:
     double *gasMovement;
     double *liquidBins;
     double *gasBins;
+    double *meshXYSum;
 
     CompartmentVar(unsigned int, unsigned int, unsigned int);
 };
