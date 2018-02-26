@@ -215,6 +215,34 @@ __global__ void performBreakageCalcs(PreviousCompartmentIn *d_prevCompIn, Compar
 
     d_brCompVar->birthThroughBreakage1[idx3] = d_brCompVar->breakageRate[idx4];
 
+    for (int i = 0; i < nFirstSolidBins; i++)
+    {
+        for(int j = 0; j < nSecondSolidBins; j++)
+        {
+            int s12 = (tlx % nFirstSolidBins) * (bdx / nFirstSolidBins) + (tlx % nFirstSolidBins);
+            int ss12 = (tix % nFirstSolidBins) * (bdx / nFirstSolidBins) + (tix % nFirstSolidBins);
+            if (d_compartmentIn->sIndB[s12] == (i+1) && d_compartmentIn->ssIndB[ss12] == (j+1))
+            {
+                int a = i * nFirstSolidBins + j;
+                d_brCompVar->birthThroughBreakage2[a] += d_compVar->aggregationRate[idx4];
+                d_brCompVar->firstSolidBirthThroughBreakage[a] += (d_compartmentIn->vs[tlx % nFirstSolidBins] + d_compartmentIn->vs[tlx % nFirstSolidBins]) * d_compVar->breakageRate[idx4];
+                d_brCompVar->secondSolidBirthThroughBreakage[a] += (d_compartmentIn->vs[tix % nFirstSolidBins] + d_compartmentIn->vs[tix % nFirstSolidBins]) * d_compVar->breakageRate[idx4];
+                d_brCompVar->liquidBirthThroughBreakage2[a] += (d_compartmentOut->liquidBins[tlx] + d_compartmentOut->liquidBins[tix]) * d_compVar->breakageRate[idx4];
+                d_brCompVar->gasBirthThroughBreakage2[a] += (d_compartmentOut->gasBins[tlx] + d_compartmentOut->gasBins[tix]) * d_compVar->breakageRate[idx4];
+
+                if (fabs(d_brCompVar->birthThroughBreakage2[a]) > 1e-16)
+                {
+                    d_brCompVar->firstSolidVolumeThroughBreakage[a] = d_brCompVar->firstSolidBirthThroughBreakage[a] / d_brCompVar->birthThroughBreakage2[a];
+                    d_brCompVar->secondSolidVolumeThroughBreakage[a] = d_brCompVar->secondSolidBirthThroughBreakage[a] / d_brCompVar->birthThroughBreakage2[a];
+                }
+            }
+        }
+    }
+    __syncthreads();
+    d_brCompVar->liquidBirthThroughBreakage1[tix] += (d_compartmentOut->liquidBins[tlx] * (d_compartmentOut->volumeBins[tix] / d_compartmentOut->volumeBins[tlx])) * d_brCompVar->breakageRate[idx4];
+    d_brCompVar->gasBirthThroughBreakage1[tix] += (d_compartmentOut->gasBins[tlx] * (d_compartmentOut->volumeBins[tix] / d_compartmentOut->volumeBins[tlx])) * d_brCompVar->breakageRate[idx4];
+
+
     
 
 }
