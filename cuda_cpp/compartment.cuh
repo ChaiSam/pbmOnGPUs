@@ -166,5 +166,5 @@ public:
 };
 
 __global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, int, int);
-
+__global__ void performBreakageCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, BreakageCompVar *, double, double, double, double, int, int, int, int, int);
 #endif // COMPARTMENT_CUH

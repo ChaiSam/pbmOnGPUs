@@ -137,18 +137,33 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
 
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
     dim3 compKernel_nblocks, compKernel_nthreads;
-    compKernel_nblocks = dim3(1,1,1);
-    compKernel_nthreads = dim3(size2D, size2D,1);
     __syncthreads();
+    cudaStream_t stream1, stream2;
+    cudaError_t result1, result2, err;
 
-    performAggCalculations<<<1,256>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
+    result1 = cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking);
+    result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
+
+    performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
     cudaDeviceSynchronize();
-    cudaError_t err = cudaSuccess;
+    performBreakageCalculations<<<1,256, 0, stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
-        printf("Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
+        printf("Failed to launch breakage kernel (error code %s)!\n", cudaGetErrorString(err));
     }
+    cudaDeviceSynchronize();
+    result1 = cudaStreamDestroy(stream1);
+    result2 = cudaStreamDestroy(stream2);
+
+    if (result1 != cudaSuccess || result2 != cudaSuccess)
+    {
+        printf("Failed to launch streams1 kernel (error code %s)!\n", cudaGetErrorString(result1));
+        printf("Failed to launch streams2 kernel (error code %s)!\n", cudaGetErrorString(result2));
+    }
+
+
+   
     // printf("comp done \n");
     __syncthreads();
 }
@@ -464,8 +479,8 @@ int main(int argc, char *argv[])
 
     double critStDefNum = pData->critStDefNum;
     double initPorosity = pData->initPorosity;
-    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / compartmentIn->diameter[0]);
-    x_compartmentDEMIn.Ubreak = Ubreak;
+    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / compartmentIn.diameter[0]);
+    x_compartmentDEMIn.ubreak = Ubreak;
 
     int size1 = velocity.size();
     double sum = 0.0;
@@ -589,9 +604,9 @@ int main(int argc, char *argv[])
 
     // defining compartment varibale pointers
 
-    CompartmentVar compVar(size2D, size5D, 0), d_compVarCpy(size2D, size5D, 1), *d_compVar;
-    AggregationCompVar aggCompVar(size2D, size5D, 0), x_aggCompVar(size2D, size5D, 1), *d_aggCompVar;
-    BreakageCompVar brCompVar(size2D, size5D, 0), x_brCompVar(size2D, size5D, 1), *d_brCompVar;
+    CompartmentVar compVar(size3D, size5D, 0), d_compVarCpy(size3D, size5D, 1), *d_compVar;
+    AggregationCompVar aggCompVar(size3D, size5D, 0), x_aggCompVar(size3D, size5D, 1), *d_aggCompVar;
+    BreakageCompVar brCompVar(size3D, size5D, 0), x_brCompVar(size3D, size5D, 1), *d_brCompVar;
 
     // allocating memory for structures used for compartment calculations
 
@@ -681,7 +696,7 @@ int main(int argc, char *argv[])
     x_aggCompVar.aggKernelConst = aggKernelConst;
 
     double brkKernelConst = pData->brkKernelConst;
-    x.d_brCompVar.brkKernelConst = brkKernelConst;
+    x_brCompVar.brkKernelConst = brkKernelConst;
 
 
     cudaMemcpy(d_aggCompVar, &x_aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
@@ -765,10 +780,10 @@ int main(int argc, char *argv[])
         time = finalTime + 5.0;
     }
     // vector<double> h(size4D, 0.0);
-    for (int i = 0; i < size5D; i++)
-    {
-        cout << "At i = " << i << "  kernel = " << compartmentOut.aggregationKernel[i] << endl;
-    }
+    // for (int i = 0; i < size5D; i++)
+    // {
+    //     cout << "At i = " << i << "  kernel = " << compartmentOut.aggregationKernel[i] << endl;
+    // }
     cudaFree(d_vs);
     cudaFree(d_vss);
     // cudaFree(d_sMeshXY);
