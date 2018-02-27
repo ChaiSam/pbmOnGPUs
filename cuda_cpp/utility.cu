@@ -9,6 +9,38 @@
 
 using namespace std;
 
+void dumpDiaCSVpointer(vector<double> data1, vector<double *> data2, size_t s1, std::string varName)
+{
+    std::string path = CSVFILEPATH;
+    std::string fileName = varName + ".csv";
+    std::ofstream myFile;
+    myFile.open((path + fileName).c_str());
+    if (!myFile.is_open())
+    {
+        std::cout << "Unable to open file to dump data" << std::endl;
+        return;
+    }
+    myFile << "Time Index"
+           << ","
+           << "Time";
+    int ctot = static_cast<int>(s1 / data1.size());
+    for (size_t c = 0; c < ctot; c++)
+        myFile << ","
+               << "C" << c + 1;
+    myFile << std::endl;
+
+    for (size_t t = 0; t < data1.size(); t++)
+    {
+        myFile << t + 1 << "," << data1[t];
+        double *compData = data2[t];
+        for (size_t c = 0; c < ctot; c++)
+            myFile << "," << moreSigs(compData[c], 16);
+        myFile << std::endl;
+    }
+    myFile.close();
+}
+
+
 // make int and double vectors for the host
 
 arrayOfInt2D getArrayOfInt2D(int n, int m, int val)
@@ -94,6 +126,28 @@ vector<double> linearize4DVector(arrayOfDouble4D array4D)
     return data;
 }
 
+string moreSigs(double d, int prec)
+{
+    std::stringstream ss;
+    ss << d;
+    ss.str("");
+    ss << std::setprecision(prec) << std::fixed << d;
+
+    std::string str;
+    ss >> str;
+    std::string::size_type s;
+    for (s = str.length() - 1; s > 0; --s)
+    {
+        if (str[s] == '0')
+            str.erase(s, 1);
+        else
+            break;
+    }
+    if (str[s] == '.')
+        str.erase(s, 1);
+    return str;
+}
+
 double getMinimumOfArray(vector<double> vec)
 {
     double minValue = DBL_MAX;
@@ -176,7 +230,6 @@ void device_alloc_double_vector(double ** d, unsigned int nX)
         exit(EXIT_FAILURE);
     }  
 }
-
 
 // Clearing Memory
 

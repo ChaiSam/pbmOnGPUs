@@ -244,31 +244,31 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     double value1 = 0.0;
     double value2 = 0.0;
 
-    value1 = fabs(d_compartmentIn->sLow[idx3] - d_brCompVar->firstSolidBirthThroughBreakage[idx3]);
-    value1 = d_compartmentIn->sHigh[idx3] - d_compartmentIn->sLow[idx3] - value1;
-    value1 /= d_compartmentIn->sHigh[idx3] - d_compartmentIn->sLow[idx3];
+    value1 = fabs(d_compartmentIn->sLow[tlx] - d_brCompVar->firstSolidBirthThroughBreakage[idx3]);
+    value1 = d_compartmentIn->sHigh[tlx] - d_compartmentIn->sLow[tlx] - value1;
+    value1 /= (d_compartmentIn->sHigh[tlx] - d_compartmentIn->sLow[tlx]);
 
-    value2 = fabs(d_compartmentIn->ssLow[idx3] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
-    value2 = d_compartmentIn->ssHigh[idx3] - d_compartmentIn->ssLow[idx3] - value2;
-    value2 /= d_compartmentIn->ssHigh[idx3] - d_compartmentIn->ssLow[idx3];
+    value2 = fabs(d_compartmentIn->ssLow[tlx] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
+    value2 = d_compartmentIn->ssHigh[tlx] - d_compartmentIn->ssLow[tlx] - value2;
+    value2 /= (d_compartmentIn->ssHigh[tlx] - d_compartmentIn->ssLow[tlx]);
 
     d_brCompVar->fractionBreakage00[idx3] = value1 / value2;
 
-    value2 = fabs(d_compartmentIn->ssHigh[idx3] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
-    value2 = d_compartmentIn->ssHigh[idx3] - d_compartmentIn->ssLow[idx3] - value2;
-    value2 /= d_compartmentIn->ssHigh[idx3] - d_compartmentIn->ssLow[idx3];
+    value2 = fabs(d_compartmentIn->ssHigh[tlx] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
+    value2 = d_compartmentIn->ssHigh[tlx] - d_compartmentIn->ssLow[tlx] - value2;
+    value2 /= (d_compartmentIn->ssHigh[tlx] - d_compartmentIn->ssLow[tlx]);
     
     d_brCompVar->fractionBreakage01[idx3] = value1 / value2;
 
-    value1 = fabs(d_compartmentIn->sHigh[idx3] - d_brCompVar->firstSolidVolumeThroughBreakage[idx3]);
-    value1 = d_compartmentIn->sHigh[idx3] - d_compartmentIn->sLow[idx3] - value1;
-    value1 /= d_compartmentIn->sHigh[idx3] - d_compartmentIn->sLow[idx3];
+    value1 = fabs(d_compartmentIn->sHigh[tlx] - d_brCompVar->firstSolidVolumeThroughBreakage[idx3]);
+    value1 = d_compartmentIn->sHigh[tlx] - d_compartmentIn->sLow[tlx] - value1;
+    value1 /= (d_compartmentIn->sHigh[tlx] - d_compartmentIn->sLow[tlx]);
 
     d_brCompVar->fractionBreakage11[idx3] = value1 / value2;
 
-    value2 = fabs(d_compartmentIn->ssLow[idx3] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
-    value2 = d_compartmentIn->ssHigh[idx3] - d_compartmentIn->ssLow[idx3] - value2;
-    value2 /= d_compartmentIn->ssHigh[idx3] - d_compartmentIn->ssLow[idx3];
+    value2 = fabs(d_compartmentIn->ssLow[tlx] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
+    value2 = d_compartmentIn->ssHigh[tlx] - d_compartmentIn->ssLow[tlx] - value2;
+    value2 /= (d_compartmentIn->ssHigh[tlx] - d_compartmentIn->ssLow[tlx]);
 
     d_brCompVar->fractionBreakage10[idx3] = value1 / value2;
 
@@ -498,7 +498,7 @@ CompartmentOut :: CompartmentOut(unsigned int nX2, unsigned int nX5, unsigned in
 
     else if (check == 1)
     {
-        dfAlldt = device_alloc_double_vector(nX5 / nX2nX2);
+        dfAlldt = device_alloc_double_vector(nX5 / nX2);
         dfLiquiddt = device_alloc_double_vector(nX5 / nX2);
         dfGasdt = device_alloc_double_vector(nX5 / nX2);
         liquidBins = device_alloc_double_vector(nX5 / nX2);

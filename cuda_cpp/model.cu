@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
     //     for (int ss = 0; ss < nSecondSolidBins; ss++)
     //         for (int i = 0; i < nDEMBins; i++)
     //         {
-    //             if (fAll[s][ss] > 0.0)
+    //             if (fAll[n2] > 0.0)
     //                 impactFrequency[i] = (DEMImpactData[i] * timeStep) / demTimeStep;
     //         }
 
@@ -601,11 +601,11 @@ int main(int argc, char *argv[])
     double liquidAddRate = (liqSolidRatio * throughput) / (liqDensity * 3600);
     liquidAdditionRateAllCompartments[0] = liquidAddRate;
     
-    vector<double> h_fAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> h_externalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> h_internalVolumeBinsAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> h_liquidBinsAllCompartmentsOverTime(size4D, 0.0);
-    vector<double> h_gasBinsAllCompartmentsOverTime(size4D, 0.0);
+    arrayOfDouble2D h_fAllCompartmentsOverTime;
+    arrayOfDouble2D h_externalVolumeBinsAllCompartmentsOverTime;
+    arrayOfDouble2D h_internalVolumeBinsAllCompartmentsOverTime;
+    arrayOfDouble2D h_liquidBinsAllCompartmentsOverTime;
+    arrayOfDouble2D h_gasBinsAllCompartmentsOverTime;
 
     double granulatorLength = pData->granulatorLength;
     double partticleResTime = pData->partticleResTime;
@@ -667,10 +667,10 @@ int main(int argc, char *argv[])
     double postMixTime = pData->postMixTime;
     double finalTime = premixTime + liqAddTime + postMixTime + stod(timeVal);
 
-    arrayOfDouble2D formationThroughAggregationOverTime;
-    arrayOfDouble2D depletionThroughAggregationOverTime;
-    arrayOfDouble2D formationThroughBreakageOverTime;
-    arrayOfDouble2D depletionThroughBreakageOverTime;
+    vector<double *> formationThroughAggregationOverTime;
+    vector<double *> depletionThroughAggregationOverTime;
+    vector<double *> formationThroughBreakageOverTime;
+    vector<double *> depletionThroughBreakageOverTime;
     cout << "time" << endl;
 
     // defining compartment varibale pointers
@@ -871,12 +871,12 @@ int main(int argc, char *argv[])
         copy_double_vector_fromDtoH(compartmentOut.formationThroughBreakage, h_results.formationThroughBreakage, size1D);
         copy_double_vector_fromDtoH(compartmentOut.depletionThroughBreakage, h_results.depletionThroughBreakage, size1D);
 
-        copy_double_vector_fromHtoD(h_fAllCompartments.data(), d_fAllCompartments, size3D);
-        copy_double_vector_fromHtoD(h_flAllCompartments.data(), d_flAllCompartments, size3D);
-        copy_double_vector_fromHtoD(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
+        copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
+        copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
+        copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
 
+        cudaDeviceSynchronize();
 
-        vector<double> tmp(size1D, 0.0); 
         formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation);
         depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation);
         formationThroughBreakageOverTime.push_back(compartmentOut.formationThroughBreakage);
@@ -889,6 +889,7 @@ int main(int argc, char *argv[])
 
         for (size_t i = 0; i < size3D; i++)
         {
+            cout << "compartmentOut.dfAlldt[" << i << "] is " << compartmentOut.dfAlldt[i] <<  endl;
             if (fabs(h_fAllCompartments[i]) > 1.0e-16)
                 maxAll = max(maxAll, -compartmentOut.dfAlldt[i] / h_fAllCompartments[i]);
             if (fabs(h_flAllCompartments[i]) > 1.0e-16)
@@ -915,6 +916,7 @@ int main(int argc, char *argv[])
         {
             double value = 0.0;
             h_fAllCompartments[i] += compartmentOut.dfAlldt[i] * timeStep;
+            // cout << " h_fAllCompartments[" << i <<"] is   " << h_fAllCompartments[i] << endl;
             if (std::isnan(h_fAllCompartments[i]))
                 nanCount++;
 
@@ -925,7 +927,11 @@ int main(int argc, char *argv[])
         }
 
         if (nanCount)
+        {
             cout << endl << "*****fAllCompartments has " << nanCount << "nan values******" << endl << endl;
+            exit(EXIT_FAILURE);
+
+        }
 
         int countnegfAll = 0;
 
@@ -943,6 +949,7 @@ int main(int argc, char *argv[])
             DUMPCSV(h_fAllCompartments);
             cout << "Aborting..." << endl;
             return 1;
+            exit(EXIT_FAILURE);
         }
 
         // BIN recalculation 
@@ -950,30 +957,32 @@ int main(int argc, char *argv[])
         double granSatFactor = pData->granSatFactor;
         for (int c = 0; c < nCompartments; c++)
         {
-            arrayOfDouble2D liquidBins = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-            arrayOfDouble2D gasBins = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-            arrayOfDouble2D internalLiquid = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
-            arrayOfDouble2D externalLiquid = getArrayOfDouble2D(nFirstSolidBins, nSecondSolidBins);
+            vector<double> liquidBins(size2D, 0.0);
+            vector<double> gasBins(size2D, 0.0);
+            vector<double> internalLiquid(size2D, 0.0);
+            vector<double> externalLiquid(size2D, 0.0);
             for (size_t s = 0; s < nFirstSolidBins; s++)
                 for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
                     int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                    int n2 = s * nSecondSolidBins + ss;
                     if (fabs(h_fAllCompartments[m]) > 1.0e-16)
                     {
-                        liquidBins[s][ss] = h_flAllCompartments[m] / h_fAllCompartments[m];
-                        gasBins[s][ss] = h_fgAllCompartments[m] / h_fAllCompartments[m];
+                        liquidBins[n2] = h_flAllCompartments[m] / h_fAllCompartments[m];
+                        gasBins[n2] = h_fgAllCompartments[m] / h_fAllCompartments[m];
                     }
-                    internalLiquid[s][ss] = min(granSatFactor * gasBins[s][ss], liquidBins[s][ss]);
-                    externalLiquid[s][ss] = max(0.0, liquidBins[s][ss] - internalLiquid[s][ss]);
+                    internalLiquid[n2] = min(granSatFactor * gasBins[n2], liquidBins[n2]);
+                    externalLiquid[n2] = max(0.0, liquidBins[n2] - internalLiquid[n2]);
 
-                    double value = compartmentIn.sMeshXY[s * nFirstSolidBins + ss] + compartmentIn.ssMeshXY[s* nFirstSolidBins + ss] + gasBins[s][ss];
-                    internalVolumeBins[s][ss] = value + internalLiquid[s][ss];
-                    externalVolumeBins[s][ss] = value + liquidBins[s][ss];
+                    double value = compartmentIn.sMeshXY[n2] + compartmentIn.ssMeshXY[n2] + gasBins[n2];
+                    h_internalVolumeBins[n2] = value + internalLiquid[n2];
+                    h_externalVolumeBins[n2] = value + liquidBins[n2];
+            
+                    h_liquidBinsAllCompartments[m] = liquidBins[n2];
+                    h_gasBinsAllCompartments[m] = gasBins[n2];
+                    h_externalVolumeBinsAllCompartments[m] = h_externalVolumeBins[n2];
+                    h_internalVolumeBinsAllCompartments[m] = h_internalVolumeBins[n2];
                 }
-            liquidBinsAllCompartments[c] = liquidBins;
-            gasBinsAllCompartments[c] = gasBins;
-            externalVolumeBinsAllCompartments[c] = externalVolumeBins;
-            internalVolumeBinsAllCompartments[c] = internalVolumeBins;
         }
 
         vector<double> d10OverCompartment(nCompartments, 0.0);
@@ -987,7 +996,7 @@ int main(int argc, char *argv[])
                 for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
                     int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
-                    diameter[s][ss] = cbrt((6 / M_PI) * externalVolumeBinsAllCompartments[m]) * 1.0e6;
+                    diameter[s][ss] = cbrt((6 / M_PI) * h_externalVolumeBinsAllCompartments[m]) * 1.0e6;
                 }
 
 
@@ -998,7 +1007,7 @@ int main(int argc, char *argv[])
                     {
                         int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
                         if (diameter[s][ss] < sieveGrid[d + 1] && diameter[s][ss] >= sieveGrid[d])
-                            totalVolumeGrid[d] += fAllCompartments[m] * externalVolumeBinsAllCompartments[m];
+                            totalVolumeGrid[d] += h_fAllCompartments[m] * h_externalVolumeBinsAllCompartments[m];
                     }
 
             double sum = 0.0;
@@ -1048,22 +1057,41 @@ int main(int argc, char *argv[])
 
         //SAVING OVER TIME
         //cout << endl <<  "************Saving over time" << endl << endl;
-        fAllCompartmentsOverTime.push_back(fAllCompartments);
-        externalVolumeBinsAllCompartmentsOverTime.push_back(externalVolumeBinsAllCompartments);
-        internalVolumeBinsAllCompartmentsOverTime.push_back(internalVolumeBinsAllCompartments);
-        liquidBinsAllCompartmentsOverTime.push_back(liquidBinsAllCompartments);
-        gasBinsAllCompartmentsOverTime.push_back(gasBinsAllCompartments);
+        h_fAllCompartmentsOverTime.push_back(h_fAllCompartments);
+        h_externalVolumeBinsAllCompartmentsOverTime.push_back(h_externalVolumeBinsAllCompartments);
+        h_internalVolumeBinsAllCompartmentsOverTime.push_back(h_internalVolumeBinsAllCompartments);
+        h_liquidBinsAllCompartmentsOverTime.push_back(h_liquidBinsAllCompartments);
+        h_gasBinsAllCompartmentsOverTime.push_back(h_gasBinsAllCompartments);
 
+        cout << "time = " << time << endl;
+        cout << "timeStep = " << timeStep << endl;
+        cout << endl;
         timeIdxCount++;
         time += timeStep;
     }
+
+    size_t nTimeSteps = Time.size();
+    cout << endl
+         << "nTimeSteps = " << nTimeSteps << endl
+         << endl;
+
+        //dump values for ratio plots
+    dumpDiaCSVpointer(Time, formationThroughAggregationOverTime, Time.size() * nCompartments, string("FormationThroughAggregation"));
+    dumpDiaCSVpointer(Time, depletionThroughAggregationOverTime, Time.size() * nCompartments, string("DepletionThroughAggregation"));
+    dumpDiaCSVpointer(Time, formationThroughBreakageOverTime, Time.size() * nCompartments, string("FormationThroughBreakage"));
+    dumpDiaCSVpointer(Time, depletionThroughBreakageOverTime, Time.size() * nCompartments, string("DepletionThroughBreakage"));
+
+    double endTime = static_cast<double>(clock()) / static_cast<double>(CLOCKS_PER_SEC);
+    cout << "That took " << endTime - startTime << " seconds" << endl;
+    cout << "Code End" << endl;
+    return 0;
     // vector<double> h(size4D, 0.0);
     // for (int i = 0; i < size5D; i++)
     // {
     //     cout << "At i = " << i << "  kernel = " << compartmentOut.aggregationKernel[i] << endl;
     // }
-    cudaFree(d_vs);
-    cudaFree(d_vss);
+    // cudaFree(d_vs);
+    // cudaFree(d_vss);
     // cudaFree(d_sMeshXY);
     // cudaFree(d_ssMeshXY);
 }

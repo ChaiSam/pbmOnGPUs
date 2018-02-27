@@ -27,6 +27,12 @@ std::vector<double> linearize2DVector(arrayOfDouble2D);
 std::vector<double> linearize3DVector(arrayOfDouble3D);
 std::vector<double> linearize4DVector(arrayOfDouble4D);
 
+std::string moreSigs(double d, int prec); //return string of 'd' with ''prec' sig digits: trailing zeros removed
+
+void dumpDiaCSVpointer(std::vector<double>, std::vector<double *>, std::size_t, std::string); // for dumping diameter pointer array
+
+
+
 double getMinimumOfArray(std::vector<double>);
 
 
@@ -271,5 +277,37 @@ void dump4DCSV(T data, std::string varName)
                 }
     myFile.close();
 }
+template <typename T1, typename T2>
+void dumpDiaCSV(T1 data1, T2 data2, std::string varName)
+{
+    std::string path = CSVFILEPATH;
+    std::string fileName = varName + ".csv";
+    std::ofstream myFile;
+    myFile.open((path + fileName).c_str());
+    if (!myFile.is_open())
+    {
+        std::cout << "Unable to open file to dump data" << std::endl;
+        return;
+    }
+    myFile << "Time Index"
+           << ","
+           << "Time";
+    for (size_t c = 0; c < data2[0].size(); c++)
+        myFile << ","
+               << "C" << c + 1;
+    myFile << std::endl;
+
+    for (size_t t = 0; t < data1.size(); t++)
+    {
+        myFile << t + 1 << "," << data1[t];
+        for (size_t c = 0; c < data2[t].size(); c++)
+            myFile << "," << moreSigs(data2[t][c], 16);
+        myFile << std::endl;
+    }
+    myFile.close();
+}
+
+
+
 
 #endif // UTILITY_H
