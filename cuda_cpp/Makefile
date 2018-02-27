@@ -3,7 +3,7 @@
 #target: dependencies
 #<tab>action
 
-CC=nvcc -std=c++11 -arch=sm_52 -Xcompiler -rdynamic -rdc=true --expt-relaxed-constexpr -g -G
+CC=nvcc -std=c++11 -arch=sm_52 -g -G -Xcompiler -rdynamic -rdc=true --expt-relaxed-constexpr
 #ARCH= -arch=sm_52
 
 all: model.out

@@ -94,11 +94,8 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
                                   double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments)
 {
     int bix = blockIdx.x;
-    int biy = blockIdx.y;
     int bdx = blockDim.x;
-    int bdy = blockDim.y;
     int gdx = gridDim.x;
-
     int tix = threadIdx.x;
     // int tiy = threadIdx.y;
 
@@ -148,7 +145,6 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
 
     performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
-    cudaDeviceSynchronize();
     performBreakageCalculations<<<1,256, 0, stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -321,7 +317,7 @@ int main(int argc, char *argv[])
     
     vector<double> h_fIn(size2D, 0.0);
     for (size_t i = 0; i < particleIn.size(); i++)
-        h_fIn[i * size1D + i] = particleIn[i];
+        h_fIn[i * particleIn.size() + i] = particleIn[i];
     
     // allocation of memory for the matrices that will be copied onto the device from the host
     double *d_vs = device_alloc_double_vector(size1D);
@@ -840,7 +836,7 @@ int main(int argc, char *argv[])
                                                     d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
                                                     granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments);
 
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
         err = cudaSuccess; // check kernel launach
         err = cudaGetLastError();
         if (err != cudaSuccess)
@@ -889,7 +885,7 @@ int main(int argc, char *argv[])
 
         for (size_t i = 0; i < size3D; i++)
         {
-            cout << "compartmentOut.dfAlldt[" << i << "] is " << compartmentOut.dfAlldt[i] <<  endl;
+            // cout << "compartmentOut.dfAlldt[" << i << "] is " << compartmentOut.dfAlldt[i] <<  endl;
             if (fabs(h_fAllCompartments[i]) > 1.0e-16)
                 maxAll = max(maxAll, -compartmentOut.dfAlldt[i] / h_fAllCompartments[i]);
             if (fabs(h_flAllCompartments[i]) > 1.0e-16)
