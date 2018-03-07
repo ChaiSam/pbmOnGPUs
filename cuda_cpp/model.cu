@@ -145,6 +145,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
 
     performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
+    cudaDeviceSynchronize();
     performBreakageCalculations<<<1,256, 0, stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
     err = cudaGetLastError();
     if (err != cudaSuccess)
