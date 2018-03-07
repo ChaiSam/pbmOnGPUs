@@ -108,7 +108,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentIn->fAll[idx3] = d_fAllCompartments[idx3];
     d_compartmentIn->fLiquid[idx3] = d_flAllCompartments[idx3];
     d_compartmentIn->fGas[idx3] = d_fgAllCompartments[idx3];
-    d_compartmentIn->liquidAdditionRate = d_liquidAdditionRateAllCompartments[tix % (size3D / size2D)];
+    d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] = d_liquidAdditionRateAllCompartments[tix % (size3D / size2D)];
 
     if (bix == 0)
     {
@@ -187,9 +187,9 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
 
     double finalTime = premixTime + liqAddTime + initialTime;
     if (time >= premixTime && time <= finalTime)
-        d_compartmentIn->liquidAdditionRate *= timeStep;
+        d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] *= timeStep;
     else
-        d_compartmentIn->liquidAdditionRate = 0.0;
+        d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] = 0.0;
 
     __syncthreads();
     double totalSolidvolume = 0.0;
@@ -201,7 +201,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentOut->dfAlldt[idx3] += d_brCompVar->birthThroughBreakage1[idx3] + d_brCompVar->formationThroughBreakageCA[idx3] - d_brCompVar->depletionThroughBreakage[idx3];
 
      if (totalSolidvolume > 1.0e-16)
-        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) / totalSolidvolume;
+        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) / totalSolidvolume;
 
     d_compartmentOut->dfLiquiddt[idx3] = d_compVar->liquidMovement[idx3];
     d_compartmentOut->dfLiquiddt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughLiquidAddition[idx3];
@@ -823,7 +823,7 @@ int main(int argc, char *argv[])
     // double liqAddTime = pData->liqAddTime;
     double consConst = pData->consConst;
     double minPorosity = pData->minPorosity;
-
+    cudaDeviceSynchronize();
     while (time <= finalTime)
     {
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
@@ -957,10 +957,11 @@ int main(int argc, char *argv[])
             vector<double> gasBins(size2D, 0.0);
             vector<double> internalLiquid(size2D, 0.0);
             vector<double> externalLiquid(size2D, 0.0);
+
             for (size_t s = 0; s < nFirstSolidBins; s++)
                 for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
-                    int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                    int m = c * nFirstSolidBins * nSecondSolidBins + s * nSecondSolidBins + ss;
                     int n2 = s * nSecondSolidBins + ss;
                     if (fabs(h_fAllCompartments[m]) > 1.0e-16)
                     {
@@ -1072,10 +1073,10 @@ int main(int argc, char *argv[])
          << endl;
 
         //dump values for ratio plots
-    dumpDiaCSVpointer(Time, formationThroughAggregationOverTime, Time.size() * nCompartments, string("FormationThroughAggregation"));
-    dumpDiaCSVpointer(Time, depletionThroughAggregationOverTime, Time.size() * nCompartments, string("DepletionThroughAggregation"));
-    dumpDiaCSVpointer(Time, formationThroughBreakageOverTime, Time.size() * nCompartments, string("FormationThroughBreakage"));
-    dumpDiaCSVpointer(Time, depletionThroughBreakageOverTime, Time.size() * nCompartments, string("DepletionThroughBreakage"));
+    // dumpDiaCSVpointer(Time, formationThroughAggregationOverTime, Time.size() * nCompartments, string("FormationThroughAggregation"));
+    // dumpDiaCSVpointer(Time, depletionThroughAggregationOverTime, Time.size() * nCompartments, string("DepletionThroughAggregation"));
+    // dumpDiaCSVpointer(Time, formationThroughBreakageOverTime, Time.size() * nCompartments, string("FormationThroughBreakage"));
+    // dumpDiaCSVpointer(Time, depletionThroughBreakageOverTime, Time.size() * nCompartments, string("DepletionThroughBreakage"));
 
     double endTime = static_cast<double>(clock()) / static_cast<double>(CLOCKS_PER_SEC);
     cout << "That took " << endTime - startTime << " seconds" << endl;

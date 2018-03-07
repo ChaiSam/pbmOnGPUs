@@ -11,7 +11,7 @@ public:
     double *fAll;
     double *fLiquid;
     double *fGas;
-    double liquidAdditionRate;
+    double *liquidAdditionRate;
     double *vs;
     double *vss;
     double *sMeshXY;

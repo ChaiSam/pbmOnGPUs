@@ -23,7 +23,7 @@ void dumpDiaCSVpointer(vector<double> data1, vector<double *> data2, size_t s1, 
     myFile << "Time Index"
            << ","
            << "Time";
-    int ctot = static_cast<int>(s1 / data1.size());
+    int ctot = round(s1 / data1.size());//static_cast<int>(s1 / data1.size());
     for (size_t c = 0; c < ctot; c++)
         myFile << ","
                << "C" << c + 1;

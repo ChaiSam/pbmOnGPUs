@@ -80,7 +80,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
     int val1 = idx3 % nFirstSolidBins; // s
     int val2 = idx3s % nSecondSolidBins; // ss
     // int s3 = val1 * nFirstSolidBins + val2;
-
+    __syncthreads();
     if (val1 == nFirstSolidBins - 1 && val2 == nSecondSolidBins - 1)
     {
         d_aggCompVar->birthAggHighHigh[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1 - 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
@@ -207,7 +207,13 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
 
     d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[tlx] * d_compartmentIn->ssCheckB[tix] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[tlx];
     
+    d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx] + d_compVar->internalLiquid[idx3] + d_compVar->gasBins[idx3];
+    d_compVar->externalLiquid[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx] + d_compVar->liquidBins[idx3] + d_compVar->gasBins[idx3];
+    d_compVar->volumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx];
+    
     __syncthreads();
+
+
     d_brCompVar->depletionThroughBreakage[idx3] += d_compVar->breakageRate[idx4];
     d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->liquidBins[idx3];
     d_brCompVar->depletionOfGasThroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->gasBins[idx3];
@@ -325,8 +331,8 @@ CompartmentVar :: CompartmentVar(unsigned int nX2, unsigned int nX5, unsigned in
 {
     if (check == 0)
     {
-        internalLiquid = alloc_double_vector(nX2);
-        externalLiquid = alloc_double_vector(nX2);
+        internalLiquid = alloc_double_vector(nX5 / nX2);
+        externalLiquid = alloc_double_vector(nX5 / nX2);
         externalLiquidContent = alloc_double_vector(nX2);
         volumeBins = alloc_double_vector(nX2);
         aggregationRate = alloc_double_vector(nX5);
@@ -341,8 +347,8 @@ CompartmentVar :: CompartmentVar(unsigned int nX2, unsigned int nX5, unsigned in
 
     else if (check == 1)
     {
-        internalLiquid = device_alloc_double_vector(nX2);
-        externalLiquid = device_alloc_double_vector(nX2);
+        internalLiquid = device_alloc_double_vector(nX5 / nX2);
+        externalLiquid = device_alloc_double_vector(nX5 / nX2);
         externalLiquidContent = device_alloc_double_vector(nX2);
         volumeBins = device_alloc_double_vector(nX2);
         aggregationRate = device_alloc_double_vector(nX5);
@@ -366,7 +372,7 @@ CompartmentIn :: CompartmentIn (unsigned int nX2, unsigned int nX5, unsigned int
         fAll = alloc_double_vector(nX5 / nX2);
         fLiquid = alloc_double_vector(nX5 / nX2);
         fGas = alloc_double_vector(nX5 / nX2);
-        liquidAdditionRate = 0.0;
+        liquidAdditionRate = alloc_double_vector(sqrt(nX2));
         vs = alloc_double_vector(nX2);
         vss = alloc_double_vector(nX2);
         sMeshXY = alloc_double_vector(nX2);
@@ -388,7 +394,7 @@ CompartmentIn :: CompartmentIn (unsigned int nX2, unsigned int nX5, unsigned int
 
     else if (check == 1)
     {
-        liquidAdditionRate = 0.0;
+        liquidAdditionRate = device_alloc_double_vector(sqrt(nX2));
         fAll = device_alloc_double_vector(nX5 / nX2);
         fLiquid = device_alloc_double_vector(nX5 / nX2);
         fGas = device_alloc_double_vector(nX5 / nX2);
