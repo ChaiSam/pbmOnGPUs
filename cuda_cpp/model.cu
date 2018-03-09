@@ -47,7 +47,7 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
     // __shared__ double d_sMeshXY[256], d_ssMeshXY[256];
 
     d_sMeshXY[bdx * bix + idx] = d_vs[bix];
-    d_ssMeshXY[bdx * bix + idx] = d_vss[bix];
+    d_ssMeshXY[bdx * bix + idx] = d_vss[idx];
     d_sAgg[bdx * bix + idx] = d_vs[idx] + d_vs[bix];
     d_ssAgg[bdx * bix + idx] = d_vss[idx] + d_vss[bix];
     d_sAggregationCheck[bdx * bix + idx] = d_sAgg[bdx * bix + idx] <= d_vs[bdx - 1] ? 1 : 0;
