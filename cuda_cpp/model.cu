@@ -91,7 +91,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
                                   double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
                                   double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments,
                                   unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep, int nFirstSolidBins, int nSecondSolidBins,
-                                  double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments)
+                                  double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments, double granSatFactor)
 {
     int bix = blockIdx.x;
     int bdx = blockDim.x;
@@ -124,7 +124,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_prevCompInData->fgPreviousCompartment[idx3] = d_fgAllCompartments[(bix - 1) * bdx + tix];
     }
 
-    if (fabs(d_compartmentIn->fAll[tix] > 1e-16))
+    if (fabs(d_compartmentIn->fAll[idx3] > 1e-16))
     {
         d_compartmentOut->liquidBins[idx3] = d_compartmentIn->fLiquid[idx3] / d_compartmentIn->fAll[idx3];
         d_compartmentOut->gasBins[idx3] = d_compartmentIn->fGas[idx3] / d_compartmentIn->fAll[idx3];
@@ -144,9 +144,9 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     result1 = cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking);
     result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
 
-    performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
+    performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, nCompartments);
+    performBreakageCalculations<<<1,256,0,stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
     cudaDeviceSynchronize();
-    performBreakageCalculations<<<1,256, 0, stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -170,20 +170,21 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     {
         maxValue = max(maxValue, d_compVar->meshXYSum[d1]);
     }
+
     double valueMeshXY = 1 - (d_compartmentIn->sMeshXY[idx3] + d_compartmentIn->ssMeshXY[idx3]) / maxValue;
     double distanceBetweenCompartments = granulatorLength / nCompartments;
     double particleAverageVelocity = granulatorLength /  partticleResTime;
     double distanceMoved = particleAverageVelocity * timeStep / distanceBetweenCompartments;// value renamed as distanceMoved
 
     d_compVar->particleMovement[idx3] = d_prevCompInData->fAllComingIn[idx3];
-    d_compVar->particleMovement[idx3] += d_prevCompInData->fAllPreviousCompartment[idx3] * distanceMoved * maxValue;
+    d_compVar->particleMovement[idx3] += d_prevCompInData->fAllPreviousCompartment[idx3] * distanceMoved * valueMeshXY;
     d_compVar->particleMovement[idx3] -= d_compartmentIn->fAll[idx3] * distanceMoved;
 
-    d_compVar->liquidMovement[idx3] = d_prevCompInData->flPreviousCompartment[idx3] * distanceMoved * maxValue;
+    d_compVar->liquidMovement[idx3] = d_prevCompInData->flPreviousCompartment[idx3] * distanceMoved * valueMeshXY;
     d_compVar->liquidMovement[idx3] -= d_compartmentIn->fLiquid[idx3] * distanceMoved;
 
     d_compVar->gasMovement[idx3] = d_prevCompInData->fgComingIn[idx3];
-    d_compVar->gasMovement[idx3] += d_prevCompInData->fgPreviousCompartment[idx3] * distanceMoved * maxValue;
+    d_compVar->gasMovement[idx3] += d_prevCompInData->fgPreviousCompartment[idx3] * distanceMoved * valueMeshXY;
     d_compVar->gasMovement[idx3] -= d_compartmentIn->fGas[idx3] * distanceMoved;
 
     double finalTime = premixTime + liqAddTime + initialTime;
@@ -195,14 +196,14 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     __syncthreads();
     double totalSolidvolume = 0.0;
     for (int i = bix * bdx; i < (bix+1) * bdx; i++)
-        totalSolidvolume += d_compartmentIn->fAll[i] + (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]);
+        totalSolidvolume += d_compartmentIn->fAll[i] + (d_compartmentIn->vs[i / nFirstSolidBins] + d_compartmentIn->vss[i % nFirstSolidBins]);
 
     d_compartmentOut->dfAlldt[idx3] = d_compVar->particleMovement[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_aggCompVar->formationThroughAggregationCA[idx3] - d_aggCompVar->depletionThroughAggregation[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_brCompVar->birthThroughBreakage1[idx3] + d_brCompVar->formationThroughBreakageCA[idx3] - d_brCompVar->depletionThroughBreakage[idx3];
 
      if (totalSolidvolume > 1.0e-16)
-        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) / totalSolidvolume;
+        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[tix / nFirstSolidBins] * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) / totalSolidvolume;
 
     d_compartmentOut->dfLiquiddt[idx3] = d_compVar->liquidMovement[idx3];
     d_compartmentOut->dfLiquiddt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughLiquidAddition[idx3];
@@ -210,6 +211,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentOut->dfLiquiddt[idx3] += d_brCompVar->liquidBirthThroughBreakage1[idx3] + d_brCompVar->formationOfLiquidThroughBreakageCA[idx3];
     d_compartmentOut->dfLiquiddt[idx3] -= d_brCompVar->depletionOfLiquidthroughBreakage[idx3];
 
+    d_compVar->internalLiquid[idx3] = min(granSatFactor * d_compartmentOut->gasBins[idx3], d_compartmentOut->liquidBins[idx3]);
     if(d_compartmentIn->fGas[idx3] > 1.0e-16)
     {
         d_brCompVar->transferThroughConsolidation[idx3] = consConst * d_compartmentOut->internalVolumeBins[idx3] * ((1 - minPorosity) / (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]));
@@ -810,7 +812,6 @@ int main(int argc, char *argv[])
     copy_double_vector_fromHtoD(d_fIn, h_fIn.data(), size2D);
 
     CompartmentOut h_results(size2D, size4D, 1);
-    CompartmentDEMIn *h_demr;
 
     // dim3 compKernel_nblocks, compKernel_nthreads;
     // compKernel_nblocks = dim3(nCompartments,1,1);
@@ -824,6 +825,7 @@ int main(int argc, char *argv[])
     // double liqAddTime = pData->liqAddTime;
     double consConst = pData->consConst;
     double minPorosity = pData->minPorosity;
+    double granSatFactor = pData->granSatFactor;
     cudaDeviceSynchronize();
     while (time <= finalTime)
     {
@@ -831,11 +833,11 @@ int main(int argc, char *argv[])
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
         
-        launchCompartment<<<16,256>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
+        launchCompartment<<<nCompartments,256>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
                                                     time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
                                                     d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
-                                                    granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments);
+                                                    granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments, granSatFactor);
 
         // cudaDeviceSynchronize();
         err = cudaSuccess; // check kernel launach
@@ -872,7 +874,6 @@ int main(int argc, char *argv[])
         copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
         copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
 
-        cudaDeviceSynchronize();
 
         formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation);
         depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation);
@@ -951,7 +952,6 @@ int main(int argc, char *argv[])
 
         // BIN recalculation 
 
-        double granSatFactor = pData->granSatFactor;
         for (int c = 0; c < nCompartments; c++)
         {
             vector<double> liquidBins(size2D, 0.0);
@@ -1053,6 +1053,7 @@ int main(int argc, char *argv[])
             d10OverCompartment[c] = d90;
         }
 
+        Time.push_back(time);
         //SAVING OVER TIME
         //cout << endl <<  "************Saving over time" << endl << endl;
         h_fAllCompartmentsOverTime.push_back(h_fAllCompartments);
@@ -1074,10 +1075,10 @@ int main(int argc, char *argv[])
          << endl;
 
         //dump values for ratio plots
-    // dumpDiaCSVpointer(Time, formationThroughAggregationOverTime, Time.size() * nCompartments, string("FormationThroughAggregation"));
-    // dumpDiaCSVpointer(Time, depletionThroughAggregationOverTime, Time.size() * nCompartments, string("DepletionThroughAggregation"));
-    // dumpDiaCSVpointer(Time, formationThroughBreakageOverTime, Time.size() * nCompartments, string("FormationThroughBreakage"));
-    // dumpDiaCSVpointer(Time, depletionThroughBreakageOverTime, Time.size() * nCompartments, string("DepletionThroughBreakage"));
+    dumpDiaCSVpointer(Time, formationThroughAggregationOverTime, Time.size() * nCompartments, string("FormationThroughAggregation"));
+    dumpDiaCSVpointer(Time, depletionThroughAggregationOverTime, Time.size() * nCompartments, string("DepletionThroughAggregation"));
+    dumpDiaCSVpointer(Time, formationThroughBreakageOverTime, Time.size() * nCompartments, string("FormationThroughBreakage"));
+    dumpDiaCSVpointer(Time, depletionThroughBreakageOverTime, Time.size() * nCompartments, string("DepletionThroughBreakage"));
 
     double endTime = static_cast<double>(clock()) / static_cast<double>(CLOCKS_PER_SEC);
     cout << "That took " << endTime - startTime << " seconds" << endl;
@@ -1092,4 +1093,5 @@ int main(int argc, char *argv[])
     // cudaFree(d_vss);
     // cudaFree(d_sMeshXY);
     // cudaFree(d_ssMeshXY);
+    // cudaFree(d_compartmentIn);
 }
