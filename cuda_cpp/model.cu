@@ -61,7 +61,7 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
         d_ssHigh[bdx * bix + idx] = d_sMeshXY[bdx * (bix + 1) + idx];
     }
     d_sHigh[bdx * (bdx -1) + idx] = 0.0;
-    d_ssHigh[bdx * (bdx -1) + idx] = 0.0;
+    d_ssHigh[bdx * bdx + idx - 1] = 0.0;
     d_sLoc[bdx * bix + idx] = floor(log(d_sAgg[bdx * bix + idx] / fsVolCoeff) / log(fsVolBase) + 1);
     d_ssLoc[bdx * bix + idx] = floor(log(d_ssAgg[bdx * bix + idx] / ssVolCoeff) / log(ssVolBase) + 1);
     d_sInd[bdx * bix + idx] = (idx <= bix) ? (bix + 1) : (idx + 1);
