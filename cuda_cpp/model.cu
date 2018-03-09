@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
     
     vector<double> h_fIn(size2D, 0.0);
     for (size_t i = 0; i < particleIn.size(); i++)
-        h_fIn[i * particleIn.size() + i] = particleIn[i];
+        h_fIn[i * size1D + i] = particleIn[i];
     
     // allocation of memory for the matrices that will be copied onto the device from the host
     double *d_vs = device_alloc_double_vector(size1D);
