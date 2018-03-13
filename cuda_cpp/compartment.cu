@@ -41,10 +41,8 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
     d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[tix] * timeStep) / demTimeStep;
 
     d_compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst[0] * d_compartmentDEMIn->colFrequency[idx4] * d_compartmentDEMIn->colEfficiency[idx4];
-    // printf("Value of kernel at %d and %d is %f \n", tlx, tix, d_compartmentOut->aggregationKernel[idx4]);
-    if (tix == 0 && tlx ==0) {printf("aggcons = %f \n", d_aggCompVar->aggKernelConst[0]);}
     d_compVar->aggregationRate[idx4] = d_compartmentIn->sAggregationCheck[tlx] * d_compartmentIn->ssAggregationCheck[tix] * d_compartmentOut->aggregationKernel[idx4] * d_compartmentIn->fAll[idx3] * d_compartmentIn->fAll[idx3s];
-
+    __syncthreads();
     d_aggCompVar->depletionThroughAggregation[idx3] += d_compVar->aggregationRate[idx4];
     d_aggCompVar->depletionThroughAggregation[idx3s] += d_compVar->aggregationRate[idx4];
     d_aggCompVar->depletionOfGasThroughAggregation[idx3] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->gasBins[idx3];
@@ -239,9 +237,8 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx] + d_compVar->internalLiquid[idx3] + d_compVar->gasBins[idx3];
     d_compVar->externalLiquid[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx] + d_compVar->liquidBins[idx3] + d_compVar->gasBins[idx3];
     d_compVar->volumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx];
-    __syncthreads();
-
     d_brCompVar->depletionThroughBreakage[idx3] += d_compVar->breakageRate[idx4];
+    __syncthreads();
     d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->liquidBins[idx3];
     d_brCompVar->depletionOfGasThroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->gasBins[idx3];
     d_brCompVar->birthThroughBreakage1[idx3] += d_compVar->breakageRate[idx4];
@@ -259,7 +256,6 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
                 d_brCompVar->secondSolidBirthThroughBreakage[idx3] += (d_compartmentIn->vss[s2] - d_compartmentIn->vss[ss2]) * d_compVar->breakageRate[idx4];
                 d_brCompVar->liquidBirthThroughBreakage2[idx3] += (d_compartmentOut->liquidBins[idx3] * (1 - (d_compVar->volumeBins[idx3s] / d_compVar->volumeBins[idx3]))) * d_compVar->breakageRate[idx4];
                 d_brCompVar->gasBirthThroughBreakage2[idx3] += (d_compartmentOut->gasBins[idx3] * (1 - (d_compVar->volumeBins[idx3s] / d_compVar->volumeBins[idx3]))) * d_compVar->breakageRate[idx4];
-
                 if (fabs(d_brCompVar->birthThroughBreakage2[idx3]) > 1e-16)
                 {
                     d_brCompVar->firstSolidVolumeThroughBreakage[idx3] = d_brCompVar->firstSolidBirthThroughBreakage[idx3] / d_brCompVar->birthThroughBreakage2[idx3];
@@ -358,7 +354,6 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
             d_brCompVar->formationOfGasThroughBreakageCA[idx3] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
         }
     }
-    // printf("rat = %d \ndelp = %d \n ",d_compVar->breakageRate[idx4], d_brCompVar->depletionThroughBreakage[idx3]);
 }
 
 // ============ Constructors for the Classes =================

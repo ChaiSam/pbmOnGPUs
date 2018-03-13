@@ -96,6 +96,11 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     int bdx = blockDim.x;
     int gdx = gridDim.x;
     int tix = threadIdx.x;
+
+    d_compartmentOut->formationThroughAggregation[bix] = 0.0;
+    d_compartmentOut->depletionThroughAggregation[bix] = 0.0;
+    d_compartmentOut->formationThroughBreakage[bix] = 0.0;
+    d_compartmentOut->depletionThroughBreakage[bix] = 0.0;
     // int tiy = threadIdx.y;
 
     // int idx = bix * bdx * bdy + tiy * bdx + tix;
@@ -133,7 +138,14 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_compartmentOut->liquidBins[idx3] = 0.0;
         d_compartmentOut->gasBins[idx3] = 0.0;
     }
+
+
+    
     d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
+    
+    d_aggCompVar->depletionThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->depletionOfGasThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = 0.0;
     d_aggCompVar->birthAggHighHigh[idx3] = 0.0;
     d_aggCompVar->birthAggHighHighLiq[idx3] = 0.0;
     d_aggCompVar->birthAggHighHighGas[idx3] = 0.0;
@@ -156,22 +168,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_aggCompVar->birthAggLowLowLiq[idx3] = 0.0;
     d_aggCompVar->birthAggLowLowGas[idx3] = 0.0;
 
-    d_brCompVar->formationThroughBreakageCA[idx3] = 0.0;
-    d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] = 0.0;
-    d_brCompVar->formationOfGasThroughBreakageCA[idx3] = 0.0;
 
-    d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
-    d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = 0.0;
-    d_brCompVar->depletionOfGasThroughBreakage[idx3] = 0.0;
-    d_brCompVar->birthThroughBreakage1[idx3] = 0.0;
-    d_compartmentOut->internalVolumeBins[idx3] = 0.0;
-    d_compVar->externalLiquid[idx3] = 0.0;
-    d_compVar->volumeBins[idx3] = 0.0;
-    d_brCompVar->birthThroughBreakage2[idx3] = 0.0;
-    d_brCompVar->firstSolidBirthThroughBreakage[idx3] = 0.0;
-    d_brCompVar->secondSolidBirthThroughBreakage[idx3] = 0.0;
-    d_brCompVar->liquidBirthThroughBreakage2[idx3] = 0.0;
-    d_brCompVar->gasBirthThroughBreakage2[idx3] = 0.0;
 
 
     cudaDeviceSynchronize();
@@ -187,7 +184,6 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
 
     performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
     performBreakageCalculations<<<1,256,0,stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, brkKernelConst);
-    cudaDeviceSynchronize();
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -264,6 +260,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentOut->dfGasdt[idx3] += d_aggCompVar->formationOfGasThroughAggregationCA[idx3] - d_aggCompVar->depletionOfGasThroughAggregation[idx3];
     d_compartmentOut->dfGasdt[idx3] += d_brCompVar->gasBirthThroughBreakage1[idx3] + d_brCompVar->formationOfGasThroughBreakageCA[idx3];
     d_compartmentOut->dfGasdt[idx3] -= d_brCompVar->depletionOfGasThroughBreakage[idx3];
+
 
     __syncthreads();
 
