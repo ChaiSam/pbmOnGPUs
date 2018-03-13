@@ -67,8 +67,8 @@ public:
     double *colFrequency;
     double *velocityCol;
     double *impactFrequency;
-    double uCriticalCol;
-    double ubreak;
+    double *uCriticalCol;
+    double *ubreak;
 
     CompartmentDEMIn(unsigned int, unsigned int, unsigned int);
 };
@@ -107,7 +107,7 @@ public:
 class AggregationCompVar
 {
 public:
-    double aggKernelConst;
+    double *aggKernelConst;
     double *depletionOfGasThroughAggregation;
     double *depletionOfLiquidThroughAggregation;
     double *birthThroughAggregation;
@@ -140,7 +140,7 @@ public:
 class BreakageCompVar
 {
 public:
-    double brkKernelConst;
+    double *brkKernelConst;
     double *birthThroughBreakage1;
     double *birthThroughBreakage2;
     double *firstSolidBirthThroughBreakage;
@@ -166,6 +166,6 @@ public:
     BreakageCompVar(unsigned int, unsigned int, unsigned int);
 };
 
-__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, int, int, int);
-__global__ void performBreakageCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, BreakageCompVar *, double, double, double, double, int, int, int, int, int);
+__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, int, int, int, double);
+__global__ void performBreakageCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, BreakageCompVar *, double, double, double, double, int, int, int, int, int, double);
 #endif // COMPARTMENT_CUH

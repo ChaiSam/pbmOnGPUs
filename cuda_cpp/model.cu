@@ -56,12 +56,10 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
     d_ssLow[bdx * bix + idx] = d_ssMeshXY[bdx * bix + idx];
     __syncthreads();
     if (bix < bdx -1)
-    {
         d_sHigh[bdx * bix + idx] = d_sMeshXY[bdx * (bix + 1) + idx];
-        d_ssHigh[bdx * bix + idx] = d_sMeshXY[bdx * (bix + 1) + idx];
-    }
+    d_ssHigh[bdx * bix + idx] = d_ssMeshXY[bdx * (bix) + idx +1];
     d_sHigh[bdx * (bdx -1) + idx] = 0.0;
-    d_ssHigh[bdx * bdx + idx - 1] = 0.0;
+    d_ssHigh[bdx * bix + bdx - 1] = 0.0;
     d_sLoc[bdx * bix + idx] = floor(log(d_sAgg[bdx * bix + idx] / fsVolCoeff) / log(fsVolBase) + 1);
     d_ssLoc[bdx * bix + idx] = floor(log(d_ssAgg[bdx * bix + idx] / ssVolCoeff) / log(ssVolBase) + 1);
     d_sInd[bdx * bix + idx] = (idx <= bix) ? (bix + 1) : (idx + 1);
@@ -91,7 +89,8 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
                                   double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
                                   double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments,
                                   unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep, int nFirstSolidBins, int nSecondSolidBins,
-                                  double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments, double granSatFactor)
+                                  double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments, 
+                                  double granSatFactor, double aggKernelConst, double brkKernelConst)
 {
     int bix = blockIdx.x;
     int bdx = blockDim.x;
@@ -108,13 +107,13 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentIn->fAll[idx3] = d_fAllCompartments[idx3];
     d_compartmentIn->fLiquid[idx3] = d_flAllCompartments[idx3];
     d_compartmentIn->fGas[idx3] = d_fgAllCompartments[idx3];
-    d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] = d_liquidAdditionRateAllCompartments[tix % (size3D / size2D)];
+    d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] = d_liquidAdditionRateAllCompartments[tix % nCompartments];
 
     if (bix == 0)
     {
         d_prevCompInData->fAllComingIn[idx3] = d_fIn[tix];
         double value = initPorosity * timeStep;
-        d_prevCompInData->fgComingIn[idx3] = d_fIn[idx3] * (d_compartmentIn->vs[idx3 % 16] + d_compartmentIn->vss[idx3 % 16]) * value;
+        d_prevCompInData->fgComingIn[idx3] = d_fIn[idx3] * (d_compartmentIn->vs[idx3 % nFirstSolidBins] + d_compartmentIn->vss[idx3 % nSecondSolidBins]) * value;
     }
 
     else
@@ -134,6 +133,48 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_compartmentOut->liquidBins[idx3] = 0.0;
         d_compartmentOut->gasBins[idx3] = 0.0;
     }
+    d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
+    d_aggCompVar->birthAggHighHigh[idx3] = 0.0;
+    d_aggCompVar->birthAggHighHighLiq[idx3] = 0.0;
+    d_aggCompVar->birthAggHighHighGas[idx3] = 0.0;
+
+    d_aggCompVar->birthThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->firstSolidBirthThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->secondSolidBirthThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->liquidBirthThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->gasBirthThroughAggregation[idx3] = 0.0;
+
+    d_aggCompVar->birthAggLowHigh[idx3] = 0.0;
+    d_aggCompVar->birthAggLowHighLiq[idx3] = 0.0;
+    d_aggCompVar->birthAggLowHighGas[idx3] = 0.0;
+    
+    d_aggCompVar->birthAggHighLow[idx3] = 0.0;
+    d_aggCompVar->birthAggHighLowLiq[idx3] = 0.0;
+    d_aggCompVar->birthAggHighLowGas[idx3] = 0.0;
+    
+    d_aggCompVar->birthAggLowLow[idx3] = 0.0;
+    d_aggCompVar->birthAggLowLowLiq[idx3] = 0.0;
+    d_aggCompVar->birthAggLowLowGas[idx3] = 0.0;
+
+    d_brCompVar->formationThroughBreakageCA[idx3] = 0.0;
+    d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] = 0.0;
+    d_brCompVar->formationOfGasThroughBreakageCA[idx3] = 0.0;
+
+    d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
+    d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = 0.0;
+    d_brCompVar->depletionOfGasThroughBreakage[idx3] = 0.0;
+    d_brCompVar->birthThroughBreakage1[idx3] = 0.0;
+    d_compartmentOut->internalVolumeBins[idx3] = 0.0;
+    d_compVar->externalLiquid[idx3] = 0.0;
+    d_compVar->volumeBins[idx3] = 0.0;
+    d_brCompVar->birthThroughBreakage2[idx3] = 0.0;
+    d_brCompVar->firstSolidBirthThroughBreakage[idx3] = 0.0;
+    d_brCompVar->secondSolidBirthThroughBreakage[idx3] = 0.0;
+    d_brCompVar->liquidBirthThroughBreakage2[idx3] = 0.0;
+    d_brCompVar->gasBirthThroughBreakage2[idx3] = 0.0;
+
+
+    cudaDeviceSynchronize();
 
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
     dim3 compKernel_nblocks, compKernel_nthreads;
@@ -144,8 +185,8 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     result1 = cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking);
     result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
 
-    performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, nCompartments);
-    performBreakageCalculations<<<1,256,0,stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins);
+    performAggCalculations<<<1,256, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
+    performBreakageCalculations<<<1,256,0,stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, brkKernelConst);
     cudaDeviceSynchronize();
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -228,7 +269,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
 
     if (tix == 0)
     {
-        for (int i = bix * bdx; i < (bix +1) * bdx; i++)
+        for (int i = bix * bdx; i < ((bix +1) * bdx); i++)
         {
             d_compartmentOut->formationThroughAggregation[bix] += d_aggCompVar->formationThroughAggregationCA[i];
             d_compartmentOut->depletionThroughAggregation[bix] += d_aggCompVar->depletionThroughAggregation[i];
@@ -381,6 +422,13 @@ int main(int argc, char *argv[])
     vector<int> h_sIndB(size2D, 0.0);
     vector<int> h_ssIndB(size2D, 0.0);
 
+    vector<int> h_sLocBreak(size2D, 0.0);
+    vector<int> h_ssLocBreak(size2D, 0.0);
+
+    vector<double> h_sBreak(size2D, 0.0);
+    vector<double> h_ssBreak(size2D, 0.0);
+
+
     copy_double_vector_fromHtoD(d_vs, h_vs.data(), size1D);
     copy_double_vector_fromHtoD(d_vss, h_vss.data(), size1D);
 
@@ -400,7 +448,7 @@ int main(int argc, char *argv[])
     cout << "Initialization complete" << endl;
 
     // copy back data required for the compartment calculations
-     
+
     copy_double_vector_fromDtoH(h_sMeshXY.data(), d_sMeshXY, size2D);
     copy_double_vector_fromDtoH(h_ssMeshXY.data(), d_ssMeshXY, size2D);
 
@@ -422,7 +470,32 @@ int main(int argc, char *argv[])
     copy_integer_vector_fromDtoH(h_sIndB.data(), d_sIndB, size2D);
     copy_integer_vector_fromDtoH(h_ssIndB.data(), d_ssIndB, size2D);
 
+    copy_integer_vector_fromDtoH(h_sLocBreak.data(), d_sLocBreak, size2D);
+    copy_integer_vector_fromDtoH(h_ssLocBreak.data(), d_ssLocBreak, size2D);
+
+    copy_double_vector_fromDtoH(h_sBreak.data(), d_sBreak, size2D);
+    copy_double_vector_fromDtoH(h_ssBreak.data(), d_ssBreak, size2D);
     cudaDeviceSynchronize();
+
+    
+    DUMP(h_sMeshXY);
+    DUMP(h_ssMeshXY);
+    DUMP(h_sAggregationCheck);
+    DUMP(h_ssAggregationCheck);
+    DUMP(h_sLow);
+    DUMP(h_ssLow);
+    DUMP(h_sHigh);
+    DUMP(h_ssHigh);
+    DUMP(h_sInd);
+    DUMP(h_ssInd);
+    DUMP(h_sCheckB);
+    DUMP(h_ssCheckB);
+    DUMP(h_sIndB);
+    DUMP(h_ssIndB);
+    DUMP(h_sLocBreak);
+    DUMP(h_ssLocBreak);
+    DUMP(h_sBreak);
+    DUMP(h_ssBreak);
 
     vector<double> h_fAllCompartments(size3D, 0.0);
     vector<double> h_flAllCompartments(size3D, 0.0);
@@ -510,7 +583,8 @@ int main(int argc, char *argv[])
     double harmonic_diameter = sized / inverseDiameterSum;
     double harmonic_mass = sized / inverseMassSum;
     double uCritical = (10 + (1 / coefOfRest)) * log((liqThick / surfAsp)) * (3 * M_PI * pow(harmonic_diameter, 2) * bindVisc) / (8 * harmonic_mass);
-    x_compartmentDEMIn.uCriticalCol = uCritical;
+    // x_compartmentDEMIn.uCriticalCol[0] = uCritical;
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.uCriticalCol, &uCritical, 1);
     // cout << "Critical velocity for agg is " << uCritical << endl;
 
         int veloSize = colVelocity.size();
@@ -550,7 +624,8 @@ int main(int argc, char *argv[])
     double critStDefNum = pData->critStDefNum;
     double initPorosity = pData->initPorosity;
     double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / compartmentIn.diameter[0]);
-    x_compartmentDEMIn.ubreak = Ubreak;
+    // x_compartmentDEMIn.ubreak[0] = Ubreak;
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.ubreak, &Ubreak, 1);
 
     int size1 = velocity.size();
     double sum = 0.0;
@@ -580,8 +655,6 @@ int main(int argc, char *argv[])
     }
 
     copy_double_vector_fromHtoD(x_compartmentDEMIn.brProbability, breakageProbablityOfVelocity.data(), size1D);
-
-    cout << "HII" << endl;
 
     DUMP2D(DEMCollisionData);
     DUMP(DEMDiameter);
@@ -763,11 +836,12 @@ int main(int argc, char *argv[])
     }
 
     double aggKernelConst = pData->aggKernelConst;
-    x_aggCompVar.aggKernelConst = aggKernelConst;
+    // x_aggCompVar.aggKernelConst[0] = aggKernelConst;
+    copy_double_vector_fromHtoD(x_aggCompVar.aggKernelConst, &aggKernelConst, 1);
 
     double brkKernelConst = pData->brkKernelConst;
-    x_brCompVar.brkKernelConst = brkKernelConst;
-
+    // x_brCompVar.brkKernelConst[0] = brkKernelConst;
+    copy_double_vector_fromHtoD(x_brCompVar.brkKernelConst, &brkKernelConst, 1);
 
     cudaMemcpy(d_aggCompVar, &x_aggCompVar, sizeof(AggregationCompVar), cudaMemcpyHostToDevice);
     err = cudaGetLastError();
@@ -837,7 +911,7 @@ int main(int argc, char *argv[])
                                                     time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
                                                     d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
-                                                    granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments, granSatFactor);
+                                                    granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments, granSatFactor, aggKernelConst, brkKernelConst);
 
         // cudaDeviceSynchronize();
         err = cudaSuccess; // check kernel launach
@@ -875,10 +949,18 @@ int main(int argc, char *argv[])
         copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
 
 
-        formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation);
-        depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation);
-        formationThroughBreakageOverTime.push_back(compartmentOut.formationThroughBreakage);
-        depletionThroughBreakageOverTime.push_back(compartmentOut.depletionThroughBreakage);
+        formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation); 
+        depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation); 
+        formationThroughBreakageOverTime.push_back(compartmentOut.formationThroughBreakage); 
+        depletionThroughBreakageOverTime.push_back(compartmentOut.depletionThroughBreakage); 
+
+        for (int w = 0; w < nCompartments; w++)
+        {
+            cout << "compartmentOut.formationThroughAggregation  = " << compartmentOut.formationThroughAggregation[w] <<  endl;
+            cout << "compartmentOut.depletionThroughAggregation  = " << compartmentOut.depletionThroughAggregation[w] <<  endl;
+            cout << "compartmentOut.formationThroughBreakage  = " << compartmentOut.formationThroughBreakage[w] <<  endl;
+            cout << "compartmentOut.depletionThroughBreakage  = " << compartmentOut.depletionThroughBreakage[w] <<  endl;
+        }
 
         double maxofthree = -DBL_MAX;
         double maxAll = -DBL_MAX;
