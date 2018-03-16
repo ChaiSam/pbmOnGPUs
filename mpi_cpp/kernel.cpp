@@ -98,7 +98,7 @@ arrayOfDouble4D DEMDependentAggregationKernel(CompartmentIn compartmentIn, Compa
     double varianceVelocity = 0.0;
     
     for (int i = 0; i < veloSize; ++i)
-        varianceVelocity += pow((velocity[i] - averageVelocity), 2) / 10;
+        varianceVelocity += pow((velocity[i] - averageVelocity), 2) / nDEMBins;
     
     stdDevVelocity = sqrt(varianceVelocity);
     //double intVelocity = 0.0;

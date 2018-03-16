@@ -94,31 +94,38 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
 {
     int bix = blockIdx.x;
     int bdx = blockDim.x;
-    int gdx = gridDim.x;
     int tix = threadIdx.x;
+    int idx3 = bix * bdx + tix;
+    int s1 = (int) floorf(tix / nFirstSolidBins);
+    int ss1 = tix % nSecondSolidBins;
 
-    d_compartmentOut->formationThroughAggregation[bix] = 0.0;
-    d_compartmentOut->depletionThroughAggregation[bix] = 0.0;
-    d_compartmentOut->formationThroughBreakage[bix] = 0.0;
-    d_compartmentOut->depletionThroughBreakage[bix] = 0.0;
+    if (tix ==0)
+    {    
+        d_compartmentOut->formationThroughAggregation[bix] = 0.0;
+        d_compartmentOut->depletionThroughAggregation[bix] = 0.0;
+        d_compartmentOut->formationThroughBreakage[bix] = 0.0;
+        d_compartmentOut->depletionThroughBreakage[bix] = 0.0;
+    }
     // int tiy = threadIdx.y;
 
     // int idx = bix * bdx * bdy + tiy * bdx + tix;
-    int ddx = bix * bdx + tix;
-    int idx3 = bix * bdx + tix;
     __syncthreads();
     //if (tiy == 0)
    
     d_compartmentIn->fAll[idx3] = d_fAllCompartments[idx3];
     d_compartmentIn->fLiquid[idx3] = d_flAllCompartments[idx3];
     d_compartmentIn->fGas[idx3] = d_fgAllCompartments[idx3];
-    d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] = d_liquidAdditionRateAllCompartments[tix % nCompartments];
+    d_compartmentIn->liquidAdditionRate[bix] = d_liquidAdditionRateAllCompartments[bix];
 
     if (bix == 0)
     {
+        d_prevCompInData->fAllPreviousCompartment[idx3] = 0.0;
+        d_prevCompInData->flPreviousCompartment[idx3] = 0.0;
+        d_prevCompInData->fgPreviousCompartment[idx3] = 0.0;
         d_prevCompInData->fAllComingIn[idx3] = d_fIn[tix];
+        d_prevCompInData->fgComingIn[idx3] = 0.0;
         double value = initPorosity * timeStep;
-        d_prevCompInData->fgComingIn[idx3] = d_fIn[idx3] * (d_compartmentIn->vs[idx3 % nFirstSolidBins] + d_compartmentIn->vss[idx3 % nSecondSolidBins]) * value;
+        d_prevCompInData->fgComingIn[idx3] = d_fIn[idx3] * (d_compartmentIn->vs[idx3 % nSecondSolidBins] + d_compartmentIn->vss[idx3 % nSecondSolidBins]) * value;
     }
 
     else
@@ -126,6 +133,8 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_prevCompInData->fAllPreviousCompartment[idx3] = d_fAllCompartments[(bix - 1) * bdx + tix];
         d_prevCompInData->flPreviousCompartment[idx3] = d_flAllCompartments[(bix - 1) * bdx + tix];
         d_prevCompInData->fgPreviousCompartment[idx3] = d_fgAllCompartments[(bix - 1) * bdx + tix];
+        d_prevCompInData->fAllComingIn[idx3] = 0.0;
+        d_prevCompInData->fgComingIn[idx3] = 0.0;
     }
 
     if (fabs(d_compartmentIn->fAll[idx3] > 1e-16))
@@ -139,10 +148,11 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_compartmentOut->gasBins[idx3] = 0.0;
     }
 
+    d_aggCompVar->depletionThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->depletionOfGasThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = 0.0;
 
-    
     d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
-    
     d_aggCompVar->depletionThroughAggregation[idx3] = 0.0;
     d_aggCompVar->depletionOfGasThroughAggregation[idx3] = 0.0;
     d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = 0.0;
@@ -168,10 +178,6 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_aggCompVar->birthAggLowLowLiq[idx3] = 0.0;
     d_aggCompVar->birthAggLowLowGas[idx3] = 0.0;
 
-
-
-
-    cudaDeviceSynchronize();
 
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
     dim3 compKernel_nblocks, compKernel_nthreads;
@@ -226,21 +232,23 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
 
     double finalTime = premixTime + liqAddTime + initialTime;
     if (time >= premixTime && time <= finalTime)
-        d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] *= timeStep;
+        d_compartmentIn->liquidAdditionRate[bix] *= timeStep;
     else
-        d_compartmentIn->liquidAdditionRate[tix % nFirstSolidBins] = 0.0;
+        d_compartmentIn->liquidAdditionRate[bix] = 0.0;
 
     __syncthreads();
     double totalSolidvolume = 0.0;
     for (int i = bix * bdx; i < (bix+1) * bdx; i++)
-        totalSolidvolume += d_compartmentIn->fAll[i] + (d_compartmentIn->vs[i / nFirstSolidBins] + d_compartmentIn->vss[i % nFirstSolidBins]);
+        totalSolidvolume += d_compartmentIn->fAll[i] * (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]);
 
     d_compartmentOut->dfAlldt[idx3] = d_compVar->particleMovement[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_aggCompVar->formationThroughAggregationCA[idx3] - d_aggCompVar->depletionThroughAggregation[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_brCompVar->birthThroughBreakage1[idx3] + d_brCompVar->formationThroughBreakageCA[idx3] - d_brCompVar->depletionThroughBreakage[idx3];
 
      if (totalSolidvolume > 1.0e-16)
-        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[tix / nFirstSolidBins] * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) / totalSolidvolume;
+        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[bix] * ((d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]) / totalSolidvolume);
+
+    __syncthreads();
 
     d_compartmentOut->dfLiquiddt[idx3] = d_compVar->liquidMovement[idx3];
     d_compartmentOut->dfLiquiddt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughLiquidAddition[idx3];
@@ -249,10 +257,12 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentOut->dfLiquiddt[idx3] -= d_brCompVar->depletionOfLiquidthroughBreakage[idx3];
 
     d_compVar->internalLiquid[idx3] = min(granSatFactor * d_compartmentOut->gasBins[idx3], d_compartmentOut->liquidBins[idx3]);
+    d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compartmentOut->gasBins[idx3];
+
     if(d_compartmentIn->fGas[idx3] > 1.0e-16)
     {
-        d_brCompVar->transferThroughConsolidation[idx3] = consConst * d_compartmentOut->internalVolumeBins[idx3] * ((1 - minPorosity) / (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]));
-        d_brCompVar->transferThroughConsolidation[idx3] *= (d_compartmentOut->gasBins[idx3] - (minPorosity / (1-minPorosity)) * (d_compartmentIn->vs[tix / nFirstSolidBins] + d_compartmentIn->vss[tix % nFirstSolidBins]) + d_compVar->internalLiquid[idx3]);
+        d_brCompVar->transferThroughConsolidation[idx3] = consConst * d_compartmentOut->internalVolumeBins[idx3] * ((1 - minPorosity) / (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]));
+        d_brCompVar->transferThroughConsolidation[idx3] *= (d_compartmentOut->gasBins[idx3] - (minPorosity / (1-minPorosity)) * (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]) + d_compVar->internalLiquid[idx3]);
     }
 
     d_compartmentOut->dfGasdt[idx3] = d_compVar->gasMovement[idx3];
@@ -584,7 +594,7 @@ int main(int argc, char *argv[])
     copy_double_vector_fromHtoD(x_compartmentDEMIn.uCriticalCol, &uCritical, 1);
     // cout << "Critical velocity for agg is " << uCritical << endl;
 
-        int veloSize = colVelocity.size();
+    int veloSize = colVelocity.size();
     for (int i = 0; i < veloSize; i++)
         sumVelo += colVelocity[i];
 
@@ -594,7 +604,7 @@ int main(int argc, char *argv[])
     double varianceVelocity = 0.0;
 
     for (int i = 0; i < veloSize; ++i)
-        varianceVelocity += pow((colVelocity[i] - averageVelocity), 2) / 10;
+        varianceVelocity += pow((colVelocity[i] - averageVelocity), 2) / nDEMBins;
 
     stdDevVelocity = sqrt(varianceVelocity);
     //double intVelocity = 0.0;
@@ -602,10 +612,8 @@ int main(int argc, char *argv[])
     for (int i = 0; i < veloSize; i++)
     {
         colProbablityOfVelocity[i] = (1 / (colVelocity[i] * sqrt(2 * M_PI) * stdDevVelocity)) * exp(-((log(colVelocity[i]) - averageVelocity) / (2 * pow(varianceVelocity, 2))));
-        // cout << "Probability at " << velocity[i] << "is " << probablityOfVelocity[i] << endl;
+        // cout << "Probability at " << velocity[i] << "is " << colProbablityOfVelocity[i] << endl;
     }
-
-    
 
     copy_double_vector_fromHtoD(x_compartmentDEMIn.colProbability, colProbablityOfVelocity.data(), size1D);
 
@@ -620,7 +628,7 @@ int main(int argc, char *argv[])
 
     double critStDefNum = pData->critStDefNum;
     double initPorosity = pData->initPorosity;
-    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / compartmentIn.diameter[0]);
+    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / DEMDiameter[0]);
     // x_compartmentDEMIn.ubreak[0] = Ubreak;
     copy_double_vector_fromHtoD(x_compartmentDEMIn.ubreak, &Ubreak, 1);
 
@@ -635,7 +643,7 @@ int main(int argc, char *argv[])
     double varianceVelocityBr = 0.0;
     for (int i = 0; i < size1; ++i)
     {
-        varianceVelocityBr += pow((velocity[i] - averageVelocityBr), 2) / 10;
+        varianceVelocityBr += pow((velocity[i] - averageVelocityBr), 2) / nDEMBins;
     }
 
     stdDevVelocityBr = sqrt(varianceVelocityBr);
@@ -862,10 +870,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    vector<double> h_formationThroughAggregation(nCompartments, 0.0);
-    vector<double> h_depletionThroughAggregation(nCompartments, 0.0);
-    vector<double> h_formationThroughBreakage(nCompartments, 0.0);
-    vector<double> h_depletionThroughBreakage(nCompartments, 0.0);
+    // vector<double> h_formationThroughAggregation(nCompartments, 0.0);
+    // vector<double> h_depletionThroughAggregation(nCompartments, 0.0);
+    // vector<double> h_formationThroughBreakage(nCompartments, 0.0);
+    // vector<double> h_depletionThroughBreakage(nCompartments, 0.0);
 
     double *d_formationThroughAggregation = device_alloc_double_vector(nCompartments);
     double *d_depletionThroughAggregation = device_alloc_double_vector(nCompartments);
@@ -882,7 +890,7 @@ int main(int argc, char *argv[])
     copy_double_vector_fromHtoD(d_liquidAdditionRateAllCompartments, liquidAdditionRateAllCompartments.data(), nCompartments);
     copy_double_vector_fromHtoD(d_fIn, h_fIn.data(), size2D);
 
-    CompartmentOut h_results(size2D, size4D, 1);
+
 
     // dim3 compKernel_nblocks, compKernel_nthreads;
     // compKernel_nblocks = dim3(nCompartments,1,1);
@@ -897,14 +905,16 @@ int main(int argc, char *argv[])
     double consConst = pData->consConst;
     double minPorosity = pData->minPorosity;
     double granSatFactor = pData->granSatFactor;
+    int threads = size2D;
     cudaDeviceSynchronize();
     while (time <= finalTime)
     {
+        CompartmentOut h_results(size2D, size4D, 1);
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
         
-        launchCompartment<<<nCompartments,256>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
+        launchCompartment<<<nCompartments,threads>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
                                                     time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
                                                     d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
