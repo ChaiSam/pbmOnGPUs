@@ -137,7 +137,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_prevCompInData->fgComingIn[idx3] = 0.0;
     }
 
-    if (fabs(d_compartmentIn->fAll[idx3] > 1e-16))
+    if (fabs(d_compartmentIn->fAll[idx3]) > 1e-16)
     {
         d_compartmentOut->liquidBins[idx3] = d_compartmentIn->fLiquid[idx3] / d_compartmentIn->fAll[idx3];
         d_compartmentOut->gasBins[idx3] = d_compartmentIn->fGas[idx3] / d_compartmentIn->fAll[idx3];
@@ -153,12 +153,11 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = 0.0;
 
     d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
-    d_aggCompVar->depletionThroughAggregation[idx3] = 0.0;
-    d_aggCompVar->depletionOfGasThroughAggregation[idx3] = 0.0;
-    d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = 0.0;
-    d_aggCompVar->birthAggHighHigh[idx3] = 0.0;
-    d_aggCompVar->birthAggHighHighLiq[idx3] = 0.0;
-    d_aggCompVar->birthAggHighHighGas[idx3] = 0.0;
+    d_brCompVar->birthThroughBreakage2[idx3] = 0.0;
+    d_brCompVar->firstSolidBirthThroughBreakage[idx3] = 0.0;
+    d_brCompVar->secondSolidBirthThroughBreakage[idx3] = 0.0;
+    d_brCompVar->liquidBirthThroughBreakage2[idx3] = 0.0;
+    d_brCompVar->gasBirthThroughBreakage2[idx3] = 0.0;
 
     d_aggCompVar->birthThroughAggregation[idx3] = 0.0;
     d_aggCompVar->firstSolidBirthThroughAggregation[idx3] = 0.0;
@@ -177,6 +176,10 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_aggCompVar->birthAggLowLow[idx3] = 0.0;
     d_aggCompVar->birthAggLowLowLiq[idx3] = 0.0;
     d_aggCompVar->birthAggLowLowGas[idx3] = 0.0;
+    
+    d_aggCompVar->birthAggHighHigh[idx3] = 0.0;
+    d_aggCompVar->birthAggHighHighLiq[idx3] = 0.0;
+    d_aggCompVar->birthAggHighHighGas[idx3] = 0.0;
 
 
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);

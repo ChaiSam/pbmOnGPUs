@@ -240,7 +240,7 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     d_compartmentDEMIn->impactFrequency[s1] = (d_compartmentDEMIn->DEMImpactData[s1] * timeStep) / demTimeStep;
     __syncthreads();
     d_compartmentOut->breakageKernel[idx4] = d_compartmentDEMIn->impactFrequency[s1] * d_compartmentDEMIn->brProbability[ss2] * d_brCompVar->brkKernelConst[0];
-    d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssCheckB[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[blx * mbdx + s1 * nFirstSolidBins + s2];
+    d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssCheckB[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[blx * mbdx + s1 * nFirstSolidBins + ss1];
     
     d_brCompVar->depletionThroughBreakage[idx3] += d_compVar->breakageRate[idx4];
     d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->liquidBins[idx3];
@@ -249,7 +249,7 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     
     d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compVar->gasBins[idx3];
     d_compVar->externalLiquid[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tix] + d_compVar->liquidBins[idx3] + d_compVar->gasBins[idx3];
-    d_compVar->volumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tix];
+    d_compVar->volumeBins[idx3] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx];
     __syncthreads();
 
     for (int i = 0; i < nFirstSolidBins; i++)
