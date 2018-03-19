@@ -125,7 +125,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_prevCompInData->fAllComingIn[idx3] = d_fIn[tix];
         d_prevCompInData->fgComingIn[idx3] = 0.0;
         double value = initPorosity * timeStep;
-        d_prevCompInData->fgComingIn[idx3] = d_fIn[idx3] * (d_compartmentIn->vs[idx3 % nSecondSolidBins] + d_compartmentIn->vss[idx3 % nSecondSolidBins]) * value;
+        d_prevCompInData->fgComingIn[idx3] = d_fIn[tix] * (d_compartmentIn->vs[tix % nSecondSolidBins] + d_compartmentIn->vss[tix % nSecondSolidBins]) * value;
     }
 
     else
@@ -152,6 +152,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_aggCompVar->depletionOfGasThroughAggregation[idx3] = 0.0;
     d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = 0.0;
 
+
     d_brCompVar->depletionThroughBreakage[idx3] = 0.0;
     d_brCompVar->birthThroughBreakage2[idx3] = 0.0;
     d_brCompVar->firstSolidBirthThroughBreakage[idx3] = 0.0;
@@ -159,11 +160,17 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_brCompVar->liquidBirthThroughBreakage2[idx3] = 0.0;
     d_brCompVar->gasBirthThroughBreakage2[idx3] = 0.0;
 
+    d_brCompVar->formationThroughBreakageCA[idx3] = 0.0;
+    d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] = 0.0;
+    d_brCompVar->formationOfGasThroughBreakageCA[idx3] = 0.0;
+
     d_aggCompVar->birthThroughAggregation[idx3] = 0.0;
     d_aggCompVar->firstSolidBirthThroughAggregation[idx3] = 0.0;
     d_aggCompVar->secondSolidBirthThroughAggregation[idx3] = 0.0;
     d_aggCompVar->liquidBirthThroughAggregation[idx3] = 0.0;
     d_aggCompVar->gasBirthThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = 0.0;
+    d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] = 0.0;
 
     d_aggCompVar->birthAggLowHigh[idx3] = 0.0;
     d_aggCompVar->birthAggLowHighLiq[idx3] = 0.0;
@@ -180,11 +187,17 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_aggCompVar->birthAggHighHigh[idx3] = 0.0;
     d_aggCompVar->birthAggHighHighLiq[idx3] = 0.0;
     d_aggCompVar->birthAggHighHighGas[idx3] = 0.0;
+    d_aggCompVar->formationThroughAggregationCA[idx3] = 0.0;
+    d_aggCompVar->formationOfLiquidThroughAggregationCA[idx3] = 0.0;
+    d_aggCompVar->formationOfGasThroughAggregationCA[idx3] = 0.0;
+    __syncthreads();
 
+    d_compVar->internalLiquid[idx3] = min(granSatFactor * d_compartmentOut->gasBins[idx3], d_compartmentOut->liquidBins[idx3]);
+    d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compartmentOut->gasBins[idx3];
+    d_compVar->externalLiquid[idx3] = max(0.0, (d_compartmentOut->liquidBins[idx3] - d_compartmentOut->internalVolumeBins[idx3]));
 
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
     dim3 compKernel_nblocks, compKernel_nthreads;
-    __syncthreads();
     cudaStream_t stream1, stream2;
     cudaError_t result1, result2, err;
 
@@ -217,7 +230,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         maxValue = max(maxValue, d_compVar->meshXYSum[d1]);
     }
 
-    double valueMeshXY = 1 - (d_compartmentIn->sMeshXY[idx3] + d_compartmentIn->ssMeshXY[idx3]) / maxValue;
+    double valueMeshXY = 1 - (d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix]) / maxValue;
     double distanceBetweenCompartments = granulatorLength / nCompartments;
     double particleAverageVelocity = granulatorLength /  partticleResTime;
     double distanceMoved = particleAverageVelocity * timeStep / distanceBetweenCompartments;// value renamed as distanceMoved
@@ -259,7 +272,6 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compartmentOut->dfLiquiddt[idx3] += d_brCompVar->liquidBirthThroughBreakage1[idx3] + d_brCompVar->formationOfLiquidThroughBreakageCA[idx3];
     d_compartmentOut->dfLiquiddt[idx3] -= d_brCompVar->depletionOfLiquidthroughBreakage[idx3];
 
-    d_compVar->internalLiquid[idx3] = min(granSatFactor * d_compartmentOut->gasBins[idx3], d_compartmentOut->liquidBins[idx3]);
     d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compartmentOut->gasBins[idx3];
 
     if(d_compartmentIn->fGas[idx3] > 1.0e-16)
@@ -954,9 +966,9 @@ int main(int argc, char *argv[])
         copy_double_vector_fromDtoH(compartmentOut.formationThroughBreakage, h_results.formationThroughBreakage, size1D);
         copy_double_vector_fromDtoH(compartmentOut.depletionThroughBreakage, h_results.depletionThroughBreakage, size1D);
 
-        copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
-        copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
-        copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
+        // copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
+        // copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
+        // copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
 
 
         formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation); 
@@ -1019,6 +1031,7 @@ int main(int argc, char *argv[])
         if (nanCount)
         {
             cout << endl << "*****fAllCompartments has " << nanCount << "nan values******" << endl << endl;
+            DUMPCSV(h_fAllCompartments);
             exit(EXIT_FAILURE);
 
         }
