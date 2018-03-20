@@ -63,6 +63,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
 
     d_compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst[0] * d_compartmentDEMIn->colFrequency[idx4] * d_compartmentDEMIn->colEfficiency[idx4];
     d_compVar->aggregationRate[idx4] = d_compartmentIn->sAggregationCheck[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssAggregationCheck[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->aggregationKernel[idx4] * d_compartmentIn->fAll[blx * mbdx + s1 * nFirstSolidBins + s2] * d_compartmentIn->fAll[blx * mbdx + ss1 * nFirstSolidBins + ss2];
+    __syncthreads();
     d_aggCompVar->depletionThroughAggregation[idx3] = atomicAdd_cus(&(d_aggCompVar->depletionThroughAggregation[idx3]), d_compVar->aggregationRate[idx4]);
     d_aggCompVar->depletionThroughAggregation[idx3s] = atomicAdd_cus(&(d_aggCompVar->depletionThroughAggregation[idx3s]), d_compVar->aggregationRate[idx4]);
     __syncthreads();
@@ -75,11 +76,17 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
         {
             if (d_compartmentIn->sInd[s1 * nFirstSolidBins + s2] == (i+1) && d_compartmentIn->ssInd[ss1 * nSecondSolidBins + ss2] == (j+1))
             {
-                d_aggCompVar->birthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += d_compVar->aggregationRate[idx4];
-                d_aggCompVar->firstSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vs[(s1)] + d_compartmentIn->vs[s2]) * d_compVar->aggregationRate[idx4];
-                d_aggCompVar->secondSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vss[(ss1)] + d_compartmentIn->vss[ss2]) * d_compVar->aggregationRate[idx4];
-                d_aggCompVar->liquidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->liquidBins[idx3s] + d_compartmentOut->liquidBins[idx3]) * d_compVar->aggregationRate[idx4];
-                d_aggCompVar->gasBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->gasBins[idx3s] + d_compartmentOut->gasBins[idx3]) * d_compVar->aggregationRate[idx4];
+                // d_aggCompVar->birthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += d_compVar->aggregationRate[idx4];
+                // d_aggCompVar->firstSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vs[(s1)] + d_compartmentIn->vs[s2]) * d_compVar->aggregationRate[idx4];
+                // d_aggCompVar->secondSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vss[(ss1)] + d_compartmentIn->vss[ss2]) * d_compVar->aggregationRate[idx4];
+                // d_aggCompVar->liquidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->liquidBins[idx3s] + d_compartmentOut->liquidBins[idx3]) * d_compVar->aggregationRate[idx4];
+                // d_aggCompVar->gasBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->gasBins[idx3s] + d_compartmentOut->gasBins[idx3]) * d_compVar->aggregationRate[idx4];
+
+                d_aggCompVar->birthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_aggCompVar->birthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j]), (d_compVar->aggregationRate[idx4]));
+                d_aggCompVar->firstSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_aggCompVar->firstSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j]), ((d_compartmentIn->vs[(s1)] + d_compartmentIn->vs[s2]) * d_compVar->aggregationRate[idx4]));
+                d_aggCompVar->secondSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_aggCompVar->secondSolidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j]), ((d_compartmentIn->vss[(ss1)] + d_compartmentIn->vss[ss2]) * d_compVar->aggregationRate[idx4]));
+                d_aggCompVar->liquidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_aggCompVar->liquidBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j]), ((d_compartmentOut->liquidBins[idx3s] + d_compartmentOut->liquidBins[idx3]) * d_compVar->aggregationRate[idx4]));
+                d_aggCompVar->gasBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_aggCompVar->gasBirthThroughAggregation[blx * mbdx + i * nFirstSolidBins + j]), ((d_compartmentOut->gasBins[idx3s] + d_compartmentOut->gasBins[idx3]) * d_compVar->aggregationRate[idx4]));
             }
         }
     }
@@ -274,7 +281,7 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     d_brCompVar->depletionOfGasThroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->gasBins[idx3];
     d_brCompVar->birthThroughBreakage1[idx3] = atomicAdd_cus(&(d_brCompVar->birthThroughBreakage1[idx3]), d_compVar->breakageRate[idx4]);
     
-    d_compVar->volumeBins[tlx] = d_compartmentIn->sMeshXY[tlx] + d_compartmentIn->ssMeshXY[tlx];
+    d_compVar->volumeBins[tix] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
     __syncthreads();
 
     for (int i = 0; i < nFirstSolidBins; i++)
@@ -285,11 +292,18 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
             // int s22 = (idx3s % nFirstSolidBins) * (bdx / nFirstSolidBins) + (idx3s % nFirstSolidBins);
             if (d_compartmentIn->sIndB[s1 * nFirstSolidBins + s2] == (i+1) && d_compartmentIn->ssIndB[ss1 * nFirstSolidBins + ss2] == (j+1))
             {
-                d_brCompVar->birthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] += d_compVar->breakageRate[idx4];
-                d_brCompVar->firstSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vs[s1] - d_compartmentIn->vs[s2]) * d_compVar->breakageRate[idx4];
-                d_brCompVar->secondSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vss[ss1] - d_compartmentIn->vss[ss2]) * d_compVar->breakageRate[idx4];
-                d_brCompVar->liquidBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->liquidBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tlx]))) * d_compVar->breakageRate[idx4];
-                d_brCompVar->gasBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->gasBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tlx]))) * d_compVar->breakageRate[idx4];
+                // d_brCompVar->birthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] += d_compVar->breakageRate[idx4];
+                // d_brCompVar->firstSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vs[s1] - d_compartmentIn->vs[s2]) * d_compVar->breakageRate[idx4];
+                // d_brCompVar->secondSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentIn->vss[ss1] - d_compartmentIn->vss[ss2]) * d_compVar->breakageRate[idx4];
+                // d_brCompVar->liquidBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->liquidBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tlx]))) * d_compVar->breakageRate[idx4];
+                // d_brCompVar->gasBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] += (d_compartmentOut->gasBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tlx]))) * d_compVar->breakageRate[idx4];
+
+                d_brCompVar->birthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_brCompVar->birthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j]) , d_compVar->breakageRate[idx4]);
+                d_brCompVar->firstSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_brCompVar->firstSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j]) , ((d_compartmentIn->vs[s1] - d_compartmentIn->vs[s2]) * d_compVar->breakageRate[idx4]));
+                d_brCompVar->secondSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_brCompVar->secondSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j]) , ((d_compartmentIn->vss[ss1] - d_compartmentIn->vss[ss2]) * d_compVar->breakageRate[idx4]));
+                d_brCompVar->liquidBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_brCompVar->liquidBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j]) , ((d_compartmentOut->liquidBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tlx]))) * d_compVar->breakageRate[idx4]));
+                d_brCompVar->gasBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j] = atomicAdd_cus(&(d_brCompVar->gasBirthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j]) , ((d_compartmentOut->gasBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tlx]))) * d_compVar->breakageRate[idx4]));
+
                 if (fabs(d_brCompVar->birthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j]) > 1e-16)
                 {
                     d_brCompVar->firstSolidVolumeThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] = d_brCompVar->firstSolidBirthThroughBreakage[blx * mbdx + i * nFirstSolidBins + j] / d_brCompVar->birthThroughBreakage2[blx * mbdx + i * nFirstSolidBins + j];

@@ -694,7 +694,7 @@ int main(int argc, char *argv[])
             depletionThroughAggregation[c] = compartmentOut.depletionThroughAggregation;
             formationThroughBreakage[c] = compartmentOut.formationThroughBreakage;
             depletionThroughBreakage[c] = compartmentOut.depletionThroughBreakage;
-
+            cout << "compartment number = " << c + 1 << endl;
             cout << "formationThroughAggregation = " << formationThroughAggregation[c] << endl;
             cout << "depletionThroughAggregation = " << depletionThroughAggregation[c] << endl;
             cout << "formationThroughBreakage = " << formationThroughBreakage[c] << endl;
