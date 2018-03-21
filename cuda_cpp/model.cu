@@ -259,11 +259,13 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compVar->gasMovement[idx3] -= d_compartmentIn->fGas[idx3] * distanceMoved;
 
     double finalTime = premixTime + liqAddTime + initialTime;
-    if (time >= premixTime && time <= finalTime)
-        d_compartmentIn->liquidAdditionRate[bix] *= timeStep;
-    else
-        d_compartmentIn->liquidAdditionRate[bix] = 0.0;
-
+    if (tix == 0)
+    {
+        if (time >= premixTime && time <= finalTime)
+            d_compartmentIn->liquidAdditionRate[bix] *= timeStep;
+        else
+            d_compartmentIn->liquidAdditionRate[bix] = 0.0;
+    }
     
     double totalSolidvolume = 0.0;
     for (int i = bix * bdx; i < (bix+1) * bdx; i++)
