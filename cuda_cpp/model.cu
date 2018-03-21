@@ -932,7 +932,7 @@ int main(int argc, char *argv[])
     cudaDeviceSynchronize();
     while (time <= finalTime)
     {
-        CompartmentOut h_results(size2D, size4D, 1);
+        CompartmentOut h_results(size2D, size5D, 1);
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
