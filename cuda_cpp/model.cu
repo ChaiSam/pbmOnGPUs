@@ -246,6 +246,12 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     double distanceBetweenCompartments = granulatorLength / nCompartments;
     double particleAverageVelocity = granulatorLength /  partticleResTime;
     double distanceMoved = particleAverageVelocity * timeStep / distanceBetweenCompartments;// value renamed as distanceMoved
+    d_compVar->particleMovement[idx3] = 0.0;
+    d_compVar->liquidMovement[idx3] = 0.0;
+    d_compVar->gasMovement[idx3] = 0.0;
+    d_compartmentOut->dfAlldt[idx3] = 0.0;
+    d_compartmentOut->dfLiquiddt[idx3] = 0.0;
+    d_compartmentOut->dfGasdt[idx3] = 0.0;
 
     d_compVar->particleMovement[idx3] = d_prevCompInData->fAllComingIn[idx3];
     d_compVar->particleMovement[idx3] += d_prevCompInData->fAllPreviousCompartment[idx3] * distanceMoved * valueMeshXY;
