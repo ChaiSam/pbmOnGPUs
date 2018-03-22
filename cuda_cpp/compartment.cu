@@ -45,7 +45,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
     d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
     d_compartmentOut->aggregationKernel[idx4] = 0.0;
 
-    // printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tlx = %d \t blx = %d \t tix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tlx, blx, tix);
+    printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tlx = %d \t blx = %d \t tix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tlx, blx, tix);
 
 
     double criticalExternalLiquid = 0.2;

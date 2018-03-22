@@ -215,6 +215,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     result1 = cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking);
     result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
 
+    cudaDeviceSynchronize();
     performAggCalculations<<<1,size2D, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
     performBreakageCalculations<<<1,size2D,0,stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, brkKernelConst);
     err = cudaGetLastError();
@@ -946,7 +947,7 @@ int main(int argc, char *argv[])
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
-        
+        cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 0);
         launchCompartment<<<nCompartments,threads>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
                                                     time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
@@ -1189,7 +1190,7 @@ int main(int argc, char *argv[])
         cout << "timeStep = " << timeStep << endl;
         cout << endl;
         timeIdxCount++;
-        time += timeStep;
+        time += timeStep + 5;
     }
 
     size_t nTimeSteps = Time.size();
