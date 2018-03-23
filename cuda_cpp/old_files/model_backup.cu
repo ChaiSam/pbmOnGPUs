@@ -206,18 +206,33 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compVar->internalLiquid[idx3] = min((granSatFactor * d_compartmentOut->gasBins[idx3]), d_compartmentOut->liquidBins[idx3]);
     d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compartmentOut->gasBins[idx3];
     d_compVar->externalLiquid[idx3] = max(0.0, (d_compartmentOut->liquidBins[idx3] - d_compVar->internalLiquid[idx3]));
-}
+
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
-__global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, PreviousCompartmentIn *d_prevCompInData, CompartmentOut *d_compartmentOut, CompartmentDEMIn *d_compartmentDEMIn,
-                                CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, BreakageCompVar *d_brCompVar, int nCompartments, double granulatorLength, double partticleResTime,
-                                double time, double timeStep, double premixTime, double liqAddTime, double initialTime, int nFirstSolidBins, int nSecondSolidBins, double consConst, double minPorosity)
-{
-    int bix = blockIdx.x;
-    int bdx = blockDim.x;
-    int tix = threadIdx.x;
-    int idx3 = bix * bdx + tix;
-    int s1 = (int) floorf(tix / nFirstSolidBins);
-    int ss1 = tix % nSecondSolidBins;
+    dim3 compKernel_nblocks, compKernel_nthreads;
+    cudaStream_t stream1, stream2;
+    cudaError_t result1, result2, err;
+
+    result1 = cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking);
+    result2 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
+
+    cudaDeviceSynchronize();
+    performAggCalculations<<<1,size2D, 0, stream1>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
+    performBreakageCalculations<<<1,size2D,0,stream2>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, bix, tix, bdx, nFirstSolidBins, nSecondSolidBins, brkKernelConst);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        printf("Failed to launch breakage kernel (error code %s)!\n", cudaGetErrorString(err));
+    }
+    cudaDeviceSynchronize();
+    result1 = cudaStreamDestroy(stream1);
+    result2 = cudaStreamDestroy(stream2);
+
+    if (result1 != cudaSuccess || result2 != cudaSuccess)
+    {
+        printf("Failed to launch streams1 kernel (error code %s)!\n", cudaGetErrorString(result1));
+        printf("Failed to launch streams2 kernel (error code %s)!\n", cudaGetErrorString(result2));
+    }
+
     d_compVar->meshXYSum[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
     
     double maxValue = -DBL_MAX;
@@ -916,7 +931,7 @@ int main(int argc, char *argv[])
     // compKernel_nthreads = dim3(size2D, size2D,1);
     int compKernel_nblocks = 16;
     int compKernel_nthreads = size2D * size2D;
-    cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 4096);
+
     // double granulatorLength = pData->granulatorLength;
     // double partticleResTime = pData->partticleResTime;
     // double premixTime = pData->premixTime;
@@ -925,8 +940,7 @@ int main(int argc, char *argv[])
     double minPorosity = pData->minPorosity;
     double granSatFactor = pData->granSatFactor;
     int threads = size2D;
-    double initialTime = stod(timeVal);
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     while (time <= finalTime)
     {
         CompartmentOut h_results(size2D, size5D, 1);
@@ -935,7 +949,7 @@ int main(int argc, char *argv[])
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
         cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 0);
         launchCompartment<<<nCompartments,threads>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
-                                                    time, timeStep, initialTime, d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
+                                                    time, timeStep, stod(timeVal), d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
                                                     d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
                                                     d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
                                                     granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments, granSatFactor, aggKernelConst, brkKernelConst);
@@ -949,30 +963,7 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         cout << "Compartment ended " << endl;
-        dim3 compKernel_nblocks, compKernel_nthreads;
-    
-        performAggCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            printf("Failed to launch agg kernel (error code %s)!\n", cudaGetErrorString(err));
-        }
-        performBreakageCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, brkKernelConst);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            printf("Failed to launch breakage kernel (error code %s)!\n", cudaGetErrorString(err));
-        }
-        cudaDeviceSynchronize();
-        consolidationAndMovementCalcs<<<nCompartments,threads>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar, nCompartments, granulatorLength, partticleResTime,
-                                time, timeStep, premixTime, liqAddTime, initialTime, nFirstSolidBins, nSecondSolidBins, consConst, minPorosity);
-        
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            printf("Failed to launch breakage kernel (error code %s)!\n", cudaGetErrorString(err));
-        }
-        cudaDeviceSynchronize();
+
         // Copying data strcutres reqd for calculation
         err = cudaMemcpy(&h_results, d_compartmentOut, sizeof(CompartmentOut), cudaMemcpyDeviceToHost);
         if (err != cudaSuccess)
@@ -1199,17 +1190,7 @@ int main(int argc, char *argv[])
         cout << "timeStep = " << timeStep << endl;
         cout << endl;
         timeIdxCount++;
-        time += timeStep;
-
-        // free_double_vector_device(h_results.dfAlldt);
-        // free_double_vector_device(h_results.dfLiquiddt);
-        // free_double_vector_device(h_results.dfGasdt);
-        // free_double_vector_device(h_results.liquidBins);
-        // free_double_vector_device(h_results.gasBins);
-        // free_double_vector_device(h_results.formationThroughAggregation);
-        // free_double_vector_device(h_results.depletionThroughAggregation);
-        // free_double_vector_device(h_results.formationThroughBreakage);
-        // free_double_vector_device(h_results.depletionThroughBreakage);
+        time += timeStep + 5;
     }
 
     size_t nTimeSteps = Time.size();
