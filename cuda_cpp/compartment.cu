@@ -52,6 +52,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
             // int ss2 = tix % nSecondSolidBins;
             d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
             d_compartmentOut->aggregationKernel[idx4] = 0.0;
+            d_compVar->aggregationRate[idx4] = 0.0;
             // printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tix = %d \t bix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tix, bix);
             bool flag1 = (d_compartmentIn->fAll[idx3] >= 0.0) && (d_compartmentIn->fAll[idx3s] >= 0.0);
             bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[s1s2] * d_compartmentIn->vs[s1] + d_compartmentIn->fAll[ss1ss2] * d_compartmentIn->vss[ss2]));
@@ -236,13 +237,14 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
         
                 // printf("LOW-LOW-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+nFirstSolidBins+1));
             }
-        }
-    }
+
     __syncthreads();
     d_aggCompVar->formationThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHigh[idx3] + d_aggCompVar->birthAggHighLow[idx3] + d_aggCompVar->birthAggLowHigh[idx3] + d_aggCompVar->birthAggLowLow[idx3];
     d_aggCompVar->formationOfLiquidThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHighLiq[idx3] + d_aggCompVar->birthAggHighLowLiq[idx3] + d_aggCompVar->birthAggLowHighLiq[idx3] + d_aggCompVar->birthAggLowLowLiq[idx3];
     d_aggCompVar->formationOfGasThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHighGas[idx3] + d_aggCompVar->birthAggHighLowGas[idx3] + d_aggCompVar->birthAggLowHighGas[idx3] + d_aggCompVar->birthAggLowLowGas[idx3];
     __syncthreads();
+            }
+    }
 }
 
 // ==================== BREAKAGE COMPARTMENT CALCULATIONS ===========================================
@@ -272,19 +274,20 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
 
             d_compartmentOut->breakageKernel[idx4] = 0.0;
             d_compVar->breakageRate[idx4] = 0.0;
-
+            int s1s2 = bix * bdx + s1 * nSecondSolidBins + s2;
+            int ss1ss2 =  bix * bdx + ss1 * nSecondSolidBins + ss2;
             
             d_compartmentDEMIn->impactFrequency[ss2] = (d_compartmentDEMIn->DEMImpactData[ss2] * timeStep) / demTimeStep;
             d_compartmentOut->breakageKernel[idx4] = d_compartmentDEMIn->impactFrequency[ss1] * d_compartmentDEMIn->brProbability[ss2] * d_brCompVar->brkKernelConst[0];
-            d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssCheckB[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[idx3];
+            d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssCheckB[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[s1s2];
             // d_brCompVar->depletionThroughBreakage[idx3] = atomicAdd_cus(&(d_brCompVar->depletionThroughBreakage[idx3]), d_compVar->breakageRate[idx4]);
-            d_brCompVar->depletionThroughBreakage[idx3] += d_compVar->breakageRate[idx4];
-            d_brCompVar->depletionOfLiquidthroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->liquidBins[idx3];
-            d_brCompVar->depletionOfGasThroughBreakage[idx3] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->gasBins[idx3];
+            d_brCompVar->depletionThroughBreakage[idx3s] += d_compVar->breakageRate[idx4];
+            d_brCompVar->depletionOfLiquidthroughBreakage[idx3s] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->liquidBins[idx3];
+            d_brCompVar->depletionOfGasThroughBreakage[idx3s] = d_brCompVar->depletionThroughBreakage[idx3] * d_compartmentOut->gasBins[idx3];
             // d_brCompVar->birthThroughBreakage1[idx3] = atomicAdd_cus(&(d_brCompVar->birthThroughBreakage1[idx3]), d_compVar->breakageRate[idx4]);
-            d_brCompVar->birthThroughBreakage1[idx3] += d_compVar->breakageRate[idx4];
+            d_brCompVar->birthThroughBreakage1[idx3s] += d_compVar->breakageRate[idx4];
             
-            d_compVar->volumeBins[tix] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
+            d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] = d_compartmentIn->sMeshXY[s2 * nSecondSolidBins + ss2] + d_compartmentIn->ssMeshXY[s2 * nSecondSolidBins + ss2];
             __syncthreads();
         
             for (int i = 0; i < nFirstSolidBins; i++)
@@ -295,17 +298,11 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
                     // int s22 = (idx3s % nFirstSolidBins) * (bdx / nFirstSolidBins) + (idx3s % nFirstSolidBins);
                     if (d_compartmentIn->sIndB[s1 * nFirstSolidBins + s2] == (i+1) && d_compartmentIn->ssIndB[ss1 * nFirstSolidBins + ss2] == (j+1))
                     {
-                        // d_brCompVar->birthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += d_compVar->breakageRate[idx4];
-                        // d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nFirstSolidBins + j] += (d_compartmentIn->vs[s1] - d_compartmentIn->vs[s2]) * d_compVar->breakageRate[idx4];
-                        // d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nFirstSolidBins + j] += (d_compartmentIn->vss[ss1] - d_compartmentIn->vss[ss2]) * d_compVar->breakageRate[idx4];
-                        // d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += (d_compartmentOut->liquidBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tix]))) * d_compVar->breakageRate[idx4];
-                        // d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += (d_compartmentOut->gasBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tix]))) * d_compVar->breakageRate[idx4];
-        
                         d_brCompVar->birthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += d_compVar->breakageRate[idx4];
                         d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nFirstSolidBins + j] += ((d_compartmentIn->vs[s1] - d_compartmentIn->vs[s2]) * d_compVar->breakageRate[idx4]);
                         d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nFirstSolidBins + j] += ((d_compartmentIn->vss[ss1] - d_compartmentIn->vss[ss2]) * d_compVar->breakageRate[idx4]);
-                        d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += ((d_compartmentOut->liquidBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tix]))) * d_compVar->breakageRate[idx4]);
-                        d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += ((d_compartmentOut->gasBins[idx3] * (1 - (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tix]))) * d_compVar->breakageRate[idx4]);
+                        d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += ((d_compartmentOut->liquidBins[idx3s] * (1 - (d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + ss1]))) * d_compVar->breakageRate[idx4]);
+                        d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j] += ((d_compartmentOut->gasBins[idx3s] * (1 - (d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + ss1]))) * d_compVar->breakageRate[idx4]);
         
                         if (fabs(d_brCompVar->birthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j]) > 1e-16)
                         {
@@ -316,93 +313,94 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
                 }
             }
             
-            d_brCompVar->liquidBirthThroughBreakage1[idx3s] += ((d_compartmentOut->liquidBins[idx3] * (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tix])) * d_compVar->breakageRate[idx4]);
-            d_brCompVar->gasBirthThroughBreakage1[idx3s] += ((d_compartmentOut->gasBins[idx3] * (d_compVar->volumeBins[tix] / d_compVar->volumeBins[tix])) * d_compVar->breakageRate[idx4]);
-        }
-    }
+            d_brCompVar->liquidBirthThroughBreakage1[idx3s] += ((d_compartmentOut->liquidBins[idx3] * (d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + ss1])) * d_compVar->breakageRate[idx4]);
+            d_brCompVar->gasBirthThroughBreakage1[idx3s] += ((d_compartmentOut->gasBins[idx3] * (d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + ss1])) * d_compVar->breakageRate[idx4]);
     
     double value1 = 0.0;
     double value2 = 0.0;
     
-    value1 = fabs(d_compartmentIn->sLow[tix] - d_brCompVar->firstSolidBirthThroughBreakage[idx3]);
-    value1 = d_compartmentIn->sHigh[tix] - d_compartmentIn->sLow[tix] - value1;
-    value1 /= (d_compartmentIn->sHigh[tix] - d_compartmentIn->sLow[tix]);
+    value1 = fabs(d_compartmentIn->sLow[s2 * nSecondSolidBins + ss2] - d_brCompVar->firstSolidBirthThroughBreakage[idx3]);
+    value1 = d_compartmentIn->sHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->sLow[s2 * nSecondSolidBins + ss2] - value1;
+    value1 /= (d_compartmentIn->sHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->sLow[s2 * nSecondSolidBins + ss2]);
 
-    value2 = fabs(d_compartmentIn->ssLow[tix] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
-    value2 = d_compartmentIn->ssHigh[tix] - d_compartmentIn->ssLow[tix] - value2;
-    value2 /= (d_compartmentIn->ssHigh[tix] - d_compartmentIn->ssLow[tix]);
+    value2 = fabs(d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
+    value2 = d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2] - value2;
+    value2 /= (d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2]);
 
-    d_brCompVar->fractionBreakage00[idx3] = value1 / value2;
+    d_brCompVar->fractionBreakage00[idx3s] = value1 / value2;
 
-    value2 = fabs(d_compartmentIn->ssHigh[tix] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
-    value2 = d_compartmentIn->ssHigh[tix] - d_compartmentIn->ssLow[tix] - value2;
-    value2 /= (d_compartmentIn->ssHigh[tix] - d_compartmentIn->ssLow[tix]);
+    value2 = fabs(d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
+    value2 = d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2] - value2;
+    value2 /= (d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2]);
     
     d_brCompVar->fractionBreakage01[idx3] = value1 / value2;
 
-    value1 = fabs(d_compartmentIn->sHigh[tix] - d_brCompVar->firstSolidVolumeThroughBreakage[idx3]);
-    value1 = d_compartmentIn->sHigh[tix] - d_compartmentIn->sLow[tix] - value1;
-    value1 /= (d_compartmentIn->sHigh[tix] - d_compartmentIn->sLow[tix]);
+    value1 = fabs(d_compartmentIn->sHigh[s2 * nSecondSolidBins + ss2] - d_brCompVar->firstSolidVolumeThroughBreakage[idx3]);
+    value1 = d_compartmentIn->sHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->sLow[s2 * nSecondSolidBins + ss2] - value1;
+    value1 /= (d_compartmentIn->sHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->sLow[s2 * nSecondSolidBins + ss2]);
 
-    d_brCompVar->fractionBreakage11[idx3] = value1 / value2;
+    d_brCompVar->fractionBreakage11[idx3s] = value1 / value2;
 
-    value2 = fabs(d_compartmentIn->ssLow[tix] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
-    value2 = d_compartmentIn->ssHigh[tix] - d_compartmentIn->ssLow[tix] - value2;
-    value2 /= (d_compartmentIn->ssHigh[tix] - d_compartmentIn->ssLow[tix]);
+    value2 = fabs(d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
+    value2 = d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2] - value2;
+    value2 /= (d_compartmentIn->ssHigh[s2 * nSecondSolidBins + ss2] - d_compartmentIn->ssLow[s2 * nSecondSolidBins + ss2]);
 
     d_brCompVar->fractionBreakage10[idx3] = value1 / value2;
 
     if (val1 == nFirstSolidBins - 1 && val2 == nSecondSolidBins - 1)
     {
-        d_brCompVar->formationThroughBreakageCA[idx3] += d_brCompVar->birthThroughBreakage2[idx3 - nFirstSolidBins - 1] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins - 1];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - nFirstSolidBins - 1] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins - 1];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3] += d_brCompVar->gasBirthThroughBreakage2[idx3 - nFirstSolidBins - 1] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins - 1];
+        d_brCompVar->formationThroughBreakageCA[idx3s] += d_brCompVar->birthThroughBreakage2[idx3 - nFirstSolidBins - 1] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins - 1];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - nFirstSolidBins - 1] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins - 1];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s] += d_brCompVar->gasBirthThroughBreakage2[idx3 - nFirstSolidBins - 1] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins - 1];
 
     }
 
     else if (val2 == nSecondSolidBins - 1)
     {
-        d_brCompVar->formationThroughBreakageCA[idx3] += d_brCompVar->birthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage01[idx3 - 1];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage01[idx3 - 1];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3] += d_brCompVar->gasBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage01[idx3 - 1];
+        d_brCompVar->formationThroughBreakageCA[idx3s] += d_brCompVar->birthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage01[idx3 - 1];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage01[idx3 - 1];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s] += d_brCompVar->gasBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage01[idx3 - 1];
 
-        d_brCompVar->formationThroughBreakageCA[idx3 + nFirstSolidBins] += d_brCompVar->birthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage11[idx3 - 1];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3 + nFirstSolidBins] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage11[idx3 - 1];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3 + nFirstSolidBins] += d_brCompVar->gasBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage11[idx3 - 1];
+        d_brCompVar->formationThroughBreakageCA[idx3s + nFirstSolidBins] += d_brCompVar->birthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage11[idx3 - 1];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s + nFirstSolidBins] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage11[idx3 - 1];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s + nFirstSolidBins] += d_brCompVar->gasBirthThroughBreakage2[idx3 - 1] * d_brCompVar->fractionBreakage11[idx3 - 1];
 
 
     }
 
     else if (val1 == nFirstSolidBins -1)
     {
-        d_brCompVar->formationThroughBreakageCA[idx3] += d_brCompVar->birthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage10[idx3 - nFirstSolidBins];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage10[idx3 - nFirstSolidBins];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3] += d_brCompVar->gasBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage10[idx3 - nFirstSolidBins];
+        d_brCompVar->formationThroughBreakageCA[idx3s] += d_brCompVar->birthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage10[idx3 - nFirstSolidBins];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage10[idx3 - nFirstSolidBins];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s] += d_brCompVar->gasBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage10[idx3 - nFirstSolidBins];
 
-        d_brCompVar->formationThroughBreakageCA[idx3 + 1] += d_brCompVar->birthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3 + 1] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3 + 1] += d_brCompVar->gasBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins];
+        d_brCompVar->formationThroughBreakageCA[idx3s + 1] += d_brCompVar->birthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s + 1] += d_brCompVar->liquidBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s + 1] += d_brCompVar->gasBirthThroughBreakage2[idx3 - nFirstSolidBins] * d_brCompVar->fractionBreakage11[idx3 - nFirstSolidBins];
 
     }
 
     else
     {
-        d_brCompVar->formationThroughBreakageCA[idx3 + nFirstSolidBins + 1] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage11[idx3];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3 + nFirstSolidBins + 1] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage11[idx3];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3 + nFirstSolidBins + 1] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage11[idx3];
+        d_brCompVar->formationThroughBreakageCA[idx3s + nFirstSolidBins + 1] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage11[idx3];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s + nFirstSolidBins + 1] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage11[idx3];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s + nFirstSolidBins + 1] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage11[idx3];
 
-        d_brCompVar->formationThroughBreakageCA[idx3 + 1] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage01[idx3];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3 + 1] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage01[idx3];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3 + 1] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage01[idx3];
+        d_brCompVar->formationThroughBreakageCA[idx3s + 1] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage01[idx3];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s + 1] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage01[idx3];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s + 1] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage01[idx3];
 
-        d_brCompVar->formationThroughBreakageCA[idx3 + nFirstSolidBins] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage10[idx3];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3 + nFirstSolidBins] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage10[idx3];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3 + nFirstSolidBins] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage10[idx3];
+        d_brCompVar->formationThroughBreakageCA[idx3s + nFirstSolidBins] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage10[idx3];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s + nFirstSolidBins] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage10[idx3];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s + nFirstSolidBins] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage10[idx3];
 
-        d_brCompVar->formationThroughBreakageCA[idx3] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
-        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
-        d_brCompVar->formationOfGasThroughBreakageCA[idx3] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
+        d_brCompVar->formationThroughBreakageCA[idx3s] += d_brCompVar->birthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
+        d_brCompVar->formationOfLiquidThroughBreakageCA[idx3s] += d_brCompVar->liquidBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
+        d_brCompVar->formationOfGasThroughBreakageCA[idx3s] += d_brCompVar->gasBirthThroughBreakage2[idx3] * d_brCompVar->fractionBreakage00[idx3];
     }
+        }
+    }
+    
 }
 
 

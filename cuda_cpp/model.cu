@@ -297,7 +297,7 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
         {
             d_compartmentOut->formationThroughAggregation[bix] += d_aggCompVar->formationThroughAggregationCA[i];
             d_compartmentOut->depletionThroughAggregation[bix] += d_aggCompVar->depletionThroughAggregation[i];
-            d_compartmentOut->formationThroughBreakage[bix] += d_brCompVar->formationThroughBreakageCA[i] + d_brCompVar->gasBirthThroughBreakage1[idx3];
+            d_compartmentOut->formationThroughBreakage[bix] += d_brCompVar->formationThroughBreakageCA[i] + d_brCompVar->gasBirthThroughBreakage1[i];
             d_compartmentOut->depletionThroughBreakage[bix] += d_brCompVar->depletionThroughBreakage[i];
         }
     }
