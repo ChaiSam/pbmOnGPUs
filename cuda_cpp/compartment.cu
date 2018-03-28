@@ -37,6 +37,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
     int idx3 = bix * bdx + tix;
     int s1 = (int) floorf(tix / nFirstSolidBins);
     int ss1 = tix % nSecondSolidBins;
+    __syncthreads();
 
 
     for (int s2 = 0; s2 < nFirstSolidBins; s2++)
@@ -45,14 +46,15 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
         {
             int idx3s = bix * bdx + s2 * nSecondSolidBins + ss2;
             int idx4 = idx3 * nSecondSolidBins * nFirstSolidBins + s2 * nSecondSolidBins + ss2;
+            int s1s2 = bix * bdx + s1 * nSecondSolidBins + s2;
+            int ss1ss2 =  bix * bdx + ss1 * nSecondSolidBins + ss2;
             // int s2 = (int) floorf(tix / nFirstSolidBins);
             // int ss2 = tix % nSecondSolidBins;
             d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
             d_compartmentOut->aggregationKernel[idx4] = 0.0;
             // printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tix = %d \t bix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tix, bix);
-            double criticalExternalLiquid = 0.2;
             bool flag1 = (d_compartmentIn->fAll[idx3] >= 0.0) && (d_compartmentIn->fAll[idx3s] >= 0.0);
-            bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[idx3] * d_compartmentIn->vs[ss1] + d_compartmentIn->fAll[idx3s] * d_compartmentIn->vss[ss2]));
+            bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[s1s2] * d_compartmentIn->vs[s1] + d_compartmentIn->fAll[ss1ss2] * d_compartmentIn->vss[ss2]));
             bool flag3 = (d_compartmentDEMIn->velocityCol[s1] < d_compartmentDEMIn->uCriticalCol[0]);
             if (flag1 && flag2 && flag3)
             {
@@ -61,14 +63,14 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
             else
                 d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
         
-            d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[tix] * timeStep) / demTimeStep;
-        
+            d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[s1 * nSecondSolidBins + ss1] * timeStep) / demTimeStep;
             d_compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst[0] * d_compartmentDEMIn->colFrequency[idx4] * d_compartmentDEMIn->colEfficiency[idx4];
             d_compVar->aggregationRate[idx4] = d_compartmentIn->sAggregationCheck[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssAggregationCheck[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->aggregationKernel[idx4] * d_compartmentIn->fAll[idx3] * d_compartmentIn->fAll[idx3s];
             d_aggCompVar->depletionThroughAggregation[idx3] += d_compVar->aggregationRate[idx4];
             d_aggCompVar->depletionThroughAggregation[idx3s] += d_compVar->aggregationRate[idx4];
-            d_aggCompVar->depletionOfGasThroughAggregation[idx3] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->gasBins[idx3];
-            d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->liquidBins[idx3];
+            __syncthreads();
+            d_aggCompVar->depletionOfGasThroughAggregation[idx3s] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->gasBins[idx3];
+            d_aggCompVar->depletionOfLiquidThroughAggregation[idx3s] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->liquidBins[idx3];
             for (int i = 0; i < nFirstSolidBins; i++)
             {
                 for(int j = 0; j < nSecondSolidBins; j++)
@@ -89,152 +91,152 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
                     }
                 }
             }        
+   
+            __syncthreads();
+        
+            if (fabs(d_aggCompVar->birthThroughAggregation[idx3]) > 1e-16)
+            {
+                d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = d_aggCompVar->firstSolidBirthThroughAggregation[idx3] / d_aggCompVar->birthThroughAggregation[idx3s];
+                d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] = d_aggCompVar->secondSolidBirthThroughAggregation[idx3] / d_aggCompVar->birthThroughAggregation[idx3s];
+            }
+            else
+            {
+                d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = 0.0;
+                d_aggCompVar->secondSolidBirthThroughAggregation[idx3] = 0.0;
+            }
+            int val1 = s2; // s
+            int val2 = ss2; // ss
+            // int s3 = val1 * nFirstSolidBins + val2;
+            // this is only defined to account for loops going nsolidBins - 1
+        
+            if (val1 == nFirstSolidBins - 1 && val2 == nSecondSolidBins - 1)
+            {
+                d_aggCompVar->birthAggHighHigh[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1 - 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
+                d_aggCompVar->birthAggHighHigh[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggHighHigh[idx3] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighLiq[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
+                d_aggCompVar->birthAggHighHighLiq[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggHighHighLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighGas[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
+                d_aggCompVar->birthAggHighHighGas[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggHighHighGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                // printf("HIGH-HIGH-AGG = %d, %d, %d \n", idx3, val1, val2);
+            }
+        
+            else if (val2 == nSecondSolidBins - 1)
+            {
+                d_aggCompVar->birthAggLowHigh[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
+                d_aggCompVar->birthAggLowHigh[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2 - 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggLowHigh[idx3] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins)]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins)] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins)] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowHighLiq[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
+                d_aggCompVar->birthAggLowHighLiq[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2 - 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggLowHighLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins)]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins)] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins)] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowHighGas[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
+                d_aggCompVar->birthAggLowHighGas[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2 - 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggLowHighGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins)]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins)] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
+                d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins)] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                // printf("LOW-HIGH-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+nFirstSolidBins));
+            }
+        
+            else if (val1 == nFirstSolidBins - 1)
+            {
+                d_aggCompVar->birthAggHighLow[idx3] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1 - 1] ) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
+                d_aggCompVar->birthAggHighLow[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighLow[idx3] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHigh[idx3 + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1 - 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
+                d_aggCompVar->birthAggHighHigh[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighHigh[idx3 + 1] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighLowLiq[idx3] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1 - 1] ) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
+                d_aggCompVar->birthAggHighLowLiq[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighLowLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighLiq[idx3 + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
+                d_aggCompVar->birthAggHighHighLiq[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighHighLiq[idx3 + 1] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighLowGas[idx3] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1 - 1] ) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
+                d_aggCompVar->birthAggHighLowGas[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighLowGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighGas[idx3 + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
+                d_aggCompVar->birthAggHighHighGas[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighHighGas[idx3 + 1] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                // printf("HIGH-LOW-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+1));
+            }
+        
+            else
+            {
+                d_aggCompVar->birthAggLowLow[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggLowLow[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggLowLow[idx3] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins) + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins) + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] -d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins) + 1] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowHigh[idx3 + 1] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
+                d_aggCompVar->birthAggLowHigh[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggLowHigh[idx3 + 1] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighLow[idx3 + (nFirstSolidBins)] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 +1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighLow[idx3 + (nFirstSolidBins)] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighLow[idx3 + (nFirstSolidBins)] *= d_aggCompVar->birthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowLowLiq[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggLowLowLiq[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggLowLowLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins) + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins) + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] -d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins) + 1] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowHighLiq[idx3 + 1] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
+                d_aggCompVar->birthAggLowHighLiq[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggLowHighLiq[idx3 + 1] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighLowLiq[idx3 + (nFirstSolidBins)] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 +1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighLowLiq[idx3 + (nFirstSolidBins)] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighLowLiq[idx3 + (nFirstSolidBins)] *= d_aggCompVar->liquidBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowLowGas[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggLowLowGas[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggLowLowGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins) + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins) + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] -d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins) + 1] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggLowHighGas[idx3 + 1] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
+                d_aggCompVar->birthAggLowHighGas[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggLowHighGas[idx3 + 1] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                d_aggCompVar->birthAggHighLowGas[idx3 + (nFirstSolidBins)] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3s] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 +1] - d_compartmentIn->vs[val1]);
+                d_aggCompVar->birthAggHighLowGas[idx3 + (nFirstSolidBins)] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3s]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
+                d_aggCompVar->birthAggHighLowGas[idx3 + (nFirstSolidBins)] *= d_aggCompVar->gasBirthThroughAggregation[idx3s];
+        
+                // printf("LOW-LOW-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+nFirstSolidBins+1));
+            }
         }
-    }
-    
-    __syncthreads();
-
-    if (fabs(d_aggCompVar->birthThroughAggregation[idx3]) > 1e-16)
-    {
-        d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = d_aggCompVar->firstSolidBirthThroughAggregation[idx3] / d_aggCompVar->birthThroughAggregation[idx3];
-        d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] = d_aggCompVar->secondSolidBirthThroughAggregation[idx3] / d_aggCompVar->birthThroughAggregation[idx3];
-    }
-    else
-    {
-        d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = 0.0;
-        d_aggCompVar->secondSolidBirthThroughAggregation[idx3] = 0.0;
-    }
-    int val1 = s1; // s
-    int val2 = ss1; // ss
-    // int s3 = val1 * nFirstSolidBins + val2;
-    // this is only defined to account for loops going nsolidBins - 1
-
-    if (val1 == nFirstSolidBins - 1 && val2 == nSecondSolidBins - 1)
-    {
-        d_aggCompVar->birthAggHighHigh[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1 - 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
-        d_aggCompVar->birthAggHighHigh[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggHighHigh[idx3] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighLiq[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
-        d_aggCompVar->birthAggHighHighLiq[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggHighHighLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighGas[idx3]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
-        d_aggCompVar->birthAggHighHighGas[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggHighHighGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        // printf("HIGH-HIGH-AGG = %d, %d, %d \n", idx3, val1, val2);
-    }
-
-    else if (val2 == nSecondSolidBins - 1)
-    {
-        d_aggCompVar->birthAggLowHigh[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
-        d_aggCompVar->birthAggLowHigh[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2 - 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggLowHigh[idx3] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins)]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins)] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins)] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowHighLiq[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
-        d_aggCompVar->birthAggLowHighLiq[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2 - 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggLowHighLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins)]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins)] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins)] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowHighGas[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
-        d_aggCompVar->birthAggLowHighGas[idx3] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2 - 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggLowHighGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins)]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins)] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2- 1]) / (d_compartmentIn->vss[val2] - d_compartmentIn->vss[val2 -1]);
-        d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins)] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        // printf("LOW-HIGH-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+nFirstSolidBins));
-    }
-
-    else if (val1 == nFirstSolidBins - 1)
-    {
-        d_aggCompVar->birthAggHighLow[idx3] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1 - 1] ) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
-        d_aggCompVar->birthAggHighLow[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighLow[idx3] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHigh[idx3 + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1 - 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
-        d_aggCompVar->birthAggHighHigh[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighHigh[idx3 + 1] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighLowLiq[idx3] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1 - 1] ) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
-        d_aggCompVar->birthAggHighLowLiq[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighLowLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighLiq[idx3 + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
-        d_aggCompVar->birthAggHighHighLiq[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighHighLiq[idx3 + 1] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighLowGas[idx3] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1 - 1] ) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 - 1]);
-        d_aggCompVar->birthAggHighLowGas[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighLowGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighGas[idx3 + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1- 1]) / (d_compartmentIn->vs[val1] - d_compartmentIn->vs[val1 -1]);
-        d_aggCompVar->birthAggHighHighGas[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighHighGas[idx3 + 1] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        // printf("HIGH-LOW-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+1));
-    }
-
-    else
-    {
-        d_aggCompVar->birthAggLowLow[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggLowLow[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggLowLow[idx3] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins) + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins) + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] -d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighHigh[idx3 + (nFirstSolidBins) + 1] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowHigh[idx3 + 1] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
-        d_aggCompVar->birthAggLowHigh[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggLowHigh[idx3 + 1] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighLow[idx3 + (nFirstSolidBins)] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 +1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighLow[idx3 + (nFirstSolidBins)] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighLow[idx3 + (nFirstSolidBins)] *= d_aggCompVar->birthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowLowLiq[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggLowLowLiq[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggLowLowLiq[idx3] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins) + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins) + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] -d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighHighLiq[idx3 + (nFirstSolidBins) + 1] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowHighLiq[idx3 + 1] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
-        d_aggCompVar->birthAggLowHighLiq[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggLowHighLiq[idx3 + 1] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighLowLiq[idx3 + (nFirstSolidBins)] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 +1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighLowLiq[idx3 + (nFirstSolidBins)] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighLowLiq[idx3 + (nFirstSolidBins)] *= d_aggCompVar->liquidBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowLowGas[idx3] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggLowLowGas[idx3] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggLowLowGas[idx3] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins) + 1]  = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins) + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] -d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighHighGas[idx3 + (nFirstSolidBins) + 1] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggLowHighGas[idx3 + 1] = (d_compartmentIn->vs[val1 + 1] - d_aggCompVar->firstSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vs[val1 + 1] - d_compartmentIn->vs[val1]); 
-        d_aggCompVar->birthAggLowHighGas[idx3 + 1] *= (d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vss[val2]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggLowHighGas[idx3 + 1] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        d_aggCompVar->birthAggHighLowGas[idx3 + (nFirstSolidBins)] = (d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] - d_compartmentIn->vs[val1]) / (d_compartmentIn->vs[val1 +1] - d_compartmentIn->vs[val1]);
-        d_aggCompVar->birthAggHighLowGas[idx3 + (nFirstSolidBins)] *= (d_compartmentIn->vss[val2 + 1] - d_aggCompVar->secondSolidVolumeThroughAggregation[idx3]) / (d_compartmentIn->vss[val2 + 1] - d_compartmentIn->vss[val2]);
-        d_aggCompVar->birthAggHighLowGas[idx3 + (nFirstSolidBins)] *= d_aggCompVar->gasBirthThroughAggregation[idx3];
-
-        // printf("LOW-LOW-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+nFirstSolidBins+1));
     }
     __syncthreads();
     d_aggCompVar->formationThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHigh[idx3] + d_aggCompVar->birthAggHighLow[idx3] + d_aggCompVar->birthAggLowHigh[idx3] + d_aggCompVar->birthAggLowLow[idx3];

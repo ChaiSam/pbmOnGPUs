@@ -1,5 +1,5 @@
 # Input Parameters for PBM
-AggregationKernelConstant 1.0e-20
+AggregationKernelConstant 1.0e-15
 BreakageKernelConstant 5.0e-15
 ConsolidationConstant 1.0e-13
 InitialPorosity 0.4
@@ -22,10 +22,10 @@ Throughput 15.0
 SolidDensity 476.0
 LiquidToSolidRatio 0.35
 LiquidDensity 1000.0
-NumberOfFirstSolidBins 16
+NumberOfFirstSolidBins 4
 FirstSolidVolumeCoefficients 5.0e-16
 FirstSolidVolumeBase 3.0
-NumberOfSecondSolidBins 16
+NumberOfSecondSolidBins 4
 SecondSolidVolumeCoefficient 5.0e-16
 SecondSolidVolumeBase 3.0
 CollisionEfficiencyConstant 0.01

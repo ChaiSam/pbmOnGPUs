@@ -200,12 +200,10 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_brCompVar->formationOfLiquidThroughBreakageCA[idx3] = 0.0;
     d_brCompVar->formationOfGasThroughBreakageCA[idx3] = 0.0;
 
-
-    __syncthreads();
-
     d_compVar->internalLiquid[idx3] = min((granSatFactor * d_compartmentOut->gasBins[idx3]), d_compartmentOut->liquidBins[idx3]);
     d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compartmentOut->gasBins[idx3];
     d_compVar->externalLiquid[idx3] = max(0.0, (d_compartmentOut->liquidBins[idx3] - d_compVar->internalLiquid[idx3]));
+        __syncthreads();
 }
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
 __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, PreviousCompartmentIn *d_prevCompInData, CompartmentOut *d_compartmentOut, CompartmentDEMIn *d_compartmentDEMIn,
@@ -631,7 +629,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < veloSize; i++)
     {
         colProbablityOfVelocity[i] = (1 / (colVelocity[i] * sqrt(2 * M_PI) * stdDevVelocity)) * exp(-((log(colVelocity[i]) - averageVelocity) / (2 * pow(varianceVelocity, 2))));
-        // cout << "Probability at " << velocity[i] << "is " << colProbablityOfVelocity[i] << endl;
+        // cout << "Probability at " << colVelocity[i] << "is " << colProbablityOfVelocity[i] << endl;
     }
 
     copy_double_vector_fromHtoD(x_compartmentDEMIn.colProbability, colProbablityOfVelocity.data(), size1D);
@@ -647,9 +645,12 @@ int main(int argc, char *argv[])
 
     double critStDefNum = pData->critStDefNum;
     double initPorosity = pData->initPorosity;
-    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / DEMDiameter[0]);
+    // cout << critStDefNum << "\t" << solDensity << "\t" << initPorosity << "\t" << bindVisc << endl;
+    double Ubreak = (2 * critStDefNum / solDensity) * (9 / 8.0) * (pow((1 - initPorosity), 2) / pow(initPorosity, 2)) * (9 / 16.0) * (bindVisc / DEMDiameter[0]) * 1000;
     // x_compartmentDEMIn.ubreak[0] = Ubreak;
     copy_double_vector_fromHtoD(x_compartmentDEMIn.ubreak, &Ubreak, 1);
+    // cout << "Critical velocity for breakage is " << Ubreak << endl;
+
 
     int size1 = velocity.size();
     double sum = 0.0;
@@ -675,6 +676,7 @@ int main(int argc, char *argv[])
         if (velocity[i] != 0)
         {
             breakageProbablityOfVelocity[i] = (1 / (velocity[i] * sqrt(2 * M_PI) * stdDevVelocityBr)) * exp(-((log(velocity[i]) - averageVelocityBr) / (2 * pow(varianceVelocityBr, 2))));
+            // cout << "Probability at " << velocity[i] << "is " << breakageProbablityOfVelocity[i] << endl;
         }
     }
 
@@ -754,9 +756,9 @@ int main(int argc, char *argv[])
     double timeStep = 0.5; //1.0e-1;
     vector<double> Time;
 
-    double lastTime = time;
+    // double lastTime = time;
     int timeIdxCount = 0;
-    int lastTimeIdxCount = 0;
+    // int lastTimeIdxCount = 0;
 
     double premixTime = pData->premixTime;
     double liqAddTime = pData->liqAddTime;
@@ -914,9 +916,9 @@ int main(int argc, char *argv[])
     // dim3 compKernel_nblocks, compKernel_nthreads;
     // compKernel_nblocks = dim3(nCompartments,1,1);
     // compKernel_nthreads = dim3(size2D, size2D,1);
-    int compKernel_nblocks = 16;
-    int compKernel_nthreads = size2D * size2D;
-    cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 4096);
+    // int compKernel_nblocks = 16;
+    // int compKernel_nthreads = size2D * size2D;
+    cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 2048);
     // double granulatorLength = pData->granulatorLength;
     // double partticleResTime = pData->partticleResTime;
     // double premixTime = pData->premixTime;
@@ -948,9 +950,8 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Failed to launch launchCompartment kernel (error code %s)!\n", cudaGetErrorString(err));
             exit(EXIT_FAILURE);
         }
-        cout << "Compartment ended " << endl;
         dim3 compKernel_nblocks, compKernel_nthreads;
-    
+        cudaDeviceSynchronize();
         performAggCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
         err = cudaGetLastError();
         if (err != cudaSuccess)
@@ -972,6 +973,7 @@ int main(int argc, char *argv[])
         {
             printf("Failed to launch breakage kernel (error code %s)!\n", cudaGetErrorString(err));
         }
+        cout << "Compartment ended " << endl;
         cudaDeviceSynchronize();
         // Copying data strcutres reqd for calculation
         err = cudaMemcpy(&h_results, d_compartmentOut, sizeof(CompartmentOut), cudaMemcpyDeviceToHost);
@@ -1080,7 +1082,6 @@ int main(int argc, char *argv[])
             DUMPCSV(h_fAllCompartments);
             cout << "Aborting..." << endl;
             return 1;
-            exit(EXIT_FAILURE);
         }
 
         // BIN recalculation 
