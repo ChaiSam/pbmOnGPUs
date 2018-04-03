@@ -257,17 +257,18 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
             d_compartmentIn->liquidAdditionRate[bix] = 0.0;
     }
     
-    double totalSolidvolume = 0.0;
+    // double totalSolidvolume = 0.0;
+    d_compVar->totalSolidvolume[bix] = 0.0;
     for (int i = bix * bdx; i < (bix+1) * bdx; i++)
-        totalSolidvolume += d_compartmentIn->fAll[i] * (d_compartmentIn->vs[(int) floorf((i - bix * bdx) / nFirstSolidBins)] + d_compartmentIn->vss[(i - bix * bdx) % nSecondSolidBins]);
+        d_compVar->totalSolidvolume[bix] += d_compartmentIn->fAll[i] * (d_compartmentIn->vs[(int) floorf((i - bix * bdx) / nFirstSolidBins)] + d_compartmentIn->vss[(i - bix * bdx) % nSecondSolidBins]);
     
     __syncthreads();
     d_compartmentOut->dfAlldt[idx3] = d_compVar->particleMovement[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_aggCompVar->formationThroughAggregationCA[idx3] - d_aggCompVar->depletionThroughAggregation[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_brCompVar->birthThroughBreakage1[idx3] + d_brCompVar->formationThroughBreakageCA[idx3] - d_brCompVar->depletionThroughBreakage[idx3];
 
-     if (totalSolidvolume > 1.0e-16)
-        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[bix] * ((d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]) / totalSolidvolume);
+     if (d_compVar->totalSolidvolume[bix] > 1.0e-16)
+        d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[bix] * ((d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]) / d_compVar->totalSolidvolume[bix]);
 
     d_compartmentOut->dfLiquiddt[idx3] = d_compVar->liquidMovement[idx3];
     d_compartmentOut->dfLiquiddt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughLiquidAddition[idx3];
@@ -297,7 +298,7 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
         {
             d_compartmentOut->formationThroughAggregation[bix] += d_aggCompVar->formationThroughAggregationCA[i];
             d_compartmentOut->depletionThroughAggregation[bix] += d_aggCompVar->depletionThroughAggregation[i];
-            d_compartmentOut->formationThroughBreakage[bix] += d_brCompVar->formationThroughBreakageCA[i] + d_brCompVar->gasBirthThroughBreakage1[i];
+            d_compartmentOut->formationThroughBreakage[bix] += d_brCompVar->formationThroughBreakageCA[i] + d_brCompVar->birthThroughBreakage1[i];
             d_compartmentOut->depletionThroughBreakage[bix] += d_brCompVar->depletionThroughBreakage[i];
         }
     }
@@ -918,7 +919,7 @@ int main(int argc, char *argv[])
     // compKernel_nthreads = dim3(size2D, size2D,1);
     // int compKernel_nblocks = 16;
     // int compKernel_nthreads = size2D * size2D;
-    cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 2048);
+    cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 1792);
     // double granulatorLength = pData->granulatorLength;
     // double partticleResTime = pData->partticleResTime;
     // double premixTime = pData->premixTime;

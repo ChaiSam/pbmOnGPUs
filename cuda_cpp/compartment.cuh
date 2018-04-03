@@ -100,6 +100,7 @@ public:
     double *liquidBins;
     double *gasBins;
     double *meshXYSum;
+    double *totalSolidvolume;
 
     CompartmentVar(unsigned int, unsigned int, unsigned int);
 };
