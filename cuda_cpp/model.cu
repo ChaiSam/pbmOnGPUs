@@ -210,6 +210,7 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
                                 CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, BreakageCompVar *d_brCompVar, int nCompartments, double granulatorLength, double partticleResTime,
                                 double time, double timeStep, double premixTime, double liqAddTime, double initialTime, int nFirstSolidBins, int nSecondSolidBins, double consConst, double minPorosity)
 {
+    cudaDeviceSynchronize();
     int bix = blockIdx.x;
     int bdx = blockDim.x;
     int tix = threadIdx.x;
