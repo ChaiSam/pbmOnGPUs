@@ -193,7 +193,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_brCompVar->firstSolidVolumeThroughBreakage[idx3] = 0.0;
     d_brCompVar->secondSolidVolumeThroughBreakage[idx3] = 0.0;
 
-   d_brCompVar->liquidBirthThroughBreakage1[idx3] = 0.0;
+    d_brCompVar->liquidBirthThroughBreakage1[idx3] = 0.0;
     d_brCompVar->gasBirthThroughBreakage1[idx3] = 0.0;
 
     d_brCompVar->formationThroughBreakageCA[idx3] = 0.0;
@@ -750,9 +750,9 @@ int main(int argc, char *argv[])
     sieveGrid.push_back(4000);
     size_t nSieveGrid = sieveGrid.size();
 
-    vector<double> d10OverTime(size2D, 0.0);
-    vector<double> d50OverTime(size2D, 0.0);
-    vector<double> d90OverTime(size2D, 0.0);
+    arrayOfDouble2D d10OverTime;
+    arrayOfDouble2D d50OverTime;
+    arrayOfDouble2D d90OverTime;
 
     double time = stod(timeVal); // initial time to start PBM
     double timeStep = 0.5; //1.0e-1;
@@ -920,7 +920,7 @@ int main(int argc, char *argv[])
     // compKernel_nthreads = dim3(size2D, size2D,1);
     // int compKernel_nblocks = 16;
     // int compKernel_nthreads = size2D * size2D;
-    cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 1792);
+    // cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 1792);
     // double granulatorLength = pData->granulatorLength;
     // double partticleResTime = pData->partticleResTime;
     // double premixTime = pData->premixTime;
@@ -930,10 +930,10 @@ int main(int argc, char *argv[])
     double granSatFactor = pData->granSatFactor;
     int threads = size2D;
     double initialTime = stod(timeVal);
+    CompartmentOut h_results(size2D, size5D, 1);
     // cudaDeviceSynchronize();
     while (time <= finalTime)
     {
-        CompartmentOut h_results(size2D, size5D, 1);
         copy_double_vector_fromHtoD(d_fAllCompartments, h_fAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_flAllCompartments, h_flAllCompartments.data(), size3D);
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
@@ -1190,6 +1190,9 @@ int main(int argc, char *argv[])
         }
 
         Time.push_back(time);
+        d10OverTime.push_back(d10OverCompartment);
+        d50OverTime.push_back(d50OverCompartment);
+        d90OverTime.push_back(d90OverCompartment);
         //SAVING OVER TIME
         //cout << endl <<  "************Saving over time" << endl << endl;
         h_fAllCompartmentsOverTime.push_back(h_fAllCompartments);
@@ -1225,6 +1228,9 @@ int main(int argc, char *argv[])
     dumpDiaCSVpointer(Time, depletionThroughAggregationOverTime, Time.size() * nCompartments, string("DepletionThroughAggregation"));
     dumpDiaCSVpointer(Time, formationThroughBreakageOverTime, Time.size() * nCompartments, string("FormationThroughBreakage"));
     dumpDiaCSVpointer(Time, depletionThroughBreakageOverTime, Time.size() * nCompartments, string("DepletionThroughBreakage"));
+
+    dumpDiaCSV(Time, d50OverTime, string(("d50OverTime")));
+    
 
     double endTime = static_cast<double>(clock()) / static_cast<double>(CLOCKS_PER_SEC);
     cout << "That took " << endTime - startTime << " seconds" << endl;
