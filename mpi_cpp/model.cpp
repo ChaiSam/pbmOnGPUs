@@ -669,7 +669,7 @@ int main(int argc, char *argv[])
                 double value = initPorosity * timeStep;
                 for (size_t s = 0; s < nFirstSolidBins; s++)
                     for (size_t ss = 0; ss < nSecondSolidBins; ss++)
-                        prevCompInData.fgComingIn[s][ss] = fIn[s][ss] * (compartmentIn.vs[ss] + compartmentIn.vss[ss]) * value;
+                        prevCompInData.fgComingIn[s][ss] = fIn[s][ss] * (compartmentIn.vs[s] + compartmentIn.vss[ss]) * value;
             }
 
             else
