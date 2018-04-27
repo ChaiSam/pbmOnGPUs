@@ -28,7 +28,7 @@ __device__ double atomicAdd_cus(double* address, double val)
 __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, CompartmentIn *d_compartmentIn, CompartmentDEMIn *d_compartmentDEMIn, 
                                         CompartmentOut *d_compartmentOut, CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, 
                                         double time, double timeStep, double initialTime, double demTimeStep, int nFirstSolidBins, 
-                                        int nSecondSolidBins, int nCompartments, double aggKernelConst)
+                                        int nSecondSolidBins, int nCompartments, double aggKernelConst, int *d_idx4)
 {
     int bix = blockIdx.x;
     int bdx = blockDim.x;
@@ -46,6 +46,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
         {
             int idx3s = bix * bdx + s2 * nSecondSolidBins + ss2;
             int idx4 = idx3 * nSecondSolidBins * nFirstSolidBins + s2 * nSecondSolidBins + ss2;
+            // d_idx4[idx4] = idx4;
             int s1s2 = bix * bdx + s1 * nSecondSolidBins + s2;
             int ss1ss2 =  bix * bdx + ss1 * nSecondSolidBins + ss2;
             // int s2 = (int) floorf(tix / nFirstSolidBins);
@@ -54,8 +55,8 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
             d_compartmentOut->aggregationKernel[idx4] = 0.0;
             d_compVar->aggregationRate[idx4] = 0.0;
             // printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tix = %d \t bix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tix, bix);
-            bool flag1 = (d_compartmentIn->fAll[idx3] >= 0.0) && (d_compartmentIn->fAll[idx3s] >= 0.0);
-            bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[idx3] * d_compartmentIn->vs[s1] + d_compartmentIn->fAll[idx3s] * d_compartmentIn->vss[ss1]));
+            bool flag1 = (d_compartmentIn->fAll[s1s2] >= 0.0) && (d_compartmentIn->fAll[ss1ss2] >= 0.0);
+            bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[s1s2] * d_compartmentIn->vs[s1] + d_compartmentIn->fAll[ss1ss2] * d_compartmentIn->vss[ss1]));
             bool flag3 = (d_compartmentDEMIn->velocityCol[ss1] < d_compartmentDEMIn->uCriticalCol[0]);
             if (flag1 && flag2 && flag3)
             {
@@ -64,10 +65,10 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
             else
                 d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
         
-            d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[s2 * nSecondSolidBins + ss2] * timeStep) / demTimeStep;
+            d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[s1 * nSecondSolidBins + ss1] * timeStep) / demTimeStep;
             d_compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst[0] * d_compartmentDEMIn->colFrequency[idx4] * d_compartmentDEMIn->colEfficiency[idx4];
             d_compVar->aggregationRate[idx4] = d_compartmentIn->sAggregationCheck[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssAggregationCheck[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->aggregationKernel[idx4] * d_compartmentIn->fAll[idx3] * d_compartmentIn->fAll[idx3s];
-            d_aggCompVar->depletionThroughAggregation[idx3] += d_compVar->aggregationRate[idx4];
+            d_aggCompVar->depletionThroughAggregation[idx3] +=  d_compVar->aggregationRate[idx4];
             d_aggCompVar->depletionThroughAggregation[idx3s] += d_compVar->aggregationRate[idx4];
             __syncthreads();
             d_aggCompVar->depletionOfGasThroughAggregation[idx3] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->gasBins[idx3];
@@ -259,7 +260,7 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     int val2 = ss1; // ss
     // int s3 = val1 * nFirstSolidBins + val2;
 
-    d_compVar->volumeBins[s1 * nSecondSolidBins + ss1] = d_compartmentIn->sMeshXY[s1 * nSecondSolidBins + ss1] + d_compartmentIn->ssMeshXY[s1 * nSecondSolidBins + ss1];
+    d_compVar->volumeBins[tix] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
 
 
    for (int s2 = 0; s2 < nFirstSolidBins; s2++)
@@ -285,9 +286,9 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
             // d_brCompVar->birthThroughBreakage1[idx3] = atomicAdd_cus(&(d_brCompVar->birthThroughBreakage1[idx3]), d_compVar->breakageRate[idx4]);
             d_brCompVar->birthThroughBreakage1[idx3] += d_compVar->breakageRate[idx4];
             __syncthreads();
-            for (int i = 0; i < nFirstSolidBins; i++)
+            for (int i = 0; i < nFirstSolidBins - 1; i++)
             {
-                for(int j = 0; j < nSecondSolidBins; j++)
+                for(int j = 0; j < nSecondSolidBins - 1; j++)
                 {
                     // int s12 = (idx3 % nFirstSolidBins) * (bdx / nFirstSolidBins) + (idx3 % nFirstSolidBins);
                     // int s22 = (idx3s % nFirstSolidBins) * (bdx / nFirstSolidBins) + (idx3s % nFirstSolidBins);
@@ -303,6 +304,10 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
                         {
                             d_brCompVar->firstSolidVolumeThroughBreakage[bix * bdx + i * nFirstSolidBins + j] = d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nFirstSolidBins + j] / d_brCompVar->birthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j];
                             d_brCompVar->secondSolidVolumeThroughBreakage[bix * bdx + i * nFirstSolidBins + j] = d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nFirstSolidBins + j] / d_brCompVar->birthThroughBreakage2[bix * bdx + i * nFirstSolidBins + j];
+                        }
+                        else
+                            {d_brCompVar->firstSolidVolumeThroughBreakage[bix * bdx + i * nFirstSolidBins + j] = 0.0;
+                            d_brCompVar->secondSolidVolumeThroughBreakage[bix * bdx + i * nFirstSolidBins + j] = 0.0;
                         }
                     }
                 }
@@ -326,25 +331,25 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
     value2 = d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1] - value2;
     value2 /= (d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1]);
 
-    d_brCompVar->fractionBreakage00[idx3] = value1 / value2;
+    d_brCompVar->fractionBreakage00[idx3] = value1 * value2;
 
     value2 = fabs(d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
     value2 = d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1] - value2;
     value2 /= (d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1]);
     
-    d_brCompVar->fractionBreakage01[idx3] = value1 / value2;
+    d_brCompVar->fractionBreakage01[idx3] = value1 * value2;
 
     value1 = fabs(d_compartmentIn->sHigh[s1 * nSecondSolidBins + ss1] - d_brCompVar->firstSolidVolumeThroughBreakage[idx3]);
     value1 = d_compartmentIn->sHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->sLow[s1 * nSecondSolidBins + ss1] - value1;
     value1 /= (d_compartmentIn->sHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->sLow[s1 * nSecondSolidBins + ss1]);
 
-    d_brCompVar->fractionBreakage11[idx3] = value1 / value2;
+    d_brCompVar->fractionBreakage11[idx3] = value1 * value2;
 
     value2 = fabs(d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1] - d_brCompVar->secondSolidVolumeThroughBreakage[idx3]);
     value2 = d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1] - value2;
     value2 /= (d_compartmentIn->ssHigh[s1 * nSecondSolidBins + ss1] - d_compartmentIn->ssLow[s1 * nSecondSolidBins + ss1]);
 
-    d_brCompVar->fractionBreakage10[idx3] = value1 / value2;
+    d_brCompVar->fractionBreakage10[idx3] = value1 * value2;
 
     if (val1 == nFirstSolidBins - 1 && val2 == nSecondSolidBins - 1)
     {

@@ -167,7 +167,7 @@ public:
     BreakageCompVar(unsigned int, unsigned int, unsigned int);
 };
 
-__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, double);
+__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, double, int *);
 __global__ void performBreakageCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, BreakageCompVar *, double, double, double, double, int, int, double);
 __device__ double atomicAdd_cus(double *, double);
 #endif // COMPARTMENT_CUH

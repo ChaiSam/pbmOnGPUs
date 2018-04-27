@@ -248,7 +248,7 @@ arrayOfDouble2D liggghtsData::getFinalDEMCollisionData()
     for (size_t i = 0; i < nCollisions.size(); i++)
         for (size_t j = 0; j < nCollisions[i].size(); j++)
         {
-            nCollisions[i][j] = nCollisions[i][j] / (particleTypeCount[i] * particleTypeCount[j]);
+            nCollisions[i][j] = nCollisions[i][j] / (particleTypeCount[i] +  particleTypeCount[j]);
             nCollisions[i][j] = std::isnan(nCollisions[i][j]) ? 0.0 : nCollisions[i][j];
         }
     return nCollisions;

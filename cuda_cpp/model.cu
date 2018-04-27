@@ -89,7 +89,6 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
 
 __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompartmentIn *d_prevCompInData, CompartmentOut *d_compartmentOut, CompartmentDEMIn *d_compartmentDEMIn,
                                   CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, BreakageCompVar *d_brCompVar, double time, double timeStep, double initialTime,
-                                  double *d_formationThroughAggregation, double *d_depletionThroughAggregation, double *d_formationThroughBreakage, double *d_depletionThroughBreakage,
                                   double *d_fAllCompartments, double *d_flAllCompartments, double *d_fgAllCompartments, double *d_liquidAdditionRateAllCompartments,
                                   unsigned int size2D, unsigned int size3D, unsigned int size4D, double *d_fIn, double initPorosity, double demTimeStep, int nFirstSolidBins, int nSecondSolidBins,
                                   double granulatorLength, double partticleResTime, double premixTime, double liqAddTime, double consConst, double minPorosity, int nCompartments, 
@@ -110,13 +109,13 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_compartmentOut->depletionThroughBreakage[bix] = 0.0;
     }
     // int tiy = threadIdx.y;
-    d_compartmentOut->dfAlldt[idx3] = 0.0;
-    d_compartmentOut->dfLiquiddt[idx3] = 0.0;
-    d_compartmentOut->dfGasdt[idx3] = 0.0;
-    d_compartmentOut->liquidBins[idx3] = 0.0;
-    d_compartmentOut->gasBins[idx3] = 0.0;
-    d_compartmentOut->internalVolumeBins[idx3] = 0.0;
-    d_compartmentOut->externalVolumeBins[idx3] = 0.0;
+    // d_compartmentOut->dfAlldt[idx3] = 0.0;
+    // d_compartmentOut->dfLiquiddt[idx3] = 0.0;
+    // d_compartmentOut->dfGasdt[idx3] = 0.0;
+    // d_compartmentOut->liquidBins[idx3] = 0.0;
+    // d_compartmentOut->gasBins[idx3] = 0.0;
+    // d_compartmentOut->internalVolumeBins[idx3] = 0.0;
+    // d_compartmentOut->externalVolumeBins[idx3] = 0.0;
     // int idx = bix * bdx * bdy + tiy * bdx + tix;
     //if (tiy == 0)
    
@@ -270,12 +269,12 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
             d_compartmentIn->liquidAdditionRate[bix] *= timeStep;
         else
             d_compartmentIn->liquidAdditionRate[bix] = 0.0;
-    
-        // for (int i = bix * bdx; i < (bix+1) * bdx; i++)
-            // d_compVar->totalSolidvolume[bix] += d_compartmentIn->fAll[i] * (d_compartmentIn->vs[(int) floorf((i - bix * bdx) / nFirstSolidBins)] + d_compartmentIn->vss[(i - bix * bdx) % nSecondSolidBins]);
+
+        for (int i = bix * bdx; i < (bix+1) * bdx; i++)
+            d_compVar->totalSolidvolume[bix] += d_compartmentIn->fAll[i] * (d_compartmentIn->vs[(int) floorf((i - bix * bdx) / nFirstSolidBins)] + d_compartmentIn->vss[(i - bix * bdx) % nSecondSolidBins]);
     }
-        // 
-    d_compVar->totalSolidvolume[bix] += d_compartmentIn->fAll[idx3] * (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]);
+
+    // d_compVar->totalSolidvolume[bix] += d_compartmentIn->fAll[idx3] * (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]);
     __syncthreads();
     d_compartmentOut->dfAlldt[idx3] = d_compVar->particleMovement[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_aggCompVar->formationThroughAggregationCA[idx3] - d_aggCompVar->depletionThroughAggregation[idx3];
@@ -310,7 +309,7 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
     {
         for (int i = bix * bdx; i < ((bix +1) * bdx); i++)
         {
-            d_compartmentOut->formationThroughAggregation[bix] += d_aggCompVar->formationThroughAggregationCA[i];
+            d_compartmentOut->formationThroughAggregation[bix] +=  d_aggCompVar->formationThroughAggregationCA[i];
             d_compartmentOut->depletionThroughAggregation[bix] += d_aggCompVar->depletionThroughAggregation[i];
             d_compartmentOut->formationThroughBreakage[bix] += d_brCompVar->formationThroughBreakageCA[i] + d_brCompVar->birthThroughBreakage1[i];
             d_compartmentOut->depletionThroughBreakage[bix] += d_brCompVar->depletionThroughBreakage[i];
@@ -960,8 +959,7 @@ int main(int argc, char *argv[])
         copy_double_vector_fromHtoD(d_fgAllCompartments, h_fgAllCompartments.data(), size3D);
         cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 0);
         launchCompartment<<<nCompartments,threads>>>(d_compartmentIn, d_prevCompInData, d_compartmentOut, d_compartmentDEMIn, d_compVar, d_aggCompVar, d_brCompVar,
-                                                    time, timeStep, initialTime, d_formationThroughAggregation, d_depletionThroughAggregation,d_formationThroughBreakage, 
-                                                    d_depletionThroughBreakage, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
+                                                    time, timeStep, initialTime, d_fAllCompartments, d_flAllCompartments, d_fgAllCompartments, 
                                                     d_liquidAdditionRateAllCompartments, size2D, size3D, size4D, d_fIn, initPorosity, demTimeStep, nFirstSolidBins, nSecondSolidBins,
                                                     granulatorLength, partticleResTime, premixTime, liqAddTime, consConst, minPorosity, nCompartments, granSatFactor, aggKernelConst, brkKernelConst);
 
@@ -975,12 +973,21 @@ int main(int argc, char *argv[])
         }
         dim3 compKernel_nblocks, compKernel_nthreads;
         cudaDeviceSynchronize();
-        performAggCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst);
+        
+        vector<int> h_idx4(size5D, 0);
+        int *d_idx4 = device_alloc_integer_vector(size5D);
+
+        copy_integer_vector_fromHtoD(d_idx4, h_idx4.data(), size5D);
+
+        performAggCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst, d_idx4);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
             printf("Failed to launch agg kernel (error code %s)!\n", cudaGetErrorString(err));
         }
+
+        // copy_integer_vector_fromDtoH(h_idx4.data(), d_idx4, size5D);
+        cudaDeviceSynchronize();
         performBreakageCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_brCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, brkKernelConst);
         err = cudaGetLastError();
         if (err != cudaSuccess)
@@ -998,6 +1005,7 @@ int main(int argc, char *argv[])
         }
         cout << "Compartment ended " << endl;
         cudaDeviceSynchronize();
+
         // Copying data strcutres reqd for calculation
         err = cudaMemcpy(&h_results, d_compartmentOut, sizeof(CompartmentOut), cudaMemcpyDeviceToHost);
         if (err != cudaSuccess)
@@ -1018,11 +1026,11 @@ int main(int argc, char *argv[])
         copy_double_vector_fromDtoH(compartmentOut.depletionThroughAggregation, h_results.depletionThroughAggregation, size1D);
         copy_double_vector_fromDtoH(compartmentOut.formationThroughBreakage, h_results.formationThroughBreakage, size1D);
         copy_double_vector_fromDtoH(compartmentOut.depletionThroughBreakage, h_results.depletionThroughBreakage, size1D);
-
-        // copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
-        // copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
-        // copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
-
+        
+        copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
+        copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
+        copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
+        cudaDeviceSynchronize();
 
         formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation); 
         depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation); 
@@ -1031,10 +1039,13 @@ int main(int argc, char *argv[])
 
         for (int w = 0; w < nCompartments; w++)
         {
+            cout << "Compartment Number = " << w +1 << endl;
             cout << "compartmentOut.formationThroughAggregation  = " << compartmentOut.formationThroughAggregation[w] <<  endl;
             cout << "compartmentOut.depletionThroughAggregation  = " << compartmentOut.depletionThroughAggregation[w] <<  endl;
+            cout <<  "Agg Ratio = " << compartmentOut.formationThroughAggregation[w] / compartmentOut.depletionThroughAggregation[w] << endl;
             cout << "compartmentOut.formationThroughBreakage  = " << compartmentOut.formationThroughBreakage[w] <<  endl;
             cout << "compartmentOut.depletionThroughBreakage  = " << compartmentOut.depletionThroughBreakage[w] <<  endl;
+            cout << "Breakage Ratio = " << compartmentOut.formationThroughBreakage[w] / compartmentOut.depletionThroughBreakage[w] << endl;
         }
 
         double maxofthree = -DBL_MAX;
@@ -1070,7 +1081,7 @@ int main(int argc, char *argv[])
         for (size_t i = 0; i < size3D; i++)
         {
             double value = 0.0;
-            h_fAllCompartments[i] += compartmentOut.dfAlldt[i] * timeStep;
+            h_fAllCompartments[i] = h_fAllCompartments[i] + compartmentOut.dfAlldt[i] * timeStep;
             // cout << " h_fAllCompartments[" << i <<"] is   " << h_fAllCompartments[i] << endl;
             if (std::isnan(h_fAllCompartments[i]))
                 nanCount++;
@@ -1171,7 +1182,8 @@ int main(int argc, char *argv[])
 
             vector<double> volumeDistribution(nSieveGrid, 0.0);
             for (size_t d = 0; d < nSieveGrid; d++)
-                volumeDistribution[d] = totalVolumeGrid[d] / sum;
+                if(sum > 1e-16)
+                    volumeDistribution[d] = totalVolumeGrid[d] / sum;
 
             vector<double> cumulativeVolumeDistribution(nSieveGrid, 0.0);
             sum = 0.0;
