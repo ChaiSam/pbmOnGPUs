@@ -473,22 +473,22 @@ CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, 
                 value2 = fabs(ssLow[s][ss] - secondSolidVolumeThroughBreakage[s][ss]);
                 value2 = ssHigh[s][ss] - ssLow[s][ss] - value2;
                 value2 /= (ssHigh[s][ss] - ssLow[s][ss]);
-                fractionBreakage00[s][ss] = value1 / value2;
+                fractionBreakage00[s][ss] = value1 * value2;
 
                 value2 = fabs(ssHigh[s][ss] - secondSolidVolumeThroughBreakage[s][ss]);
                 value2 = ssHigh[s][ss] - ssLow[s][ss] - value2;
                 value2 /= (ssHigh[s][ss] - ssLow[s][ss]);
-                fractionBreakage01[s][ss] = value1 / value2;
+                fractionBreakage01[s][ss] = value1 * value2;
 
                 value1 = fabs(sHigh[s][ss] - firstSolidVolumeThroughBreakage[s][ss]);
                 value1 = sHigh[s][ss] - sLow[s][ss] - value1;
                 value1 /= (sHigh[s][ss] - sLow[s][ss]);
-                fractionBreakage11[s][ss] = value1 / value2;
+                fractionBreakage11[s][ss] = value1 * value2;
 
                 value2 = fabs(ssLow[s][ss] - secondSolidVolumeThroughBreakage[s][ss]);
                 value2 = ssHigh[s][ss] - ssLow[s][ss] - value2;
                 value2 /= (ssHigh[s][ss] - ssLow[s][ss]);
-                fractionBreakage10[s][ss] = value1 / value2;
+                fractionBreakage10[s][ss] = value1 * value2;
             }
         }
     }

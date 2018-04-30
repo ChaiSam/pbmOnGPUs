@@ -126,7 +126,7 @@ arrayOfDouble4D DEMDependentAggregationKernel(CompartmentIn compartmentIn, Compa
                     bool flag1 = (fAll[s1][ss1] >= 0.0) && (fAll[s2][ss2] >= 0.0);
                     //bool flag2 = (externalLiquidContent[s1][ss1] >= criticalExternalLiquid) && (externalLiquidContent[s2][ss2] >= criticalExternalLiquid);
                     // bool flag2 = (externalLiquidContent[s1][ss1] + externalLiquidContent[s2][ss2] >= criticalExternalLiquid);
-                    bool flag2 = ((externalLiquid[s1][ss1] + externalLiquid[s2][ss2]) / (fAll[s1][ss1] * vs[s1] + fAll[s2][ss2] * vss[ss2]));
+                    bool flag2 = ((externalLiquid[s1][ss1] + externalLiquid[s2][ss2]) / (fAll[s1][s2] * vs[s1] + fAll[ss1][ss2] * vss[ss2]));
                     bool flag3 = (velocity[s1] < uCritical);
                     // cout << "flag3 = " << flag3 << endl;
 
