@@ -70,6 +70,16 @@ __global__ void initialization_kernel(double *d_vs, double *d_vss, size_t size2D
     double value1 = d_vss[idx] - d_vss[bix];
     d_sBreak[bdx * bix + idx] = value < 0.0 ? 0.0 : value;
     d_ssBreak[bdx * bix + idx] = value1 < 0.0 ? 0.0 : value1;
+    __syncthreads();
+}
+__global__ void initialization_kernel2(double *d_vs, double *d_vss, size_t size2D, double fsVolCoeff, double ssVolCoeff, double fsVolBase, double ssVolBase, double *d_sAgg, 
+                                      double *d_ssAgg, int *d_sAggregationCheck, int *d_ssAggregationCheck, double *d_sLow, double *d_ssLow, double *d_sHigh, double *d_ssHigh, 
+                                      double *d_sMeshXY, double *d_ssMeshXY, int *d_sLoc, int *d_ssLoc, int *d_sInd, int *d_ssInd, double *d_sBreak, double *d_ssBreak, 
+                                      int *d_sLocBreak, int *d_ssLocBreak, int *d_sCheckB, int*d_ssCheckB, int  *d_sIndB, int *d_ssIndB)
+{
+    int idx = threadIdx.x;
+    int bix = blockIdx.x;
+    int bdx = blockDim.x;
     d_sLocBreak[bdx * bix + idx] = (d_sBreak[bdx * idx + bix] == 0) ? 0 : (floor(log(d_sBreak[bdx * idx + bix] / fsVolCoeff) / log(fsVolBase) + 1));
     d_ssLocBreak[bdx * bix + idx] = (d_ssBreak[bdx * idx + bix] == 0) ? 0 : (floor(log(d_ssBreak[bdx * idx + bix] / ssVolCoeff) / log(ssVolBase) + 1));
     __syncthreads();
@@ -109,13 +119,13 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
         d_compartmentOut->depletionThroughBreakage[bix] = 0.0;
     }
     // int tiy = threadIdx.y;
-    // d_compartmentOut->dfAlldt[idx3] = 0.0;
-    // d_compartmentOut->dfLiquiddt[idx3] = 0.0;
-    // d_compartmentOut->dfGasdt[idx3] = 0.0;
-    // d_compartmentOut->liquidBins[idx3] = 0.0;
-    // d_compartmentOut->gasBins[idx3] = 0.0;
-    // d_compartmentOut->internalVolumeBins[idx3] = 0.0;
-    // d_compartmentOut->externalVolumeBins[idx3] = 0.0;
+    d_compartmentOut->dfAlldt[idx3] = 0.0;
+    d_compartmentOut->dfLiquiddt[idx3] = 0.0;
+    d_compartmentOut->dfGasdt[idx3] = 0.0;
+    d_compartmentOut->liquidBins[idx3] = 0.0;
+    d_compartmentOut->gasBins[idx3] = 0.0;
+    d_compartmentOut->internalVolumeBins[idx3] = 0.0;
+    d_compartmentOut->externalVolumeBins[idx3] = 0.0;
     // int idx = bix * bdx * bdy + tiy * bdx + tix;
     //if (tiy == 0)
    
@@ -483,6 +493,19 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
+    cudaDeviceSynchronize();
+    initialization_kernel2<<<nBlocks,nThreads>>>(d_vs, d_vss, size2D, fsVolCoeff, ssVolCoeff, fsVolBase, ssVolBase, d_sAgg,d_ssAgg, d_sAggregationCheck, d_ssAggregationCheck, 
+                                    d_sLow, d_ssLow, d_sHigh, d_ssHigh, d_sMeshXY, d_ssMeshXY, d_sLoc, d_ssLoc, d_sInd, d_ssInd, d_sBreak, d_ssBreak, d_sLocBreak, d_ssLocBreak,
+                                    d_sCheckB, d_ssCheckB, d_sIndB, d_ssIndB);
+    err = cudaSuccess;
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+    cudaDeviceSynchronize();
+    
     cout << "Initialization complete" << endl;
 
     // copy back data required for the compartment calculations
