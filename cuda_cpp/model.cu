@@ -232,6 +232,7 @@ __global__ void launchCompartment(CompartmentIn *d_compartmentIn, PreviousCompar
     d_compVar->externalLiquid[idx3] = max(0.0, (d_compartmentOut->liquidBins[idx3] - d_compVar->internalLiquid[idx3]));
     
     d_compartmentOut->internalVolumeBins[idx3] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix] + d_compVar->internalLiquid[idx3] + d_compartmentOut->gasBins[idx3];
+    d_compVar->meshXYSum[tix] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
     __syncthreads();
 }
     // printf("d_compartmentOut->liquidBins  = %f \n", d_compartmentOut->liquidBins[tix]);
@@ -245,8 +246,8 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
     int idx3 = bix * bdx + tix;
     int s1 = (int) floorf(tix / nFirstSolidBins);
     int ss1 = tix % nSecondSolidBins;
-    d_compVar->meshXYSum[tix] = d_compartmentIn->sMeshXY[tix] + d_compartmentIn->ssMeshXY[tix];
-    __syncthreads();
+
+    
 
     double maxValue = -DBL_MAX;
     for (size_t d1 = 0; d1 < bdx; d1++)
@@ -290,7 +291,7 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
     d_compartmentOut->dfAlldt[idx3] += d_aggCompVar->formationThroughAggregationCA[idx3] - d_aggCompVar->depletionThroughAggregation[idx3];
     d_compartmentOut->dfAlldt[idx3] += d_brCompVar->birthThroughBreakage1[idx3] + d_brCompVar->formationThroughBreakageCA[idx3] - d_brCompVar->depletionThroughBreakage[idx3];
 
-     if (d_compVar->totalSolidvolume[bix] > 1.0e-16)
+    if (d_compVar->totalSolidvolume[bix] > 1.0e-16)
         d_brCompVar->transferThroughLiquidAddition[idx3] = d_compartmentIn->liquidAdditionRate[bix] * ((d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]) / d_compVar->totalSolidvolume[bix]);
 
     d_compartmentOut->dfLiquiddt[idx3] = d_compVar->liquidMovement[idx3];
@@ -305,6 +306,8 @@ __global__ void  consolidationAndMovementCalcs(CompartmentIn *d_compartmentIn, P
         d_brCompVar->transferThroughConsolidation[idx3] = consConst * d_compartmentOut->internalVolumeBins[idx3] * ((1 - minPorosity) / (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]));
         d_brCompVar->transferThroughConsolidation[idx3] *= (d_compartmentOut->gasBins[idx3] - (minPorosity / (1-minPorosity)) * (d_compartmentIn->vs[s1] + d_compartmentIn->vss[ss1]) + d_compVar->internalLiquid[idx3]);
     }
+    else
+        d_brCompVar->transferThroughConsolidation[idx3] = 0.0;
 
     d_compartmentOut->dfGasdt[idx3] = d_compVar->gasMovement[idx3];
     d_compartmentOut->dfGasdt[idx3] += d_compartmentIn->fAll[idx3] * d_brCompVar->transferThroughConsolidation[idx3];
@@ -464,6 +467,9 @@ int main(int argc, char *argv[])
     vector<int> h_sInd(size2D, 0);
     vector<int> h_ssInd(size2D, 0);
 
+    vector<int> h_sLoc(size2D, 0);
+    vector<int> h_ssLoc(size2D, 0);
+
     vector<int> h_sCheckB(size2D, 0);
     vector<int> h_ssCheckB(size2D, 0);
 
@@ -528,6 +534,9 @@ int main(int argc, char *argv[])
     copy_integer_vector_fromDtoH(h_sInd.data(), d_sInd, size2D);
     copy_integer_vector_fromDtoH(h_ssInd.data(), d_ssInd, size2D);
 
+    copy_integer_vector_fromDtoH(h_sLoc.data(), d_sLoc, size2D);
+    copy_integer_vector_fromDtoH(h_ssLoc.data(), d_ssLoc, size2D);
+
     copy_integer_vector_fromDtoH(h_sCheckB.data(), d_sCheckB, size2D);
     copy_integer_vector_fromDtoH(h_ssCheckB.data(), d_ssCheckB, size2D);
 
@@ -560,6 +569,8 @@ int main(int argc, char *argv[])
     DUMP(h_ssLocBreak);
     DUMP(h_sBreak);
     DUMP(h_ssBreak);
+    DUMP(h_sLoc);
+    DUMP(h_ssLoc);
 
     vector<double> h_fAllCompartments(size3D, 0.0);
     vector<double> h_flAllCompartments(size3D, 0.0);
@@ -1026,7 +1037,7 @@ int main(int argc, char *argv[])
         {
             printf("Failed to launch breakage kernel (error code %s)!\n", cudaGetErrorString(err));
         }
-        cout << "Compartment ended " << endl;
+        // cout << "Compartment ended " << endl;
         cudaDeviceSynchronize();
 
         // Copying data strcutres reqd for calculation
@@ -1050,10 +1061,9 @@ int main(int argc, char *argv[])
         copy_double_vector_fromDtoH(compartmentOut.formationThroughBreakage, h_results.formationThroughBreakage, size1D);
         copy_double_vector_fromDtoH(compartmentOut.depletionThroughBreakage, h_results.depletionThroughBreakage, size1D);
         
-        copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
-        copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
-        copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
-        cudaDeviceSynchronize();
+        // copy_double_vector_fromDtoH(h_fAllCompartments.data(), d_fAllCompartments, size3D);
+        // copy_double_vector_fromDtoH(h_flAllCompartments.data(), d_flAllCompartments, size3D);
+        // copy_double_vector_fromDtoH(h_fgAllCompartments.data(), d_fgAllCompartments, size3D);
 
         formationThroughAggregationOverTime.push_back(compartmentOut.formationThroughAggregation); 
         depletionThroughAggregationOverTime.push_back(compartmentOut.depletionThroughAggregation); 
