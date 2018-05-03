@@ -56,7 +56,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
             d_compVar->aggregationRate[idx4] = 0.0;
             // printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tix = %d \t bix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tix, bix);
             bool flag1 = (d_compartmentIn->fAll[idx3] >= 0.0) && (d_compartmentIn->fAll[idx3s] >= 0.0);
-            bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[s1s2] * d_compartmentIn->vs[s2] + d_compartmentIn->fAll[ss1ss2] * d_compartmentIn->vss[ss2]));
+            bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[s1s2] * d_compartmentIn->vs[s2] + d_compartmentIn->fAll[ss1ss2] * d_compartmentIn->vss[ss2])) > 0.0;
             bool flag3 = (d_compartmentDEMIn->velocityCol[s1] < d_compartmentDEMIn->uCriticalCol[0]);
             if (flag1 && flag2 && flag3)
             {
@@ -314,10 +314,10 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
                     else
                     {
                         d_brCompVar->birthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                        // d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                        // d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                        // d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                        // d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
                         d_brCompVar->firstSolidVolumeThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
                         d_brCompVar->secondSolidVolumeThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
                     }

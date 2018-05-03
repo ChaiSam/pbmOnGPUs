@@ -1204,7 +1204,7 @@ int main(int argc, char *argv[])
                 for (size_t s = 0; s < nFirstSolidBins; s++)
                     for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                     {
-                        int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                        int m = c * nFirstSolidBins * nSecondSolidBins + s * nSecondSolidBins + ss;
                         if (diameter[s][ss] < sieveGrid[d + 1] && diameter[s][ss] >= sieveGrid[d])
                             totalVolumeGrid[d] += h_fAllCompartments[m] * h_externalVolumeBinsAllCompartments[m];
                     }
