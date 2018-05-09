@@ -28,7 +28,7 @@ __device__ double atomicAdd_cus(double* address, double val)
 __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, CompartmentIn *d_compartmentIn, CompartmentDEMIn *d_compartmentDEMIn, 
                                         CompartmentOut *d_compartmentOut, CompartmentVar *d_compVar, AggregationCompVar *d_aggCompVar, 
                                         double time, double timeStep, double initialTime, double demTimeStep, int nFirstSolidBins, 
-                                        int nSecondSolidBins, int nCompartments, double aggKernelConst, int *d_idx4)
+                                        int nSecondSolidBins, int nCompartments, double aggKernelConst/* , int *d_idx4 */)
 {
     int bix = blockIdx.x;
     int bdx = blockDim.x;
@@ -51,11 +51,11 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
             int ss1ss2 =  bix * bdx + ss1 * nSecondSolidBins + ss2;
             // int s2 = (int) floorf(tix / nFirstSolidBins);
             // int ss2 = tix % nSecondSolidBins;
+            d_compVar->aggregationRate[idx4] = 0.0;
             d_compartmentDEMIn->colEfficiency[idx4] = 0.0;
             d_compartmentOut->aggregationKernel[idx4] = 0.0;
-            d_compVar->aggregationRate[idx4] = 0.0;
             // printf("idx4 = %d \t idx3 = %d \t idx3s = %d \t s1 = %d \t ss1 = %d \t s2 = %d \t ss2 = %d  \t tix = %d \t bix = %d \n", idx4, idx3, idx3s, s1, ss1, s2,ss2, tix, bix);
-            bool flag1 = (d_compartmentIn->fAll[idx3] >= 0.0) && (d_compartmentIn->fAll[idx3s] >= 0.0);
+            bool flag1 = (d_compartmentIn->fAll[s1s2] >= 0.0) && (d_compartmentIn->fAll[ss1ss2] >= 0.0);
             bool flag2 = ((d_compVar->externalLiquid[idx3] + d_compVar->externalLiquid[idx3s]) / (d_compartmentIn->fAll[s1s2] * d_compartmentIn->vs[s2] + d_compartmentIn->fAll[ss1ss2] * d_compartmentIn->vss[ss2])) > 0.0;
             bool flag3 = (d_compartmentDEMIn->velocityCol[s1] < d_compartmentDEMIn->uCriticalCol[0]);
             if (flag1 && flag2 && flag3)
@@ -67,10 +67,10 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
         
             d_compartmentDEMIn->colFrequency[idx4] = (d_compartmentDEMIn->DEMCollisionData[s2 * nSecondSolidBins + ss2] * timeStep) / demTimeStep;
             d_compartmentOut->aggregationKernel[idx4] = d_aggCompVar->aggKernelConst[0] * d_compartmentDEMIn->colFrequency[idx4] * d_compartmentDEMIn->colEfficiency[idx4];
-            d_compVar->aggregationRate[idx4] = d_compartmentIn->sAggregationCheck[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssAggregationCheck[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->aggregationKernel[idx4] * d_compartmentIn->fAll[idx3] * d_compartmentIn->fAll[idx3s];
+            d_compVar->aggregationRate[idx4] = d_compartmentIn->sAggregationCheck[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssAggregationCheck[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->aggregationKernel[idx4] * d_compartmentIn->fAll[s1s2] * d_compartmentIn->fAll[ss1ss2];
             __syncthreads();
             d_aggCompVar->depletionThroughAggregation[idx3] +=  d_compVar->aggregationRate[idx4];
-            d_aggCompVar->depletionThroughAggregation[idx3s] += d_compVar->aggregationRate[idx4];
+            d_aggCompVar->depletionThroughAggregation[idx3] += d_compVar->aggregationRate[idx4];
             __syncthreads();
             d_aggCompVar->depletionOfGasThroughAggregation[idx3] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->gasBins[idx3];
             d_aggCompVar->depletionOfLiquidThroughAggregation[idx3] = d_aggCompVar->depletionThroughAggregation[idx3] * d_compartmentOut->liquidBins[idx3];
@@ -96,11 +96,11 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
                 d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = d_aggCompVar->firstSolidBirthThroughAggregation[idx3] / d_aggCompVar->birthThroughAggregation[idx3];
                 d_aggCompVar->secondSolidVolumeThroughAggregation[idx3] = d_aggCompVar->secondSolidBirthThroughAggregation[idx3] / d_aggCompVar->birthThroughAggregation[idx3];
             }
-            else
-            {
-                d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = 0.0;
-                d_aggCompVar->secondSolidBirthThroughAggregation[idx3] = 0.0;
-            }
+            // else
+            // {
+            //     d_aggCompVar->firstSolidVolumeThroughAggregation[idx3] = 0.0;
+            //     d_aggCompVar->secondSolidBirthThroughAggregation[idx3] = 0.0;
+            // }
         }
     }
     __syncthreads();
@@ -237,6 +237,7 @@ __global__ void performAggCalculations(PreviousCompartmentIn *d_prevCompIn, Comp
         // printf("LOW-LOW-AGG = %d, %d, %d, high high = %d \n", idx3, val1, val2, (idx3+nFirstSolidBins+1));
     }
     __syncthreads();
+
     d_aggCompVar->formationThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHigh[idx3] + d_aggCompVar->birthAggHighLow[idx3] + d_aggCompVar->birthAggLowHigh[idx3] + d_aggCompVar->birthAggLowLow[idx3];
     d_aggCompVar->formationOfLiquidThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHighLiq[idx3] + d_aggCompVar->birthAggHighLowLiq[idx3] + d_aggCompVar->birthAggLowHighLiq[idx3] + d_aggCompVar->birthAggLowLowLiq[idx3];
     d_aggCompVar->formationOfGasThroughAggregationCA[idx3] = d_aggCompVar->birthAggHighHighGas[idx3] + d_aggCompVar->birthAggHighLowGas[idx3] + d_aggCompVar->birthAggLowHighGas[idx3] + d_aggCompVar->birthAggLowLowGas[idx3];
@@ -278,8 +279,9 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
             int ss1ss2 =  bix * bdx + ss1 * nSecondSolidBins + ss2;
             
             d_compartmentDEMIn->impactFrequency[ss1] = (d_compartmentDEMIn->DEMImpactData[ss1] * timeStep) / demTimeStep;
-            d_compartmentOut->breakageKernel[idx4] = d_compartmentDEMIn->impactFrequency[ss1] * d_compartmentDEMIn->brProbability[ss2] * d_brCompVar->brkKernelConst[0];
-            d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssCheckB[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[idx3];
+            if (d_compartmentDEMIn->impVelocity[s1] > d_compartmentDEMIn->ubreak[0])
+                d_compartmentOut->breakageKernel[idx4] = d_compartmentDEMIn->impactFrequency[ss1] * d_compartmentDEMIn->brProbability[ss2] * d_brCompVar->brkKernelConst[0];
+            d_compVar->breakageRate[idx4] = d_compartmentIn->sCheckB[s1 * nFirstSolidBins + s2] * d_compartmentIn->ssCheckB[ss1 * nFirstSolidBins + ss2] * d_compartmentOut->breakageKernel[idx4] * d_compartmentIn->fAll[s1s2];
             // d_brCompVar->depletionThroughBreakage[idx3] = atomicAdd_cus(&(d_brCompVar->depletionThroughBreakage[idx3]), d_compVar->breakageRate[idx4]);
             d_brCompVar->depletionThroughBreakage[idx3] += d_compVar->breakageRate[idx4];
             __syncthreads();
@@ -311,16 +313,14 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
                             d_brCompVar->secondSolidVolumeThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
                         }
                     }
-                    else
-                    {
-                        d_brCompVar->birthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        // d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        // d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        // d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        // d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        d_brCompVar->firstSolidVolumeThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                        d_brCompVar->secondSolidVolumeThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
-                    }
+                    // else
+                    // {
+                    //     d_brCompVar->birthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                    //     d_brCompVar->firstSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                    //     d_brCompVar->secondSolidBirthThroughBreakage[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                    //     d_brCompVar->liquidBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                    //     d_brCompVar->gasBirthThroughBreakage2[bix * bdx + i * nSecondSolidBins + j] = 0.0;
+                    // }
                 }
             }
             __syncthreads();
@@ -334,8 +334,8 @@ __global__ void performBreakageCalculations(PreviousCompartmentIn *d_prevCompIn,
             //     d_brCompVar->secondSolidVolumeThroughBreakage[idx3] = 0.0;
             // }
             
-            d_brCompVar->liquidBirthThroughBreakage1[idx3s] += ((d_compartmentOut->liquidBins[idx3] * (d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + ss1])) * d_compVar->breakageRate[idx4]);
-            d_brCompVar->gasBirthThroughBreakage1[idx3s] += ((d_compartmentOut->gasBins[idx3] * (d_compVar->volumeBins[s2 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + ss1])) * d_compVar->breakageRate[idx4]);
+            d_brCompVar->liquidBirthThroughBreakage1[idx3s] += ((d_compartmentOut->liquidBins[idx3] * (d_compVar->volumeBins[ss1 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + s2])) * d_compVar->breakageRate[idx4]);
+            d_brCompVar->gasBirthThroughBreakage1[idx3s] += ((d_compartmentOut->gasBins[idx3] * (d_compVar->volumeBins[ss1 * nSecondSolidBins + ss2] / d_compVar->volumeBins[s1 * nSecondSolidBins + s2])) * d_compVar->breakageRate[idx4]);
     
 
         }
@@ -564,6 +564,7 @@ CompartmentDEMIn :: CompartmentDEMIn(unsigned int nX2, unsigned int nX4, unsigne
         impactFrequency = alloc_double_vector(sqrt(nX2));
         uCriticalCol = alloc_double_vector(1);
         ubreak = alloc_double_vector(1);
+        impVelocity = alloc_double_vector(sqrt(nX2));
     }
 
     else if (check == 1)
@@ -579,6 +580,7 @@ CompartmentDEMIn :: CompartmentDEMIn(unsigned int nX2, unsigned int nX4, unsigne
         impactFrequency = device_alloc_double_vector(sqrt(nX2));
         uCriticalCol = device_alloc_double_vector(1);
         ubreak = device_alloc_double_vector(1);
+        impVelocity = device_alloc_double_vector(sqrt(nX2));
     }
 
     else 

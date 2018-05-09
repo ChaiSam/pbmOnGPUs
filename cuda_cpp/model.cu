@@ -702,7 +702,7 @@ int main(int argc, char *argv[])
     // x_compartmentDEMIn.ubreak[0] = Ubreak;
     copy_double_vector_fromHtoD(x_compartmentDEMIn.ubreak, &Ubreak, 1);
     // cout << "Critical velocity for breakage is " << Ubreak << endl;
-
+    copy_double_vector_fromHtoD(x_compartmentDEMIn.impVelocity, velocity.data(),size1D);
 
     int size1 = velocity.size();
     double sum = 0.0;
@@ -1008,12 +1008,12 @@ int main(int argc, char *argv[])
         dim3 compKernel_nblocks, compKernel_nthreads;
         cudaDeviceSynchronize();
         
-        vector<int> h_idx4(size5D, 0);
-        int *d_idx4 = device_alloc_integer_vector(size5D);
+        // vector<int> h_idx4(size5D, 0);
+        // int *d_idx4 = device_alloc_integer_vector(size5D);
 
-        copy_integer_vector_fromHtoD(d_idx4, h_idx4.data(), size5D);
+        // copy_integer_vector_fromHtoD(d_idx4, h_idx4.data(), size5D);
 
-        performAggCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst, d_idx4);
+        performAggCalculations<<<nCompartments,threads>>>(d_prevCompInData, d_compartmentIn, d_compartmentDEMIn, d_compartmentOut, d_compVar, d_aggCompVar, time, timeStep, initialTime, demTimeStep, nFirstSolidBins, nSecondSolidBins, nCompartments, aggKernelConst/* , d_idx4 */);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -1194,7 +1194,7 @@ int main(int argc, char *argv[])
             for (size_t s = 0; s < nFirstSolidBins; s++)
                 for (size_t ss = 0; ss < nSecondSolidBins; ss++)
                 {
-                    int m = c * nFirstSolidBins * nSecondSolidBins * s * nSecondSolidBins + ss;
+                    int m = c * nFirstSolidBins * nSecondSolidBins + s * nSecondSolidBins + ss;
                     diameter[s][ss] = cbrt((6 / M_PI) * h_externalVolumeBinsAllCompartments[m]) * 1.0e6;
                 }
 

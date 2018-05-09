@@ -69,6 +69,7 @@ public:
     double *impactFrequency;
     double *uCriticalCol;
     double *ubreak;
+    double *impVelocity;
 
     CompartmentDEMIn(unsigned int, unsigned int, unsigned int);
 };
@@ -167,7 +168,7 @@ public:
     BreakageCompVar(unsigned int, unsigned int, unsigned int);
 };
 
-__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, double, int *);
+__global__ void performAggCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, AggregationCompVar *, double, double, double, double, int, int, int, double/* , int * */);
 __global__ void performBreakageCalculations(PreviousCompartmentIn *, CompartmentIn *, CompartmentDEMIn *, CompartmentOut *, CompartmentVar *, BreakageCompVar *, double, double, double, double, int, int, double);
 __device__ double atomicAdd_cus(double *, double);
 #endif // COMPARTMENT_CUH
