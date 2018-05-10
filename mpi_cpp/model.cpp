@@ -669,7 +669,7 @@ int main(int argc, char *argv[])
                 double value = initPorosity * timeStep;
                 for (size_t s = 0; s < nFirstSolidBins; s++)
                     for (size_t ss = 0; ss < nSecondSolidBins; ss++)
-                        prevCompInData.fgComingIn[s][ss] = fIn[s][ss] * (compartmentIn.vs[ss] + compartmentIn.vss[ss]) * value;
+                        prevCompInData.fgComingIn[s][ss] = fIn[s][ss] * (compartmentIn.vs[s] + compartmentIn.vss[ss]) * value;
             }
 
             else
@@ -694,6 +694,11 @@ int main(int argc, char *argv[])
             depletionThroughAggregation[c] = compartmentOut.depletionThroughAggregation;
             formationThroughBreakage[c] = compartmentOut.formationThroughBreakage;
             depletionThroughBreakage[c] = compartmentOut.depletionThroughBreakage;
+            cout << "compartment number = " << c + 1 << endl;
+            cout << "formationThroughAggregation = " << formationThroughAggregation[c] << endl;
+            cout << "depletionThroughAggregation = " << depletionThroughAggregation[c] << endl;
+            cout << "formationThroughBreakage = " << formationThroughBreakage[c] << endl;
+            cout << "depletionThroughBreakage = " << depletionThroughBreakage[c] << endl;
         }
 
 
@@ -784,6 +789,7 @@ int main(int argc, char *argv[])
         depletionThroughAggregationOverTime.push_back(depletionThroughAggregation);
         formationThroughBreakageOverTime.push_back(formationThroughBreakage);
         depletionThroughBreakageOverTime.push_back(depletionThroughBreakage);
+
 
 
         MPI_Barrier(MPI_COMM_WORLD);

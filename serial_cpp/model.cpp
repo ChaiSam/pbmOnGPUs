@@ -637,6 +637,7 @@ int main(int argc, char *argv[])
                 {
                     double value = 0.0;
                     fAllCompartments[c][s][ss] += dfdtAllCompartments[c][s][ss] * timeStep;
+                    // cout << " fAllCompartments[" << c * nFirstSolidBins * nSecondSolidBins + s * nSecondSolidBins + ss << "] is   " << fAllCompartments[c][s][ss] << endl;
                     //fAllCompartments[c][s][ss] = value > 0.0 ? value : 0.0;
                     if (std::isnan(fAllCompartments[c][s][ss]))
                         nanCount++;
@@ -796,7 +797,7 @@ int main(int argc, char *argv[])
             lastTimeIdxCount = timeIdxCount;
         }
         timeIdxCount++;
-        time += timeStep;
+        time += finalTime + timeStep;
     }
 
     size_t nTimeSteps = Time.size();

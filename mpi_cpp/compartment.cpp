@@ -221,7 +221,7 @@ CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, 
             for (s2 = 0; s2 < nFirstSolidBins; s2++)
                 for (ss2 = 0; ss2 < nSecondSolidBins; ss2++)
                     {
-                        aggregationRate[s1][ss1][s2][ss2] = sAggregationCheck[s1][ss1] * ssAggregationCheck[s2][ss2] * aggregationKernel[s1][ss1][s2][ss2] * fAll[s1][ss1] * fAll[s2][ss2];
+                        aggregationRate[s1][ss1][s2][ss2] = sAggregationCheck[s1][s2] * ssAggregationCheck[ss1][ss2] * aggregationKernel[s1][ss1][s2][ss2] * fAll[s1][s2] * fAll[ss1][ss2];
                         // cout << "Agg kernel = " << aggregationKernel[s1][ss1][s2][ss2] << endl;
                     }
 
@@ -473,22 +473,22 @@ CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, 
                 value2 = fabs(ssLow[s][ss] - secondSolidVolumeThroughBreakage[s][ss]);
                 value2 = ssHigh[s][ss] - ssLow[s][ss] - value2;
                 value2 /= (ssHigh[s][ss] - ssLow[s][ss]);
-                fractionBreakage00[s][ss] = value1 / value2;
+                fractionBreakage00[s][ss] = value1 * value2;
 
                 value2 = fabs(ssHigh[s][ss] - secondSolidVolumeThroughBreakage[s][ss]);
                 value2 = ssHigh[s][ss] - ssLow[s][ss] - value2;
                 value2 /= (ssHigh[s][ss] - ssLow[s][ss]);
-                fractionBreakage01[s][ss] = value1 / value2;
+                fractionBreakage01[s][ss] = value1 * value2;
 
                 value1 = fabs(sHigh[s][ss] - firstSolidVolumeThroughBreakage[s][ss]);
                 value1 = sHigh[s][ss] - sLow[s][ss] - value1;
                 value1 /= (sHigh[s][ss] - sLow[s][ss]);
-                fractionBreakage11[s][ss] = value1 / value2;
+                fractionBreakage11[s][ss] = value1 * value2;
 
                 value2 = fabs(ssLow[s][ss] - secondSolidVolumeThroughBreakage[s][ss]);
                 value2 = ssHigh[s][ss] - ssLow[s][ss] - value2;
                 value2 /= (ssHigh[s][ss] - ssLow[s][ss]);
-                fractionBreakage10[s][ss] = value1 / value2;
+                fractionBreakage10[s][ss] = value1 * value2;
             }
         }
     }
@@ -582,7 +582,7 @@ CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, 
             dfAlldt[s][ss] += formationThroughAggregationCA[s][ss] - depletionThroughAggregation[s][ss];
             dfAlldt[s][ss] += birthThroughBreakage1[s][ss] + formationThroughBreakageCA[s][ss] - depletionThroughBreakage[s][ss];
 
-            if (totalSolidVolume > 1.0e-16)
+            if (fabs(totalSolidVolume) > 1.0e-16)
             {
                 double value = (vs[s] + vss[ss]) / totalSolidVolume;
                 transferThroughLiquidAddition[s][ss] = liquidAdditionRate * value;
@@ -594,7 +594,7 @@ CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, 
             dfLiquiddt[s][ss] += liquidBirthThroughBreakage1[s][ss] + formationOfLiquidThroughBreakageCA[s][ss];
             dfLiquiddt[s][ss] -= depletionOfLiquidthroughBreakage[s][ss];
             
-            if(fGas[s][ss] > 1.0e-16)
+            if(fabs(fGas[s][ss]) > 1.0e-16)
             {
                 transferThroughConsolidation[s][ss] = consConst * internalVolumeBins[s][ss] * ((1 - minPorosity) / (vs[s] + vss[ss])) * (gasBins[s][ss] - (minPorosity/(1 - minPorosity)) * (vs[s] + vss[ss]) + internalLiquid[s][ss]);
                 // cout << "Consolidation transfer constant = " << transferThroughConsolidation[s][ss] << endl;
@@ -623,7 +623,7 @@ CompartmentOut performCompartmentCalculations(PreviousCompartmentIn prevCompIn, 
     compartmentOut.dfGasdt = dfGasdt;
     compartmentOut.formationThroughAggregation = getSumOf2DArray(formationThroughAggregationCA);
     compartmentOut.depletionThroughAggregation = getSumOf2DArray(depletionThroughAggregation);
-    compartmentOut.formationThroughBreakage = getSumOf2DArray(formationThroughBreakageCA);
+    compartmentOut.formationThroughBreakage = getSumOf2DArray(formationThroughBreakageCA) + getSumOf2DArray(birthThroughBreakage1);
     compartmentOut.depletionThroughBreakage = getSumOf2DArray(depletionThroughBreakage);
 
     return compartmentOut;
