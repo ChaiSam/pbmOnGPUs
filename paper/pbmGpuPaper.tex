@@ -1,4 +1,4 @@
-\documentclass[preprint,12pt,authoryear]{elsarticle}
+\documentclass[preprint,11pt,authoryear]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -13,12 +13,11 @@
 %% \documentclass[final,5p,times,twocolumn]{elsarticle}
 
 %% if you use PostScript figures in your article
-%% use the graphics package for simple commands
-%% \usepackage{graphics}
+
 %% or use the graphicx package for more complicated commands
-%% \usepackage{graphicx}
+\usepackage{graphicx}
 %% or use the epsfig package if you prefer to use the old commands
-%% \usepackage{epsfig}
+\usepackage{epsfig}
 
 %% The amssymb package provides various useful mathematical symbols
 \usepackage{amssymb}
@@ -56,60 +55,167 @@
 \usepackage{multirow}
 \usepackage{float}
 
-\journal{Some Journal}
+\journal{Computer and Chemical Engineering}
 
 \begin{document}
 
 \begin{frontmatter}
-
-%\title{Sample article to present \texttt{elsarticle} class\tnoteref{label0}}
-%\tnotetext[label0]{This is only an example}
-
-\title{Title of Paper}
+\title{Accelerating multi-dimensional population balance model simulations using GPU with a highly scalable framework.}
 
 
-\author[label1,label2]{Author One\corref{cor1}\fnref{label3}}
-\address[label1]{Address One}
-\address[label2]{Address Two\fnref{label4}}
-
-\cortext[cor1]{I am corresponding author}
-\fntext[label3]{I also want to inform about\ldots}
-%\fntext[label4]{Small city}
-
-\ead{author.one@mail.com}
-\ead[url]{author-one-homepage.com}
-
-\author[label5]{Author Two}
-\address[label5]{Some University}
-\ead{author.two@mail.com}
-
-\author[label1,label5]{Author Three}
-\ead{author.three@mail.com}
+\author[label1]{Chaitanya Sampat}
+\author[label1]{Yukteshwar Baranwal}
+\address[label1]{Chemical and Biochemical Engineering, Rutgers University, Piscataway, NJ, USA - 08854}
+\author[label1]{Rohit Ramachandran\corref{cor1}}
+\ead{rohitrr@soemail.rutgers.com}
+\cortext[cor1]{Corresponding author}
+%\ead[url]{pslrutgers.com}
 
 \begin{abstract}
-Text of abstract. Text of abstract. Text of abstract. Text of abstract. Text of abstract. 
+Population Balance models are widely used in pharmaceutical industry to simulate
+and optimize the granulation process.Prediction of the distribution of many 
+particulate sytems with the evolution of time using these models, has become an 
+efficient tool for the on-line control of the granulation process \citep{Prakash2013a}. 
+With increase in the number of components and phases in a particulate mixture, 
+complexity of PBM increases. This leads to multi-dimensional matrix calculations 
+requiring great computational power. Over the past decade, graphical process 
+units (GPUs) are increasingly being used for computation. This study focuses on the 
+development of an algorithm to parallelize the various nested loops inside the PBM. 
+The PBM was developed for a continuous high shear granulation process and was made 
+specifically for NVIDIA GPUs as it was developed on CUDA C/C++. The communication 
+time is much lower in comparison to the speedup achieved in the parallel section 
+of the code on the GPUs. The speed up achieved was significant compared to the PBM 
+code when run in serial or in on multi-core configuration. The speed improvements 
+for the code was reported for various CPU \& GPU architectures and configurations. 
+The speed improvements were also tested with various combinations in 
+discretization of the granulator geometry and threads used for calculations. 
 \end{abstract}
 
 \begin{keyword}
 %% keywords here, in the form: keyword \sep keyword
-Keyword 1 \sep Keyword 2 \sep Keyword 3 \sep Keyword 4 \sep Keyword 5
+Population Balance Model \sep GPU \sep Paralllel Computing \sep Granulation \sep MPI
 %% MSC codes here, in the form: \MSC code \sep code
 %% or \MSC[2008] code \sep code (2000 is the default)
 \end{keyword}
 
 \end{frontmatter}
 
-%%
-%% Start line numbering here if you want
-%%
-\linenumbers
-
+\begin{linenumbers}
 %% main text
 \section{Introduction}
 \label{secIntro}
+Various chemical industries like detergent, food, pharmacuetical, fertilizers, 
+catalyst, etc deal with particulate processes. They constitute to about 50\% 
+of the world's chemical production \citep{seville1997}. In the pharmacuetical 
+industry, granulations plays an important role in the tablet 
+manufacturing. Granulation is the process in which fine pharmacuetical powder 
+blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
+These larger granules help in better flow ability and strength to these mixtures 
+aiding further processing. 
+
+%Due to the large number of collisions inside these systems, modeling these systems is a challenge.
+
+Understanding the dynamics of the continuous granulating system is vital for its smooth 
+operation and to reduce the amount of waste generated in the development phase. The Food 
+and Drug administration (FDA) has also been promoting a similar initiative with its 
+Quality by Design (QbD) and Process Analytical Tools (PAT) principles~\citep{sen2014}. 
+Thus, a process model for the system becomes an integral part of the development phase. 
+A model which predicts the bulk mechanical properties of the mixture as well as a particle size 
+distribution (PSD) is required. Over the past decade, Population Balance Models (PBMs) have been used 
+to predict the behaviour of granulation processes \citep{Barrasso2013},\citep{Ramachandran2009}. 
+
+PBMs are used to calculate bulk rate processes ocurring during granulation. PBMs are sometimes 
+unable to integrate certain information, thus a mechanistic kernel can be 
+introduced in these models to make them more accurate. Another way to increase its accuracy, 
+is to incorporate larger number of solid bins inside the PBM. The increase in the number of 
+solid bins leads to an increase in calculations for each time step, leading to a higher 
+simulation times. The calculations increase by a factor of $2^n$ where n being the number 
+of solid bins. An accurate model which incorporates higher number of solid bins as well as 
+includes a mechanistic kernel in its calculations is expected to be very 
+slow to simulate and could take upto hours to complete. Such models and their solving 
+techniques are not viable to be used in real time sytem control. Thus, there is a need to 
+solve these models quicker.
+
+The advancement of computers and its peripherals in recent years have led to a great increase in 
+computational resources leading to faster simulations. The recent central processing unit (CPU) 
+now contains various of cores thus making it possible to run multiples processes in parallel. 
+In order to take advantege of a highly parallel framework, large number of cores are needed 
+which may not be possible in a personal desktop and a supercomputer cluster needs to be used.
+Another computer peripheral that can to be used to run a highly parallel code is the computer's 
+graphic processing unit (GPU)~\citep{Prakash2013b}. These GPUs contain thousands of compute 
+cores that can be used run tasks in parallel. Thus, a desktop equipped with a GPU could 
+compute the same results as a CPU code on supercomputers in lesser amount of time as seen in Section \ref{secResults}.
+With the launch of Compute Unified Device Architecture (CUDA), NVIDIA made it easier to use GPUs for 
+general parallel programming in an approach usually termed as general purpose computing on GPUs (GPGPUs).
+
+In the present study, a mechanistic multi-dimensional PBM was developed such that it was not 
+only accurate but also scalable since the number of solid bins could be changed to alter its 
+behaviour. This model was developed in C++ to be run on CPUs. This C++ model was parallelised 
+using Message Parsing Interace (MPI) which is parallel application programming interface (API). 
+This model was developed NVIDIA GPUs and was parallelized using the CUDA toolkit. The timings of 
+the simulations were then compared for each of these cases. The scalability of the GPU based code 
+was also tested to obtain speed improvements over serial CPU code.
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+Introduce granulation \\
+Start with the importance of granulation in pharmacuetical processes \\
+Talk about the how particles sizes is important and can be predicted using PBM \\
+introduce PBM \\ 
+multi-dimensional PBM is very slow due to added calculations \\ 
+thus parallel computing is needed for faster simulations \\ 
+talk about development of GPUs \\ 
+Introduce work for GPUs and its importance
+
+\section{Background and motivation}
+\label{secBkgd}
+\subsection{Population Balance Model}
+talk about all the processes involved in granulation \\
+\subsection{Parallel Computing}
+Talk about general computer architecture\\
+then move onto cpus and cores \\
+introduce mpi and its advantages 
+\subsection{GPU computing Basics}
+Talk about GPUs\\
+advantages like large number of cores, lesser power consumption etc\\
+Talk about CUDA toolkit and some other basics \\ 
+Explain task parallelisation and data parallelisation \\
+talk about threads blocks and grids etc
+
+\subsection{Previous parallel PBM works}
+cite cdse, Santos, Gunuwan and other from CDSE
+cite Nagy, Santos, Green etc for the PBM GPU part
+
+\section{Method and implementation}
+\label{secMethods}
+\subsection{PBM implementation}
+relate each equation of the PBM used to each process and explain a bit
+\subsection{MPI implementation}
+elaborate how the geometry was divided into compartments and how each \\
+compartment was sent to each block
+\subsection{GPU implementation}
+Elaborate how each block was each compartment and how each thread was 
+parallelized to perform calculation for solid 1 solid 2 combination.
+
+\section{Results and discussions}
+\label{secResults}
+
+\section{Conclusions}
+\label{secConc}
+\end{linenumbers}
+
+\bibliographystyle{elsarticle-harv}
 \bibliography{pbmGpuPaper}
 
 
