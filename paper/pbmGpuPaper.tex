@@ -1,4 +1,4 @@
-\documentclass[preprint,11pt,authoryear]{elsarticle}
+\documentclass[preprint,10pt,authoryear]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -157,40 +157,59 @@ the simulations were then compared for each of these cases. The scalability of t
 was also tested to obtain speed improvements over serial CPU code.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-Introduce granulation \\
-Start with the importance of granulation in pharmacuetical processes \\
-Talk about the how particles sizes is important and can be predicted using PBM \\
-introduce PBM \\ 
-multi-dimensional PBM is very slow due to added calculations \\ 
-thus parallel computing is needed for faster simulations \\ 
-talk about development of GPUs \\ 
-Introduce work for GPUs and its importance
-
-\section{Background and motivation}
+\section{Background and previous works}
 \label{secBkgd}
-\subsection{Population Balance Model}
-talk about all the processes involved in granulation \\
+\subsection{Granulation and population balance modeling}
+Granulation is the process of engineering granules from pharmacuetical powder blends 
+with the addition of liquid or solid binders. This process is usually carried out 
+to obtain granules with a certain PSD,  bulk densities and other physical properties~\citep{Barrasso2015cerd}.
+There are about 3 rate processes that occur due the addition of a liquid binder to the 
+powder mixture are wetting and nucleation, consolidation and aggregation, and breakage 
+and attrition~\citep{sen2014}. In a high shear granulator, the particles are rendered wet 
+when they come in contact with the liquid binder, which also aids in granule formation due to 
+liquid bridges. These granules can also break into smaller fragments due to shear stresses, 
+compressive and tensile forces that are exerted on to the system due the impeller, 
+particle-particle interactions and particle-wall interactions.
+
+\textbf{Need to still complete PBM }
+
+
 \subsection{Parallel Computing}
-Talk about general computer architecture\\
-then move onto cpus and cores \\
-introduce mpi and its advantages 
-\subsection{GPU computing Basics}
+Computing with its current infrastructure has become a very important tool in sciece. 
+Paralllel computing is one of most extensively used type of computing used by scientists 
+to perform simulations. It is the process of splitting of larger calculations into 
+many smaller processes executed concurrently \citep{Almasi1989}. This type of execution 
+helps achieve large speed gains overs simulations run on a single core in a serial manner.
+The computational task can be decomposed by various means to help simulate the system 
+in a reasonable amount of time. The simulation problem can be decomposed either 
+at the task level or at the data level. Task parallelism involves each process to 
+behave distinctively from another as they would each be performing different operations. 
+These multiple operations could be performed on a single data set or on multiple data 
+sets, known as multiple instruction single data (MISD) and multiple instruction 
+multiple data (MIMD) respectively. On the other hand, data parallelism 
+involves the distribution of data across various processes which usually perform same set of 
+operations on the data \citep{solihin2015}. This type of parallelism is also known 
+as single instruction multiple data (SIMD). These two types of parallelism can also 
+be used together in various systems, thus decreasing the simulation times further.
+
+\subsection{GPU based parallel computing}
+Graphic processing unit (GPU) were initally mainly used for vector calculations to support 
+graphics inside a computer system. But, lately GPU manufacturers have started to promote them 
+general computing as well. These GPUs dominantly have a massively parallel architecture with 
+hundreds to thousands of computational cores which can thousands of active threads 
+simulataneously \citep{keckler2011gpus}. Modern GPU computing can be exploited using 
+parallel programming languages such as OpenCL and CUDA. There are various commercial 
+applications which are now capable of running their code on the GPU as well. Thus, with 
+the growing popularity and lower costs, it is possible to run parallel codes on a desktop PC.
+Tradionally, large parallel jobs needed to be run on supercomputers which had thousands of 
+cores, but these are require special components making them expensive. With the advent of 
+general purpose GPU (GPGPU), there has been a trend to move to them due the costs benefits.
+
+In this work the CUDA toolkit developed by NVIDIA was used to parallelize the PBM. T
+
 Talk about GPUs\\
 advantages like large number of cores, lesser power consumption etc\\
 Talk about CUDA toolkit and some other basics \\ 
-Explain task parallelisation and data parallelisation \\
 talk about threads blocks and grids etc
 
 \subsection{Previous parallel PBM works}
