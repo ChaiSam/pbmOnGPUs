@@ -75,7 +75,7 @@
 Population Balance models are widely used in pharmaceutical industry to simulate
 and optimize the granulation process.Prediction of the distribution of many 
 particulate sytems with the evolution of time using these models, has become an 
-efficient tool for the on-line control of the granulation process \citep{Prakash2013a}. 
+efficient tool for the on-line control of the granulation process. 
 With increase in the number of components and phases in a particulate mixture, 
 complexity of PBM increases. This leads to multi-dimensional matrix calculations 
 requiring great computational power. Over the past decade, graphical process 
@@ -105,10 +105,12 @@ Population Balance Model \sep GPU \sep Paralllel Computing \sep Granulation \sep
 \section{Introduction}
 \label{secIntro}
 Various chemical industries like detergent, food, pharmacuetical, fertilizers, 
-catalyst, etc deal with particulate processes. They constitute to about 50\% 
-of the world's chemical production \citep{seville1997}. In the pharmacuetical 
-industry, granulations plays an important role in the tablet 
-manufacturing. Granulation is the process in which fine pharmacuetical powder 
+catalyst encounter particulate processing daily. These processes 
+constitute to about 50\% of the world's chemical production \citep{seville1997}. 
+In the pharmacuetical industry, particulate processes are widely used to increase 
+the size of the granules, improve flowability, increase yield strength etc. One of 
+major processes in amoing these to increase the granule size is granulation. 
+Granulation is the process in which fine pharmacuetical powder 
 blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
 These larger granules help in better flow ability and strength to these mixtures 
 aiding further processing. 
@@ -190,27 +192,56 @@ multiple data (MIMD) respectively. On the other hand, data parallelism
 involves the distribution of data across various processes which usually perform same set of 
 operations on the data \citep{solihin2015}. This type of parallelism is also known 
 as single instruction multiple data (SIMD). These two types of parallelism can also 
-be used together in various systems, thus decreasing the simulation times further.
+be combined in certain systems, thus decreasing the simulation times further.
 
 \subsection{GPU based parallel computing}
+Tradionally, large parallel jobs needed to be run on supercomputers which had thousands 
+of cores, but these are require special components making them expensive.
 Graphic processing unit (GPU) were initally mainly used for vector calculations to support 
 graphics inside a computer system. But, lately GPU manufacturers have started to promote them 
-general computing as well. These GPUs dominantly have a massively parallel architecture with 
-hundreds to thousands of computational cores which can thousands of active threads 
-simulataneously \citep{keckler2011gpus}. Modern GPU computing can be exploited using 
-parallel programming languages such as OpenCL and CUDA. There are various commercial 
-applications which are now capable of running their code on the GPU as well. Thus, with 
-the growing popularity and lower costs, it is possible to run parallel codes on a desktop PC.
-Tradionally, large parallel jobs needed to be run on supercomputers which had thousands of 
-cores, but these are require special components making them expensive. With the advent of 
-general purpose GPU (GPGPU), there has been a trend to move to them due the costs benefits.
+general computing as well. This form of computing has been gaining popularity among scientists 
+to accelerate simulations \citep{kandrot2011}. These GPUs dominantly have a 
+massively parallel architecture with hundreds to thousands of computational cores 
+which can thousands of active threads simulataneously \citep{keckler2011}. 
+Modern GPU computing can be exploited using parallel programming languages 
+such as OpenCL and CUDA. 
 
-In this work the CUDA toolkit developed by NVIDIA was used to parallelize the PBM. T
+CUDA is an application programming interface (API) developed by NVIDIA \citep{NVIDIA2012} that enables 
+users to program parallel code for execution on the GPU. This is framework is an 
+extension implemented on top of C/C++ or Fortran. Parallel code for the GPU is written 
+as kernels, which theoritically are similar to functions or methods in traditional 
+programming languages. Only few sections of the code can be written in terms of kernel 
+while the remaining has to be executed in serial on the CPU of the system. The \texttt{nvcc} 
+compiler from the CUDA toolkit prioritizes the compilation of these kernels before 
+passing the serial section of the code to the native C/C++ compiler inside the system. 
+There are three main parallel abstractions that exist in CUDA are grids, blocks and 
+threads \citep{santos2013}. Each CUDA kernel is executed serially during the execution 
+of the program unless specified, where the kernels can be run in parallel using CUDA 
+streams. Each kernel executes as a grid which in turn consists of various blocks which 
+are consistuted by various threads. This thread-block-grid hierarchy helps obtain fine 
+grained data level and thread level parallelism. An illustration of this hierarchy is 
+observed in Figure \ref{fig:bkg_gpu_arch}.
 
-Talk about GPUs\\
-advantages like large number of cores, lesser power consumption etc\\
-Talk about CUDA toolkit and some other basics \\ 
-talk about threads blocks and grids etc
+Another important aspect related to GPU parallelization is the data communication between the threads. 
+The GPU consists of various memory modules with different access limitations as shown in Figure 
+\ref{fig:bkg_gpu_arch}. The threads inside each block can communicate with each other using the 
+shared memory. This memory is local to the block where these threads exist i.e. they are not 
+accessible by threads from other blocks. In addition to the shared memory each thread has its 
+own local memory where local/temporary variables for each kernel can be saved to them. 
+The threads from different communicate with each other using the global memory which is visible to 
+all blocks inside the GPU at the cost of higher communication times. Accessing of data from the 
+local memory is the fastest for a thread and its slows down as we move towards shared block memory 
+and the least for accessing data from the global GPU memory.
+
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.6]{bkg_gpu_arch.pdf}
+\caption{The parallel structure matrix inside the GPU and the various memories associated 
+with each structure.}
+\label{fig:bkg_gpu_arch}
+\end{figure}
+
 
 \subsection{Previous parallel PBM works}
 cite cdse, Santos, Gunuwan and other from CDSE
