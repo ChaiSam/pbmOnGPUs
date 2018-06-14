@@ -20,7 +20,7 @@
 \usepackage{epsfig}
 
 %% The amssymb package provides various useful mathematical symbols
-\usepackage{amssymb}
+\usepackage{amssymb,amsmath}
 %% The amsthm package provides extended theorem environments
 %% \usepackage{amsthm}
 
@@ -173,7 +173,42 @@ liquid bridges. These granules can also break into smaller fragments due to shea
 compressive and tensile forces that are exerted on to the system due the impeller, 
 particle-particle interactions and particle-wall interactions.
 
-\textbf{Need to still complete PBM }
+To understand the process dynamics and control these process, population balance equations 
+have been accepted as a relevant methodology \citep{Immanuel2005}. Population balances have been successful in 
+predicting physical phenomena occuring in granulation such as aggreagation, breakage and 
+consolidation. These models preidct how groups of distinct entities inside the pharmacuetical 
+powder behave on a bulk scale due to process parameters over time of granulation. A
+general representation of the model is:
+
+\begin{align}
+\frac{ \partial}{\partial t}&F(\textbf{v},\textbf{x},t) + \frac{\partial}{\partial 
+\textbf{v}}[F(\textbf{v},\textbf{x},t)\frac{d\textbf{v}}{dt}(\textbf{v},\textbf{x},t)] 
++ \frac{\partial}{\partial \textbf{x}}[F(\textbf{v},\textbf{x},t)\frac{d\textbf{x}}{dt}
+(\textbf{v},\textbf{x},t)] \notag\\
+    &= 
+\Re_{formation}(\textbf{v},\textbf{x},t)+\Re_{depletion}(\textbf{v},\textbf{x},t)
++\dot{F}_{in}(\textbf{v},\textbf{x},t) -\dot{F}_{out}(\textbf{v},\textbf{x},t) 
+\label{eqn:bkgd_pbm_general} 
+\end{align}
+
+where $\textbf{v}$ is a vector of internal 
+coordinates.  $\textbf{v}$ is commonly used to describe the solid, liquid, 
+and gas content of each type of particle. The vector $\textbf{x}$ represents 
+external coordinates, usually spatial variance. $F$ represents the 
+number of particles present inside the system, $\dot{F}_{in}$ 
+and $\dot{F}_{out}$ is the rate of particles coming in and going out the 
+system respectively. $\Re_{formation}$ and $\Re_{depletion}$ are the rate of 
+formation and depletion due various phenomena occuring in granulation. 
+
+Prediction of PSDs and other particle bulk properties is highly dependent on 
+the kernels used to describe the sub-processes inside granulation. Identification 
+of a kernel that describes the sub-processes suitably is of the essence in this model 
+since they are not only size dependent but also time dependent. Recently, various 
+mechanistic kernels have been developed that help capture the micro-mechanics of the 
+system, which help in better prediction of the final particle size \citep{Barrasso2015processes}. 
+Several of these kernels maybe dependent on other physical simulations such as Discrete 
+Element Model (DEM) to obtain certain information about the microscopic phenomena 
+occuring inside the system.
 
 
 \subsection{Parallel Computing}
