@@ -266,7 +266,7 @@ own local memory where local/temporary variables for each kernel can be saved to
 The threads from different communicate with each other using the global memory which is visible to 
 all blocks inside the GPU at the cost of higher communication times. Accessing of data from the 
 local memory is the fastest for a thread and its slows down as we move towards shared block memory 
-and the least for accessing data from the global GPU memory.
+and the least for accessing data from the global GPU memory. 
 
 
 \begin{figure}
@@ -279,6 +279,28 @@ with each structure.}
 
 
 \subsection{Previous parallel PBM works}
+PBMs have known to be been computationally intensive especially ones with larger internal 
+coordinates and higher dimensions. Thus, several researchers have made attempts to increase 
+the speed of these simulations. \cite{Gunawan2008} developed a parallelization technique 
+for a high-resolution fininte volume solution of the PBM. The parallel algorithm presented by 
+\cite{Gunawan2008} in their scale up studies for the PBM upto 100 cores achievd good 
+parallel efficiencies, implying the algorithm's effectiveness. The study was not performed for 
+higher number of dimensions inside the PBM. This study also suggested that an algorithm 
+with a shared memory model could help improve simulation speeds further. A hybrid memory model 
+was implemented by \cite{Bettencourt2017} to obtain speed improvements of about 98\% from the 
+serial code. This implementation took into account both Message Parsing Interface (MPI) as well 
+as Open Multi-processing (OMP). A similar PBM parallelization approach was also undertaken in 
+\textcolor{red}{cite CDSE} and a speed up of about 13 was obtained. 
+
+Algorithms to parallelize the PBM codes on GPU have been studied briefly by \cite{Prakash2013b} 
+using the inbuilt MATLAB's parallel computing toolbox (PCT). This study was able to achieve 
+good speed ups but could have been higher if the code had been implemented in native programming 
+languages such as C or FORTRAN. Other works that have used GPU acceleration to improve computation 
+times for their population balance simulations include those from various other chemical engineering 
+processes such as crystallization \citep{Szilagy2016}, combustion \citep{Shi2012}, multiphase flow 
+\citep{santos2013}, coagulation dynamics \citep{Xu2015}
+
+
 cite cdse, Santos, Gunuwan and other from CDSE
 cite Nagy, Santos, Green etc for the PBM GPU part
 
