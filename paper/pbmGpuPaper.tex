@@ -54,6 +54,7 @@
 \usepackage{textcomp}
 \usepackage{multirow}
 \usepackage{float}
+\usepackage{amsmath}
 
 \journal{Computer and Chemical Engineering}
 
@@ -74,7 +75,7 @@
 \begin{abstract}
 Population Balance models are widely used in pharmaceutical industry to simulate
 and optimize the granulation process.Prediction of the distribution of many 
-particulate sytems with the evolution of time using these models, has become an 
+particulate systems with the evolution of time using these models, has become an 
 efficient tool for the on-line control of the granulation process. 
 With increase in the number of components and phases in a particulate mixture, 
 complexity of PBM increases. This leads to multi-dimensional matrix calculations 
@@ -93,7 +94,7 @@ discretization of the granulator geometry and threads used for calculations.
 
 \begin{keyword}
 %% keywords here, in the form: keyword \sep keyword
-Population Balance Model \sep GPU \sep Paralllel Computing \sep Granulation \sep MPI
+Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep MPI
 %% MSC codes here, in the form: \MSC code \sep code
 %% or \MSC[2008] code \sep code (2000 is the default)
 \end{keyword}
@@ -104,13 +105,13 @@ Population Balance Model \sep GPU \sep Paralllel Computing \sep Granulation \sep
 %% main text
 \section{Introduction}
 \label{secIntro}
-Various chemical industries like detergent, food, pharmacuetical, fertilizers, 
+Various chemical industries like detergent, food, pharmaceutical, fertilizers, 
 catalyst encounter particulate processing daily. These processes 
 constitute to about 50\% of the world's chemical production \citep{seville1997}. 
-In the pharmacuetical industry, particulate processes are widely used to increase 
-the size of the granules, improve flowability, increase yield strength etc. One of 
-major processes in amoing these to increase the granule size is granulation. 
-Granulation is the process in which fine pharmacuetical powder 
+In the pharmaceutical industry, particulate processes are widely used to increase 
+the size of the granules, improve flow-ability, increase yield strength etc. One of 
+major processes in among these to increase the granule size is granulation. 
+Granulation is the process in which fine pharmaceutical powder 
 blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
 These larger granules help in better flow ability and strength to these mixtures 
 aiding further processing. 
@@ -120,13 +121,13 @@ aiding further processing.
 Understanding the dynamics of the continuous granulating system is vital for its smooth 
 operation and to reduce the amount of waste generated in the development phase. The Food 
 and Drug administration (FDA) has also been promoting a similar initiative with its 
-Quality by Design (QbD) and Process Analytical Tools (PAT) principles~\citep{sen2014}. 
+Quality by Design (QbD) and Process Analytically Tools (PAT) principles~\citep{sen2014}. 
 Thus, a process model for the system becomes an integral part of the development phase. 
 A model which predicts the bulk mechanical properties of the mixture as well as a particle size 
 distribution (PSD) is required. Over the past decade, Population Balance Models (PBMs) have been used 
-to predict the behaviour of granulation processes \citep{Barrasso2013},\citep{Ramachandran2009}. 
+to predict the behavior of granulation processes \citep{Barrasso2013},\citep{Ramachandran2009}. 
 
-PBMs are used to calculate bulk rate processes ocurring during granulation. PBMs are sometimes 
+PBMs are used to calculate bulk rate processes occurring during granulation. PBMs are sometimes 
 unable to integrate certain information, thus a mechanistic kernel can be 
 introduced in these models to make them more accurate. Another way to increase its accuracy, 
 is to incorporate larger number of solid bins inside the PBM. The increase in the number of 
@@ -135,13 +136,13 @@ simulation times. The calculations increase by a factor of $2^n$ where n being t
 of solid bins. An accurate model which incorporates higher number of solid bins as well as 
 includes a mechanistic kernel in its calculations is expected to be very 
 slow to simulate and could take upto hours to complete. Such models and their solving 
-techniques are not viable to be used in real time sytem control. Thus, there is a need to 
+techniques are not viable to be used in real time system control. Thus, there is a need to 
 solve these models quicker.
 
 The advancement of computers and its peripherals in recent years have led to a great increase in 
 computational resources leading to faster simulations. The recent central processing unit (CPU) 
 now contains various of cores thus making it possible to run multiples processes in parallel. 
-In order to take advantege of a highly parallel framework, large number of cores are needed 
+In order to take advantage of a highly parallel framework, large number of cores are needed 
 which may not be possible in a personal desktop and a supercomputer cluster needs to be used.
 Another computer peripheral that can to be used to run a highly parallel code is the computer's 
 graphic processing unit (GPU)~\citep{Prakash2013b}. These GPUs contain thousands of compute 
@@ -162,7 +163,7 @@ was also tested to obtain speed improvements over serial CPU code.
 \section{Background and previous works}
 \label{secBkgd}
 \subsection{Granulation and population balance modeling}
-Granulation is the process of engineering granules from pharmacuetical powder blends 
+Granulation is the process of engineering granules from pharmaceutical powder blends 
 with the addition of liquid or solid binders. This process is usually carried out 
 to obtain granules with a certain PSD,  bulk densities and other physical properties~\citep{Barrasso2015cerd}.
 There are about 3 rate processes that occur due the addition of a liquid binder to the 
@@ -175,8 +176,8 @@ particle-particle interactions and particle-wall interactions.
 
 To understand the process dynamics and control these process, population balance equations 
 have been accepted as a relevant methodology \citep{Immanuel2005}. Population balances have been successful in 
-predicting physical phenomena occuring in granulation such as aggreagation, breakage and 
-consolidation. These models preidct how groups of distinct entities inside the pharmacuetical 
+predicting physical phenomena occurring in granulation such as aggregation, breakage and 
+consolidation. These models predict how groups of distinct entities inside the pharmaceutical 
 powder behave on a bulk scale due to process parameters over time of granulation. A
 general representation of the model is:
 
@@ -198,7 +199,7 @@ external coordinates, usually spatial variance. $F$ represents the
 number of particles present inside the system, $\dot{F}_{in}$ 
 and $\dot{F}_{out}$ is the rate of particles coming in and going out the 
 system respectively. $\Re_{formation}$ and $\Re_{depletion}$ are the rate of 
-formation and depletion due various phenomena occuring in granulation. 
+formation and depletion due various phenomena occurring in granulation. 
 
 Prediction of PSDs and other particle bulk properties is highly dependent on 
 the kernels used to describe the sub-processes inside granulation. Identification 
@@ -208,12 +209,12 @@ mechanistic kernels have been developed that help capture the micro-mechanics of
 system, which help in better prediction of the final particle size \citep{Barrasso2015processes}. 
 Several of these kernels maybe dependent on other physical simulations such as Discrete 
 Element Model (DEM) to obtain certain information about the microscopic phenomena 
-occuring inside the system.
+occurring inside the system.
 
 
 \subsection{Parallel Computing}
 Computing with its current infrastructure has become a very important tool in sciece. 
-Paralllel computing is one of most extensively used type of computing used by scientists 
+Parallel computing is one of most extensively used type of computing used by scientists 
 to perform simulations. It is the process of splitting of larger calculations into 
 many smaller processes executed concurrently \citep{Almasi1989}. This type of execution 
 helps achieve large speed gains overs simulations run on a single core in a serial manner.
@@ -230,21 +231,21 @@ as single instruction multiple data (SIMD). These two types of parallelism can a
 be combined in certain systems, thus decreasing the simulation times further.
 
 \subsection{GPU based parallel computing}
-Tradionally, large parallel jobs needed to be run on supercomputers which had thousands 
+Traditionally, large parallel jobs needed to be run on supercomputers which had thousands 
 of cores, but these are require special components making them expensive.
-Graphic processing unit (GPU) were initally mainly used for vector calculations to support 
+Graphic processing unit (GPU) were initially mainly used for vector calculations to support 
 graphics inside a computer system. But, lately GPU manufacturers have started to promote them 
 general computing as well. This form of computing has been gaining popularity among scientists 
 to accelerate simulations \citep{kandrot2011}. These GPUs dominantly have a 
 massively parallel architecture with hundreds to thousands of computational cores 
-which can thousands of active threads simulataneously \citep{keckler2011}. 
+which can thousands of active threads simultaneously \citep{keckler2011}. 
 Modern GPU computing can be exploited using parallel programming languages 
 such as OpenCL and CUDA. 
 
 CUDA is an application programming interface (API) developed by NVIDIA \citep{NVIDIA2012} that enables 
 users to program parallel code for execution on the GPU. This is framework is an 
 extension implemented on top of C/C++ or Fortran. Parallel code for the GPU is written 
-as kernels, which theoritically are similar to functions or methods in traditional 
+as kernels, which theoretically are similar to functions or methods in traditional 
 programming languages. Only few sections of the code can be written in terms of kernel 
 while the remaining has to be executed in serial on the CPU of the system. The \texttt{nvcc} 
 compiler from the CUDA toolkit prioritizes the compilation of these kernels before 
@@ -282,9 +283,9 @@ with each structure.}
 PBMs have known to be been computationally intensive especially ones with larger internal 
 coordinates and higher dimensions. Thus, several researchers have made attempts to increase 
 the speed of these simulations. \cite{Gunawan2008} developed a parallelization technique 
-for a high-resolution fininte volume solution of the PBM. The parallel algorithm presented by 
-\cite{Gunawan2008} in their scale up studies for the PBM upto 100 cores achievd good 
-parallel efficiencies, implying the algorithm's effectiveness. The study was not performed for 
+for a high-resolution finite volume solution of the PBM. The parallel algorithm presented by 
+\cite{Gunawan2008} in their scale up studies for the PBM upto 100 cores achieved good 
+parallel efficiency, implying the algorithm's effectiveness. The study was not performed for 
 higher number of dimensions inside the PBM. This study also suggested that an algorithm 
 with a shared memory model could help improve simulation speeds further. A hybrid memory model 
 was implemented by \cite{Bettencourt2017} to obtain speed improvements of about 98\% from the 
