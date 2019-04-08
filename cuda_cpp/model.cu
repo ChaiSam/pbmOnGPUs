@@ -551,26 +551,26 @@ int main(int argc, char *argv[])
     cudaDeviceSynchronize();
 
     
-    DUMP(h_sMeshXY);
-    DUMP(h_ssMeshXY);
-    DUMP(h_sAggregationCheck);
-    DUMP(h_ssAggregationCheck);
-    DUMP(h_sLow);
-    DUMP(h_ssLow);
-    DUMP(h_sHigh);
-    DUMP(h_ssHigh);
-    DUMP(h_sInd);
-    DUMP(h_ssInd);
-    DUMP(h_sCheckB);
-    DUMP(h_ssCheckB);
-    DUMP(h_sIndB);
-    DUMP(h_ssIndB);
-    DUMP(h_sLocBreak);
-    DUMP(h_ssLocBreak);
-    DUMP(h_sBreak);
-    DUMP(h_ssBreak);
-    DUMP(h_sLoc);
-    DUMP(h_ssLoc);
+    // DUMP(h_sMeshXY);
+    // DUMP(h_ssMeshXY);
+    // DUMP(h_sAggregationCheck);
+    // DUMP(h_ssAggregationCheck);
+    // DUMP(h_sLow);
+    // DUMP(h_ssLow);
+    // DUMP(h_sHigh);
+    // DUMP(h_ssHigh);
+    // DUMP(h_sInd);
+    // DUMP(h_ssInd);
+    // DUMP(h_sCheckB);
+    // DUMP(h_ssCheckB);
+    // DUMP(h_sIndB);
+    // DUMP(h_ssIndB);
+    // DUMP(h_sLocBreak);
+    // DUMP(h_ssLocBreak);
+    // DUMP(h_sBreak);
+    // DUMP(h_ssBreak);
+    // DUMP(h_sLoc);
+    // DUMP(h_ssLoc);
 
     vector<double> h_fAllCompartments(size3D, 0.0);
     vector<double> h_flAllCompartments(size3D, 0.0);
