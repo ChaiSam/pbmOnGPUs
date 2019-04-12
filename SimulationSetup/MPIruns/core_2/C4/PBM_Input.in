@@ -11,7 +11,7 @@ CoefficientOfRestitution 0.2
 LiquidThickness 0.5
 SurfaceAsperities 5.0e-6
 GranulatorLength 0.38
-NumberOfCompartmets 16
+NumberOfCompartmets 4
 ParticleResidenceTime 5.0
 DiameterOfImpeller 0.114
 SpeedOfImpeller 2000.0
