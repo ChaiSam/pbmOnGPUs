@@ -1070,16 +1070,16 @@ int main(int argc, char *argv[])
         formationThroughBreakageOverTime.push_back(compartmentOut.formationThroughBreakage); 
         depletionThroughBreakageOverTime.push_back(compartmentOut.depletionThroughBreakage); 
 
-        for (int w = 0; w < nCompartments; w++)
-        {
-            cout << "Compartment Number = " << w +1 << endl;
-            cout << "compartmentOut.formationThroughAggregation  = " << compartmentOut.formationThroughAggregation[w] <<  endl;
-            cout << "compartmentOut.depletionThroughAggregation  = " << compartmentOut.depletionThroughAggregation[w] <<  endl;
-            cout <<  "Agg Ratio = " << compartmentOut.formationThroughAggregation[w] / compartmentOut.depletionThroughAggregation[w] << endl;
-            cout << "compartmentOut.formationThroughBreakage  = " << compartmentOut.formationThroughBreakage[w] <<  endl;
-            cout << "compartmentOut.depletionThroughBreakage  = " << compartmentOut.depletionThroughBreakage[w] <<  endl;
-            cout << "Breakage Ratio = " << compartmentOut.formationThroughBreakage[w] / compartmentOut.depletionThroughBreakage[w] << endl;
-        }
+        // for (int w = 0; w < nCompartments; w++)
+        // {
+        //     cout << "Compartment Number = " << w +1 << endl;
+        //     cout << "compartmentOut.formationThroughAggregation  = " << compartmentOut.formationThroughAggregation[w] <<  endl;
+        //     cout << "compartmentOut.depletionThroughAggregation  = " << compartmentOut.depletionThroughAggregation[w] <<  endl;
+        //     cout <<  "Agg Ratio = " << compartmentOut.formationThroughAggregation[w] / compartmentOut.depletionThroughAggregation[w] << endl;
+        //     cout << "compartmentOut.formationThroughBreakage  = " << compartmentOut.formationThroughBreakage[w] <<  endl;
+        //     cout << "compartmentOut.depletionThroughBreakage  = " << compartmentOut.depletionThroughBreakage[w] <<  endl;
+        //     cout << "Breakage Ratio = " << compartmentOut.formationThroughBreakage[w] / compartmentOut.depletionThroughBreakage[w] << endl;
+        // }
 
         double maxofthree = -DBL_MAX;
         double maxAll = -DBL_MAX;
