@@ -105,9 +105,8 @@ Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep 
 %% main text
 \section{Introduction}
 \label{secIntro}
-Various chemical industries like detergent, food, pharmaceutical, fertilizers, 
-catalyst encounter particulate processing daily. These processes 
-constitute to about 50\% of the world's chemical production \citep{seville1997}. 
+Various chemical industries like detergent, food, pharmaceutical, fertilizers, catalyst encounter particulate processing daily. 
+These processes constitute to about $50\%$ of the world's chemical production \citep{seville1997}.
 In the pharmaceutical industry, particulate processes are widely used to increase 
 the size of the granules, improve flow-ability, increase yield strength etc. One of 
 major processes in among these to increase the granule size is granulation. 
@@ -291,7 +290,7 @@ with a shared memory model could help improve simulation speeds further. A hybri
 was implemented by \cite{Bettencourt2017} to obtain speed improvements of about 98\% from the 
 serial code. This implementation took into account both Message Parsing Interface (MPI) as well 
 as Open Multi-processing (OMP). A similar PBM parallelization approach was also undertaken in 
-\textcolor{red}{cite CDSE} and a speed up of about 13 was obtained. 
+\citep{Sampat2018} and a speed up of about 13 was obtained. 
 
 Algorithms to parallelize the PBM codes on GPU have been studied briefly by \cite{Prakash2013b} 
 using the inbuilt MATLAB's parallel computing toolbox (PCT). This study was able to achieve 
@@ -302,22 +301,110 @@ processes such as crystallization \citep{Szilagy2016}, combustion \citep{Shi2012
 \citep{santos2013}, coagulation dynamics \citep{Xu2015}
 
 
-cite cdse, Santos, Gunuwan and other from CDSE
-cite Nagy, Santos, Green etc for the PBM GPU part
-
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-relate each equation of the PBM used to each process and explain a bit
+Similar to the CDSE paper so might not include this or may talk about this very briefly
+
+
 \subsection{MPI implementation}
-elaborate how the geometry was divided into compartments and how each \\
-compartment was sent to each block
+To obtain the most optimal parallel performance, when‎ solving the PBM, workloads 
+were distributed in a manner which took into account the shared and‎ distributed 
+memory aspects of the clusters, the PBM was being run on. To parallelize the model 
+in a way which could take advantage of shared memory but still effectively run 
+across a distributed system both MPI and OMP were implemented. One MPI process 
+was used per CPU core and one‎ OMP thread was used per CPU core, as 
+Bettencourt et al. (2017) found it resulted in the best‎ performance. MPI was 
+used for message passing from one node to another while OMP was used‎ for 
+calculations on each node that could be efficiently solved using a shared 
+memory system.‎ An algorithm in the form of pseudo code is presented in the 
+Appendix illustrating how the calculations‎ are distributed and carried out 
+during the simulation. For each time step, the MPI processes are‎ made 
+responsible for a specific chunk of the spatial compartments. Then each 
+OMP thread, inside‎ of each MPI process, is allocated to one of the cores 
+of multi-core CPU the MPI process is bound‎ too. The OMP threads divide up 
+and compute $R_agg$. After $R_agg$ is calculated the MPI processes‎ calculate 
+the new PSD value for their chunk at that specific time step, Ft,c. The 
+slave processes‎ send their Ftc to the master processes which collects them 
+into the complete Ft,all. The master‎ process then broadcasts the Ft, all 
+value to all slave processes. This decomposition of the data into‎ 
+different CPUs and further into various threads is illustrated in 
+Figure 3-4.‎ A crucial feature of the PBM is that the current PSD (Ft,all) 
+value is used to compute a new‎ time step size for the next iteration. 
+This means all of the MPI processes need to have the same‎ dynamic time 
+step size at each iteration for the calculations to be properly carried 
+out in parallel.‎ Since the completely updated Ft, all value is shared 
+before calculating a new time step each process‎ will have the same Ft, 
+all value. As a result each process calculates the same size for the 
+new time‎ step.‎ Since the DEM informed PBM code required dynamic size 
+increase for the data structure due‎ to different number of particles 
+being present in the DEM simulation, the PBM code developed‎ used the 
+Standard Template Library containers and their features available 
+in C++ 11 and later.‎ It requires intel v17.0.2 (GCC 5.3+) or later 
+for compilation. Since this module was not present on‎ the Stampede,
+the execution of the PBM was done on the newer Stampede2 supercomputer. 
+Each‎ of the compute node of the cluster consists of Intel Xeon Phi 7250 
+(“Knights Landing") which has‎ 68 cores on a single socket clocked at 1.4 GHz, 
+with 96 GB of DDR4 RAM. Each of the cores‎ consists of 4 hardware threads. 
+The simulations were then run by varying the number of MPI‎ processes from 
+1 to 16 and the number of OMP threads from 1 to 8, thus, using a maximum of 128‎ cores.
+
 \subsection{GPU implementation}
-Elaborate how each block was each compartment and how each thread was 
-parallelized to perform calculation for solid 1 solid 2 combination.
+NVIDIA’s CUDA toolkit extends the C language such that user defined functions 
+called kernels can be created to be run on the GPU. These kernels can be 
+executed N times in parallel using large number of threads. A thread is 
+sequence if programmed instructions that can be managed by the computer’s 
+scheduler. A kernel depending upon the dimensions of the data can execute 
+instructions in 1-D, 2-D or 3-D thread blocks. The kernel can also launch 
+multiple thread blocks at once, thus increasing the number of parallel 
+process executions known as grid. Similar to a thread block, a grid can 
+be up to 3-D depending upon the data under study.
+The code execution was split between the CPU (also called host) and GPU 
+(also called device). Time sensitive calculations as well as mixed data 
+calculations were handled on the CPU with a single core, while the more 
+computationally intensive tasks were distributed on to the GPU using 
+kernels. Like in the CPU parallelization, the geometry was split into 
+multiple compartments. These compartments in turn formed the number of 
+blocks inside each GPU kernel. The number of solids used helped formed 
+the threads in each of these blocks. The work flow of the execution can 
+be found in Figure 3-5. The orange arrows in Figure 3-5 indicate the 
+transfer of data from the CPU memory to the GPU memory and vice-versa 
+whereas the blue arrows indicate the sections of the code that is sent 
+to the GPU for parallel execution.
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.4]{gpuImp_schematic.pdf}
+\caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
+\label{fig:mtd_gpu_imp}
+\end{figure}
 
 \section{Results and discussions}
-\label{secResults}
+\label{secResults}S
+\subsection{GPU performance}
+The GPU parallel code timings were not compared directly to the CPU 
+version since it would have been unfair since the hardware configurations 
+used were completely different. There are several non-code related latency 
+and delays that could affect the performance of the code. Thus, no 
+comparison was performed between the 2 code versions. 
+A soft scaling was performed for the GPU code. This refers to change of 
+the size of the problem is in direct correlation with the computational 
+power required for its execution. In this study, the sections of geometry 
+were varied from 2 to 16 compartments, while the number of solids from 1 
+to 16 for both the solids. Using this configuration, the maximum number 
+of threads required would be 4096 while the minimum would be 2 threads. 
+Figure 4-7 shows timing comparison between the studies. It can be seen 
+that as the size of the problem increases there is a small increase in 
+the time of the simulation which can directly be linked to increase in 
+the number of calculations as well problem initiation times would be 
+higher. A larger time is required for problems which require threads 
+greater than the number of CUDA cores present on the GPU (here 1792), 
+since the extra blocks would need to wait for the earlier blocks to 
+complete their simulations before they can be executed.
+
+\subsection{Comparison CPU and GPU performance}
+
+I still need to figure out some studies to complete this section.
 
 \section{Conclusions}
 \label{secConc}
