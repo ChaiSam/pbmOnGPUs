@@ -1,6 +1,6 @@
 # Input Parameters for PBM
-AggregationKernelConstant 1.0e-26
-BreakageKernelConstant 5.0e-24
+AggregationKernelConstant 1.0e-24
+BreakageKernelConstant 5.0e-22
 ConsolidationConstant 0.0e-13
 InitialPorosity 0.4
 MinimumPorosity 0.2
