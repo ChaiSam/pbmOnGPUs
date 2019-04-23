@@ -79,17 +79,21 @@ particulate systems with the evolution of time using these models, has become an
 efficient tool for the on-line control of the granulation process. 
 With increase in the number of components and phases in a particulate mixture, 
 complexity of PBM increases. This leads to multi-dimensional matrix calculations 
-requiring great computational power. Over the past decade, graphical process 
-units (GPUs) are increasingly being used for computation. This study focuses on the 
-development of an algorithm to parallelize the various nested loops inside the PBM. 
+requiring great computational power. Solving such a system with a traditional 
+central processing unit (CPU) would be very time consuming, thus there is a 
+need of a parallel framework which can help decrease the simulation time. 
+Over the past decade, graphical process units (GPUs) are increasingly being 
+used for computation. This study focuses on the development of an algorithm to 
+parallelize the various nested loops inside the PBM. 
 The PBM was developed for a continuous high shear granulation process and was made 
 specifically for NVIDIA GPUs as it was developed on CUDA C/C++. The communication 
 time is much lower in comparison to the speedup achieved in the parallel section 
 of the code on the GPUs. The speed up achieved was significant compared to the PBM 
 code when run in serial or in on multi-core configuration. The speed improvements 
-for the code was reported for various CPU \& GPU architectures and configurations. 
-The speed improvements were also tested with various combinations in 
-discretization of the granulator geometry and threads used for calculations. 
+for the code for various CPU \& GPU architectures and configurations have 
+been reported. 
+%The speed improvements were also tested with various combinations in 
+%discretization of the granulator geometry and threads used for calculations. 
 \end{abstract}
 
 \begin{keyword}
