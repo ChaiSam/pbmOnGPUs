@@ -308,11 +308,159 @@ processes such as crystallization \citep{Szilagy2016}, combustion \citep{Shi2012
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-Similar to the CDSE paper so might not include this or may talk about this very briefly
+The population balance equation used in this work is expressed below:
+\begin{align}
+\frac{d}{dt}F(s_1,s_2,x)=\Re_{agg}(s_1,s_2,x)+\Re_{break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)-\dot{F}_{out}(s_1,s_2,x)
+\label{eqn:mthds_pbm_overall} 
+\end{align}
+where, $F(s_1,s_2,x)$ is the number of particles with an active pharmaceutical ingredients (API) volume of $s_1$ and an excipient 
+volume of $s_2$ in the spatial compartment $x$. The rate of change of number of particles with time 
+in different size classes depend on the rate of aggregation $\Re_{agg}(s_1,s_2,x)$ and the rate of 
+breakage $\Re_{break}(s_1,s_2,x)$. Also, the rate of particles coming into, $\dot{F}_{in}(s_1,s_2,x)$ and 
+going out, $\dot{F}_{out}(s_1,s_2,x)$ of the spatial compartment due to particle transfer affect the number of 
+particles in different size classes. 
+The rate of change of liquid volume in each particle is calculated using the equation: 
 
+\begin{align}
+\frac{d}{dt}F(s_1,s_2,x)l(s_1,s_2,x)&= 
+\Re_{liq,agg}(s_1,s_2,x)+\Re_{liq,break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)l_{in}(s_1,s_2,x)\notag\\
+&-\dot{F}_{out}(s_1,s_2,x)l_{out}(s_1,s_2,x)+F(s_1,s_2,x)\dot{l}_{add}(s_1,s_2,x)
+\label{eqn:mthds_pbm_rate} 
+\end{align}
+
+where, $l(s_1,s_2,x)$ is the amount of liquid volume in each particle with API volume of $s_1$ and 
+excipient volume of $s_2$ in the spatial compartment $x$. $\Re_{liq,agg}(s_1,s_2,x)$ and 
+$\Re_{liq,break}(s_1,s_2,x)$ are respectively the rates of liquid transferred between size classes due to 
+aggregation and breakage. $l_{in}(s_1,s_2,x)$ and $l_{out}(s_1,s_2,x)$ are respectively the liquid 
+volumes of the particles coming in and going out of the spatial compartment. $l_{add}(s_1,s_2,x)$ is 
+the volume of liquid acquired by each particle in the compartment at every time step due to external 
+liquid addition.
+Similarly, the rate of change of gas volume is calculated using the following equation: 
+
+\begin{align}
+\frac{d}{dt}F(s_1,s_2,x)g(s_1,s_2,x)&= 
+\Re_{gas,agg}(s_1,s_2,x)+\Re_{gas,break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)g_{in}(s_1,s_2,x)\notag\\
+&-\dot{F}_{out}(s_1,s_2,x)g_{out}(s_1,s_2,x)+F(s_1,s_2,x)\dot{g}_{cons}(s_1,s_2,x)
+\label{eqn:mthds_pbm_gas_agg} 
+\end{align}
+
+where, $g(s_1,s_2,x)$ is the gas volume of each particle with API volume of $s_1$ and excipient 
+volume of $s_2$ in the spatial compartment $x$. $\Re_{gas,agg}(s_1,s_2,x)$ and 
+$\Re_{gas,break}(s_1,s_2,x)$ are respectively the rates of gas transferred between size classes due to 
+aggregation and breakage. $g_{in}(s_1,s_2,x)$ and $g_{out}(s_1,s_2,x)$ are respectively the gas 
+volume of the particles entering and leaving the spatial compartment. $\dot{g}_{cons}(s_1,s_2,x)$ is the 
+volume of gas coming out of each particle at every time-step due to consolidation of the particles. 
+The rate of aggregation, $\Re_{agg}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} is 
+calculated as: \citep{Chaturbedi2017}
+
+\begin{align}
+\Re_{agg}(s_1,s_2,x)&= \frac{1}{2}\int _0^{s_1} \int_0^{s_2} 
+\beta(s_1',s_2',s_1-s_1',s_2-s_2',x)F(s_1',s_2',x)F(s_1-s_1',s_2-s_2',x)ds_1'ds_2'\notag\\ 
+&- F(s_1,s_2,x)\int _0^{s_{max_1}-s_1} \int_0^{s_{max_2}-s_2} 
+\beta(s_1,s_2,s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2'
+\label{eqn:mthds_R_agg}
+\end{align}
+
+
+where, the aggregation kernel, $\beta(s_1,s_2, s_1',s_2',x)$ is expressed as a function of collision 
+rate coefficient ($C$) and probability that collision results in agglomeration($\psi$) \citep{ingram2005}
+and is shown below: 
+
+\begin{align}
+\beta(s_1,s_2,s_1',s_2',x) = \beta_oC(s_1,s_2,s_1',s_2',x)\psi(s_1,s_2,s_1',s_2',x)
+%\beta(s_1,s_2,s_1',s_2',x) = & \beta_o*(V(s_1,s_2,x)+V(s_1',s_2',x))^{\gamma}*(c(s_1,s_2,x)\notag\\
+%&+c(s_1',s_2',x))^{\alpha}\left(1-\frac{(c(s_1,s_2,x)+c(s_1',s_2',x))^{\delta}}{2}\right)^{\alpha}
+\label{eqn:mthds_pbm_beta_kernal}
+\end{align}
+
+where, $\beta_o$ is aggregation rate constant.\\
+Collision rate coefficient ($C$) is a function of particle sizes and is calculated by normalizing the 
+number of collisions between group of particles \citep{gantt2006} and is obtained from LIGGGHTS 
+DEM simulation. A recent study shows that collision frequency depends on PSD as well 
+\citep{sen2014}. Collision rate coefficient can be expressed as:
+
+\begin{align}
+C(s_1,s_2,s_1',s_2')=\frac{N_{coll}(s_1,s_2,s_1',s_2')}{N_p(s_1,s_2)N_p(s_1',s_2')\Delta t}
+\label{eqn:collfreq}
+\end{align}
+
+In Equation \ref{eqn:collfreq}, $N_{coll}$ is the number of collision between two particles in 
+time interval $\Delta t$ \& $N_p$ is number of particle of particular size. The agglomeration 
+($\psi$) in equation (\ref{eqn:mthds_pbm_beta_kernal}) can be expressed as:
+
+\begin{align}
+\psi((s_1,s_2,s_1',s_2') = 
+\left\{\begin{matrix}
+\psi_0,\hspace{0.2cm} LC((s_1,s_2) \geq LC_{min}\hspace{0.2cm} and\hspace{0.2cm} LC((s_1',s_2') \geq LC_{min}	\\ 
+0,\hspace{0.2cm} LC((s_1,s_2) < LC_{min}\hspace{0.2cm} or\hspace{0.2cm} LC((s_1',s_2') < LC_{min}
+\end{matrix}\right.
+\label{eqn:colleff}
+\end{align}
+ In Equation \ref{eqn:colleff}, $LC$ is the liquid content of particles and $LC_{min}$ stands for minimum 
+ liquid content required for coalescence of particles. 
+
+%%%% commented the breakage details as we aren't including in results
+
+
+Similarly, the breakage rate is expressed as-
+\begin{align}
+\Re_{break}(s_1,s_2,x) = \int_0^{s_{max_1}} \int_0^{s_{max_2}} 
+K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2' - K_{break}(s_1,s_2,x)F(s_1,s_2,x)
+\end{align}
+	    
+where, the breakage kernel $K_{break}(s_1,s_2,x)$ is formulated as: 
+
+\begin{align}
+K_{break}(s_1,s_2,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU	    
+K_{break}(s_1,s_2,x)=\left(\frac{4}{15\pi}\right)^{\frac{1}{2}}G_{shear}exp\left(-\frac{B}{R(s_1,s_2,x)}\right)
+\end{align}
+
+
+% where, $G_{shear}$ is the shear rate exerted by the impeller on the granules. $R(s_1,s_2,x)$ is 
+the radius of the granule that breaks and $B$ is the breakage kernel constant. $G_shear$ is 
+calculated as $\frac{\nu_{impeller}*D_{impeller}*PI}{60}$ where $\nu_{impeller}$ and $D_{impeller}$ 
+are respectively the rotational speed and diameter of the impeller.
+The rate of increase of liquid volume of a particle, $\dot{l}_{add}(s_1,s_2,x)$ is expressed as:
+
+\begin{align}
+\dot{l}_{add}(s_1,s_2,x) = \frac{(s_1+s_2)(\dot{m}_{spray}(1-c_{binder})-\dot{m}_{evap})}{m_{solid}(x)}
+\label{eqn:mthds_liq_addn_rate}
+\end{align}
+
+where, $(s_1+s_2)$  is the total solid volume of the particle; $\dot{m}_spray$ is the rate of external 
+liquid addition, $c_{binder}$ is the concentration of binder in the external liquid (which is assumed to 
+be zero in this case); $\dot{m}_{evap}$ is the rate of evaporation of liquid from 
+the system (which is also assumed to be zero in this case) and $m_{solid}$ is the total amount of solid 
+present in the compartment.
+The rate of decrease in gas volume per particle due to consolidation is calculated using the 
+following expression: \citep{Verkoeijen2002} 
+
+\begin{align}
+\dot{g}_{cons}(s_1,s_2,x)=&c (\nu_{impeller})^{\omega}V(s_1,s_2,x)\frac{(1-\epsilon_{min})}{s} 
+\notag \\ 
+& \left[g(s_1,s_2,x)+l(s_1,s_2,x) -(s_1+s_2)\frac{\epsilon_{min}}{1-\epsilon_{min}}\right]
+\label{eqn:mthds_rate_gas_vol_part}
+\end{align}        
+
+ where, $c$ and $\omega$ are the consolidation constants; $v_{impeller}$ is the impeller 
+rotational speed; $V(s_1,s_2,x)$ is the volume of particle, $\epsilon_{min}$ is the minimum porosity; 
+$g(s_1,s_2,x)$ and $l(s_1,s_2,x)$ are respectively the gas and liquid volumes of the particle.
+
+ Particle transfer rate, $\dot{F}_{out}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} is calculated 
+as:
+
+\begin{align}
+\dot{F}_{out}(s_1,s_2,x) = \dot{F}(s_1,s_2,x)\frac{\nu_{compartment}(x)*dt}{d_{compartment}}
+\label{eqn:mthds_f_out_dot_part_trans_rate}
+\end{align}
+
+where, $\nu_{compartment}(x)$ and $d_{compartment}$ are respectively the average velocity of 
+particles in compartment $x$ and the distance between the mid-points of two adjacent compartment, 
+which is the distance particles have to travel to move to the next spatial compartment. $dt$ is the 
+time-step.
 
 \subsection{MPI implementation}
-To obtain the most optimal parallel performance, when‎ solving the PBM, workloads 
+To obtain the most optimal parallel performance, when solving the PBM, workloads 
 were distributed in a manner which took into account the shared and‎ distributed 
 memory aspects of the clusters, the PBM was being run on. To parallelize the model 
 in a way which could take advantage of shared memory but still effectively run 
@@ -386,6 +534,7 @@ to the GPU for parallel execution.
 \section{Results and discussions}
 \label{secResults}S
 \subsection{GPU performance}
+Talk about code performance first and then about the profile of the code
 The GPU parallel code timings were not compared directly to the CPU 
 version since it would have been unfair since the hardware configurations 
 used were completely different. There are several non-code related latency 
@@ -406,7 +555,11 @@ greater than the number of CUDA cores present on the GPU (here 1792),
 since the extra blocks would need to wait for the earlier blocks to 
 complete their simulations before they can be executed.
 
-\subsection{Comparison CPU and GPU performance}
+\subsection{Performance on GPUs compared to CPUs}
+
+\subsection{Server level GPU code performance}
+
+
 
 I still need to figure out some studies to complete this section.
 
