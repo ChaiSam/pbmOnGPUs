@@ -460,6 +460,26 @@ which is the distance particles have to travel to move to the next spatial compa
 time-step.
 
 \subsection{MPI implementation}
+The message parsing interface (MPI) parallel implementation of the PBM was 
+focused towards equal distribution of the task and memory. The implementation 
+used in this work differs from the hybrid implementation used by \citep{Bettencourt2017}
+and \citep{Sampat2018} since only MPI was used to parallelize the code. It 
+was pointed by \citep{Sampat2018} that open message parsing (OMP) does not 
+provide significant speed improvements due to limitations with usage of 
+dynamic vectors which are essential for such a system. Thus, the OMP 
+implementation was avoided which also meant that lesser number of cores 
+would be required to run the code. As the work is mainly focused on using 
+desktop computers over supercomputers, it meant that most of these studies 
+could be performed on personal computer. These simulations were performed 
+on a computer with an Intel Core i7-7700K processor clocked at 4.2GHz and 
+32 GB of RAM. For maximum performance while data reading and writing a SSD 
+was used. GCC version 7.4 (check version) with openMPI 2.0 was used to compile 
+the parallel C++ code.
+
+
+
+
+
 To obtain the most optimal parallel performance, when solving the PBM, workloads 
 were distributed in a manner which took into account the shared and‎ distributed 
 memory aspects of the clusters, the PBM was being run on. To parallelize the model 
