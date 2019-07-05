@@ -1,6 +1,6 @@
 # Input Parameters for PBM
-AggregationKernelConstant 1.0e-18
-BreakageKernelConstant 5.0e-15
+AggregationKernelConstant 1.0e-26
+BreakageKernelConstant 5.0e-24
 ConsolidationConstant 0.0e-13
 InitialPorosity 0.4
 MinimumPorosity 0.2
@@ -11,7 +11,7 @@ CoefficientOfRestitution 0.2
 LiquidThickness 0.5
 SurfaceAsperities 5.0e-6
 GranulatorLength 0.38
-NumberOfCompartmets 16
+NumberOfCompartmets 8
 ParticleResidenceTime 5.0
 DiameterOfImpeller 0.114
 SpeedOfImpeller 2000.0
