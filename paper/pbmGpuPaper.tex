@@ -1,4 +1,4 @@
-%\documentclass[preprint,10pt,authoryear]{elsarticle}
+\documentclass[preprint,10pt,authoryear]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -18,11 +18,10 @@
 \usepackage{graphicx}
 %% or use the epsfig package if you prefer to use the old commands
 \usepackage{epsfig}
-
 %% The amssymb package provides various useful mathematical symbols
 \usepackage{amssymb,amsmath}
 %% The amsthm package provides extended theorem environments
-%% \usepackage{amsthm}
+\usepackage{amsthm}
 
 %% The lineno packages adds line numbers. Start line numbering with
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
@@ -150,7 +149,7 @@ which may not be possible in a personal desktop and a supercomputer cluster need
 Another computer peripheral that can to be used to run a highly parallel code is the computer's 
 graphic processing unit (GPU)~\citep{Prakash2013b}. These GPUs contain thousands of compute 
 cores that can be used run tasks in parallel. Thus, a desktop equipped with a GPU could 
-compute the same results as a CPU code on supercomputers in lesser amount of time as seen in Section \ref{secResults}.
+compute the same results as a CPU code on supercomputers in lesser amount of time as seen in Section \ref{secResults}
 With the launch of Compute Unified Device Architecture (CUDA), NVIDIA made it easier to use GPUs for 
 general parallel programming in an approach usually termed as general purpose computing on GPUs (GPGPUs).
 
@@ -301,8 +300,8 @@ using the inbuilt MATLAB's parallel computing toolbox (PCT). This study was able
 good speed ups but could have been higher if the code had been implemented in native programming 
 languages such as C or FORTRAN. Other works that have used GPU acceleration to improve computation 
 times for their population balance simulations include those from various other chemical engineering 
-processes such as crystallization \citep{Szilagy2016}, combustion \citep{Shi2012}, multiphase flow 
-\citep{santos2013}, coagulation dynamics \citep{Xu2015}
+processes such as crystallization \citep{Szilagy2016} , combustion \citep{Shi2012} , multiphase flow 
+\citep{santos2013} , coagulation dynamics \citep{Xu2015}
 
 
 \section{Method and implementation}
@@ -480,46 +479,46 @@ the parallel C++ code.
 
 
 
-To obtain the most optimal parallel performance, when solving the PBM, workloads 
-were distributed in a manner which took into account the shared and‎ distributed 
-memory aspects of the clusters, the PBM was being run on. To parallelize the model 
-in a way which could take advantage of shared memory but still effectively run 
-across a distributed system both MPI and OMP were implemented. One MPI process 
-was used per CPU core and one‎ OMP thread was used per CPU core, as 
-Bettencourt et al. (2017) found it resulted in the best‎ performance. MPI was 
-used for message passing from one node to another while OMP was used‎ for 
-calculations on each node that could be efficiently solved using a shared 
-memory system.‎ An algorithm in the form of pseudo code is presented in the 
-Appendix illustrating how the calculations‎ are distributed and carried out 
-during the simulation. For each time step, the MPI processes are‎ made 
-responsible for a specific chunk of the spatial compartments. Then each 
-OMP thread, inside‎ of each MPI process, is allocated to one of the cores 
-of multi-core CPU the MPI process is bound‎ too. The OMP threads divide up 
-and compute $R_agg$. After $R_agg$ is calculated the MPI processes‎ calculate 
-the new PSD value for their chunk at that specific time step, Ft,c. The 
-slave processes‎ send their Ftc to the master processes which collects them 
-into the complete Ft,all. The master‎ process then broadcasts the Ft, all 
-value to all slave processes. This decomposition of the data into‎ 
-different CPUs and further into various threads is illustrated in 
-Figure 3-4.‎ A crucial feature of the PBM is that the current PSD (Ft,all) 
-value is used to compute a new‎ time step size for the next iteration. 
-This means all of the MPI processes need to have the same‎ dynamic time 
-step size at each iteration for the calculations to be properly carried 
-out in parallel.‎ Since the completely updated Ft, all value is shared 
-before calculating a new time step each process‎ will have the same Ft, 
-all value. As a result each process calculates the same size for the 
-new time‎ step.‎ Since the DEM informed PBM code required dynamic size 
-increase for the data structure due‎ to different number of particles 
-being present in the DEM simulation, the PBM code developed‎ used the 
-Standard Template Library containers and their features available 
-in C++ 11 and later.‎ It requires intel v17.0.2 (GCC 5.3+) or later 
-for compilation. Since this module was not present on‎ the Stampede,
-the execution of the PBM was done on the newer Stampede2 supercomputer. 
-Each‎ of the compute node of the cluster consists of Intel Xeon Phi 7250 
-(“Knights Landing") which has‎ 68 cores on a single socket clocked at 1.4 GHz, 
-with 96 GB of DDR4 RAM. Each of the cores‎ consists of 4 hardware threads. 
-The simulations were then run by varying the number of MPI‎ processes from 
-1 to 16 and the number of OMP threads from 1 to 8, thus, using a maximum of 128‎ cores.
+%To obtain the most optimal parallel performance, when solving the PBM, workloads 
+%were distributed in a manner which took into account the shared and distributed 
+%memory aspects of the clusters, the PBM was being run on. To parallelize the model 
+%in a way which could take advantage of shared memory but still effectively run 
+%across a distributed system both MPI and OMP were implemented. One MPI process 
+%was used per CPU core and one OMP thread was used per CPU core, as 
+%Bettencourt et al. (2017) found it resulted in the  performance. MPI was 
+%used for message passing from one node to another while OMP was used for 
+%calculations on each node that could be efficiently solved using a shared 
+%memory system.‎ An algorithm in the form of pseudo code is presented in the 
+%Appendix illustrating how the calculations are distributed and carried out 
+%during the simulation. For each time step, the MPI processes are made 
+%responsible for a specific chunk of the spatial compartments. Then each 
+%OMP thread, inside of each MPI process, is allocated to one of the cores 
+%of multi-core CPU the MPI process is bound too. The OMP threads divide up 
+%and compute $R_agg$. After $R_agg$ is calculated the MPI processes calculate 
+%the new PSD value for their chunk at that specific time step, Ft,c. The 
+%slave processes send their Ftc to the master processes which collects them 
+%into the complete Ft,all. The master process then broadcasts the Ft, all 
+%value to all slave processes. This decomposition of the data into‎ 
+%different CPUs and further into various threads is illustrated in 
+%Figure 3-4.‎ A crucial feature of the PBM is that the current PSD (Ft,all) 
+%value is used to compute a new‎ time step size for the next iteration. 
+%This means all of the MPI processes need to have the same‎ dynamic time 
+%step size at each iteration for the calculations to be properly carried 
+%out in parallel.‎ Since the completely updated Ft, all value is shared 
+%before calculating a new time step each process‎ will have the same Ft, 
+%all value. As a result each process calculates the same size for the 
+%new time‎ step.‎ Since the DEM informed PBM code required dynamic size 
+%increase for the data structure due‎ to different number of particles 
+%being present in the DEM simulation, the PBM code developed‎ used the 
+%Standard Template Library containers and their features available 
+%in C++ 11 and later.‎ It requires intel v17.0.2 (GCC 5.3+) or later 
+%for compilation. Since this module was not present on‎ the Stampede,
+%the execution of the PBM was done on the newer Stampede2 supercomputer. 
+%Each‎ of the compute node of the cluster consists of Intel Xeon Phi 7250 
+%(“Knights Landing") which has‎ 68 cores on a single socket clocked at 1.4 GHz, 
+%with 96 GB of DDR4 RAM. Each of the cores‎ consists of 4 hardware threads. 
+%The simulations were then run by varying the number of MPI‎ processes from 
+%1 to 16 and the number of OMP threads from 1 to 8, thus, using a maximum of 128‎ cores.
 
 \subsection{GPU implementation}
 NVIDIA’s CUDA toolkit extends the C language such that user defined functions 
@@ -552,8 +551,34 @@ to the GPU for parallel execution.
 \end{figure}
 
 \section{Results and discussions}
-\label{secResults}S
-\subsection{GPU performance}
+\label{secResults}
+
+Parallel efficiency of an algorithm can be tested either by strong scaling 
+where the problem size remains the same and number of processing elements 
+are increased or by weak scaling where the number of processing elements 
+remain the same and the problem size is increased. In this study, the 
+number of processing units were limited due to the architecture of the 
+GPU and the CUDA C++ code developed did not utilize more than one GPU 
+during execution. Thus, a soft scaling approach was preferred in such a 
+scenario. The parallel performance of the code was calculated as shown in 
+Equation \ref{eqn:result_parallelefficiencyWeak}. $t_1$ is the time taken 
+to the run the problem on one core where as $t_N$ is the time taken to 
+run the problem on N cores.
+
+\begin{align}
+\ Parallel\; efficiency = \frac{t_1}{t_N}\times 100
+\label{eqn:result_parallelefficiencyWeak}
+\end{align}
+
+The problem size was varied by increasing the number of compartments inside 
+the PBM. This in turn increased the total number of calculations performed 
+without increasing the amount of work that needed to be performed by each 
+processing unit (core).
+
+
+\subsection{Algorithm performance on a desktop GPU}
+
+
 Talk about code performance first and then about the profile of the code
 The GPU parallel code timings were not compared directly to the CPU 
 version since it would have been unfair since the hardware configurations 
