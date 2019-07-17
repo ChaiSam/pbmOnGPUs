@@ -16,6 +16,7 @@
 
 %% or use the graphicx package for more complicated commands
 \usepackage{graphicx}
+\graphicspath{{Figures/}}
 %% or use the epsfig package if you prefer to use the old commands
 \usepackage{epsfig}
 %% The amssymb package provides various useful mathematical symbols
@@ -403,15 +404,14 @@ time interval $\Delta t$ \& $N_p$ is number of particle of particular size. The 
 
 Similarly, the breakage rate is expressed as-
 \begin{align}
-\Re_{break}(s_1,s_2,x) = \int_0^{s_{max_1}} \int_0^{s_{max_2}} 
-K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2' - K_{break}(s_1,s_2,x)F(s_1,s_2,x)
+\Re_{break}(s_1,s_2,x)  = \int_0^{s_{max_1}} \int_0^{s_{max_2}} & \notag
+K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2' \\ &  - K_{break}(s_1,s_2,x)F(s_1,s_2,x) 
 \end{align}
 	    
 where, the breakage kernel $K_{break}(s_1,s_2,x)$ is formulated as: 
 
 \begin{align}
 K_{break}(s_1,s_2,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU	    
-K_{break}(s_1,s_2,x)=\left(\frac{4}{15\pi}\right)^{\frac{1}{2}}G_{shear}exp\left(-\frac{B}{R(s_1,s_2,x)}\right)
 \end{align}
 
 
@@ -577,7 +577,37 @@ processing unit (core).
 
 
 \subsection{Algorithm performance on a desktop GPU}
+The desktop configuration used for these studies comprised of a Intel $i7-7700K$  
+CPU clocked at $4.5$ GHz with $32$ GB DDR4 RAM and a NVIDIA Quadro $P4000$ GPU. 
+The NVIDIA Quadro GPU used had 1792 CUDA cores with 8 GB of GDDR5 RAM. 
+CUDA version 9.0 paired with GCC 7.3 was used to the run the desktop GPU simulations 
+with Ubuntu 18.04 operating system (OS).
 
+
+The PBM algorithm was designed to utilize each core of the GPU till all the GPU 
+are used. Each GPU consisted of several streaming multi-processors(SM) which help 
+distribute the problem to the 1792 cores inside the GPU. Once the calculations  
+pass from the CPU to the GPU, the SMs take over and allocate work to the GPU in 
+blocks of $32$ threads each. This distribution was found to be one of the major 
+bottlenecks especially when control was handed over from the CPU to the GPU. 
+This leads to a significant time delay if the amount of calculation to be 
+performed by the GPU is low and the control exchanges are more common. 
+The number of solid bins for the 2 different types of solids used were $16$, 
+this meant that there was a maximum of $65,536$ calculations that needed to 
+be performed for each time step when a single compartment was single. While, this 
+number increased to $1048576$ per time step when the number of compartments was 
+increased to $16$. SMs divide these calculations in blocks of 32 threads and send 
+it to the cores for calculations which accounts for some overheard time during the 
+simulation. This overhead is present for each timestep, which can be compensated 
+by the number of calculations running in parallel on the GPU. Figure 
+\ref{fig:res_gpu_timings} 
+
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.7,trim=110 220 120 220, clip]{gpu_timing_plot.pdf}
+\caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
+\label{fig:res_gpu_timings}
+\end{figure}
 
 Talk about code performance first and then about the profile of the code
 The GPU parallel code timings were not compared directly to the CPU 
