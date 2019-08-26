@@ -1,4 +1,4 @@
-\documentclass[preprint,10pt,authoryear]{elsarticle}
+\documentclass[preprint,10pt,authoryear,review]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -322,9 +322,9 @@ particles in different size classes.
 The rate of change of liquid volume in each particle is calculated using the equation: 
 
 \begin{align}
-\frac{d}{dt}F(s_1,s_2,x)l(s_1,s_2,x)&= 
-\Re_{liq,agg}(s_1,s_2,x)+\Re_{liq,break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)l_{in}(s_1,s_2,x)\notag\\
-&-\dot{F}_{out}(s_1,s_2,x)l_{out}(s_1,s_2,x)+F(s_1,s_2,x)\dot{l}_{add}(s_1,s_2,x)
+\frac{d}{dt}F(s_1,s_2,x)&l(s_1,s_2,x)= 
+\Re_{liq,agg}(s_1,s_2,x)+\Re_{liq,break}(s_1,s_2,x)\notag\\
+&+\dot{F}_{in}(s_1,s_2,x)l_{in}(s_1,s_2,x)-\dot{F}_{out}(s_1,s_2,x)l_{out}(s_1,s_2,x)\notag \\&+F(s_1,s_2,x)\dot{l}_{add}(s_1,s_2,x)
 \label{eqn:mthds_pbm_rate} 
 \end{align}
 
@@ -462,14 +462,39 @@ time-step.
 The message parsing interface (MPI) parallel implementation of the PBM was 
 focused towards equal distribution of the task and memory. The implementation 
 used in this work differs from the hybrid implementation used by \citep{Bettencourt2017}
-and \citep{Sampat2018} since only MPI was used to parallelize the code. It 
+and \citep{Sampat2018} as only MPI was used to parallelize the code. It 
 was pointed by \citep{Sampat2018} that open message parsing (OMP) does not 
 provide significant speed improvements due to limitations with usage of 
 dynamic vectors which are essential for such a system. Thus, the OMP 
 implementation was avoided which also meant that lesser number of cores 
-would be required to run the code. As the work is mainly focused on using 
-desktop computers over supercomputers, it meant that most of these studies 
-could be performed on personal computer. These simulations were performed 
+would be required. The focus of this study to localize the computation power 
+rather than depend on supercomputers/clusters. MPI was used for message passing 
+from one core to another as well as all the calculations  
+were performed on the same MPI core. As pseudo code has been presented in Algorithm 1 
+to illustrate the distribution of tasks. For each time step, a MPI process is responsible 
+for a certain section of the problem, usually a spatial chunk inside the geometry 
+(also referred to as compartment).  
+
+%For each time step, the MPI processes are made 
+%responsible for a specific chunk of the spatial compartments. Then each 
+%OMP thread, inside of each MPI process, is allocated to one of the cores 
+%of multi-core CPU the MPI process is bound too. The OMP threads divide up 
+%and compute $R_agg$. After $R_agg$ is calculated the MPI processes calculate 
+%the new PSD value for their chunk at that specific time step, Ft,c. The 
+%slave processes send their Ftc to the master processes which collects them 
+%into the complete $F_{t,all}$. The master process then broadcasts the $F_t$, all 
+%value to all slave processes. This decomposition of the data into‎ 
+%different CPUs and further into various threads is illustrated in 
+%Figure 3-4.‎ A crucial feature of the PBM is that the current PSD (Ft,all) 
+%value is used to compute a new‎ time step size for the next iteration. 
+%This means all of the MPI processes need to have the same‎ dynamic time 
+%step size at each iteration for the calculations to be properly carried 
+%out in parallel.‎ Since the completely updated Ft, all value is shared 
+% before calculating a new time step each process‎ will have the same Ft, 
+%all value. As a result each process calculates the same size for the 
+%new time‎ step.
+
+These simulations were performed 
 on a computer with an Intel Core i7-7700K processor clocked at 4.2GHz and 
 32 GB of RAM. For maximum performance while data reading and writing a SSD 
 was used. GCC version 7.4 with openMPI 2.0 was used to compile 
@@ -505,7 +530,7 @@ the parallel C++ code.
 %This means all of the MPI processes need to have the same‎ dynamic time 
 %step size at each iteration for the calculations to be properly carried 
 %out in parallel.‎ Since the completely updated Ft, all value is shared 
-%before calculating a new time step each process‎ will have the same Ft, 
+ %before calculating a new time step each process‎ will have the same Ft, 
 %all value. As a result each process calculates the same size for the 
 %new time‎ step.‎ Since the DEM informed PBM code required dynamic size 
 %increase for the data structure due‎ to different number of particles 
@@ -584,8 +609,7 @@ CUDA version 9.0 paired with GCC 7.3 was used to the run the desktop GPU simulat
 with Ubuntu 18.04 operating system (OS).
 
 
-The PBM algorithm was designed to utilize each core of the GPU till all the GPU 
-are used. Each GPU consisted of several streaming multi-processors(SM) which help 
+Each GPU consisted of several streaming multi-processors(SM) which help 
 distribute the problem to the 1792 cores inside the GPU. Once the calculations  
 pass from the CPU to the GPU, the SMs take over and allocate work to the GPU in 
 blocks of $32$ threads each. This distribution was found to be one of the major 
@@ -594,17 +618,53 @@ This leads to a significant time delay if the amount of calculation to be
 performed by the GPU is low and the control exchanges are more common. 
 The number of solid bins for the 2 different types of solids used were $16$, 
 this meant that there was a maximum of $65,536$ calculations that needed to 
-be performed for each time step when a single compartment was single. While, this 
-number increased to $1048576$ per time step when the number of compartments was 
-increased to $16$. SMs divide these calculations in blocks of 32 threads and send 
-it to the cores for calculations which accounts for some overheard time during the 
-simulation. This overhead is present for each timestep, which can be compensated 
-by the number of calculations running in parallel on the GPU. Figure 
-\ref{fig:res_gpu_timings} 
+be performed for each time step for each compartment. While, the
+number of calculations increased to over 2 million per time step when the number of 
+compartments was increased to $32$. SMs divide these calculations in blocks 
+of 32 threads and send it to the cores for calculations which accounts for some 
+overheard time during the simulation. This overhead is present for each timestep, 
+which can be compensated by the number of calculations running in parallel on 
+the GPU. The PBM was run for $90$ seconds which included $45$ seconds of mixing 
+and 45 seconds of liquid addition. The algorithm performance was tested by soft scaling 
+the problem by changing the number of compartments from $1$ and doubling them in 
+each simulation until the number of compartments reached $32$. Figure \ref{fig:res_gpu_timings} 
+shows the time taken these simulation. It can be seen that the amount of time taken 
+for the simulation remains almost constant till the number of compartments reaches $8$, 
+followed by an increase in the time taken as the number of compartment are increased 
+further to $32$. According to parallelization procedure used the cores utilized to run the 
+code is directly proportional to the number of compartments and the number of solid bins 
+present in the problem. The constant time is a result of the problem size being smaller than 
+the Quadro $P4000$'s 1792 CUDA core, i.e. the algorithm was not able to utilize all the 
+CUDA cores till the compartment number was $8$. Since the algorithm uses about $256$ cores 
+to simulate each compartment, the cores would not suffice once the compartment number reaches 
+$16$ and the SMs would have to wait to distribute the calculation to cores once 
+initially allocated calculations are finished. This wait time leads to the increase in the 
+time of simulations as seen in the case for $16$ and $32$ compartments. 
+
+The above argument was supported by the profile of the code that was obtained using NVIDIA's
+inbuilt code profiler $nvprof$. Code profiling is an important step in algorithm development. 
+The profiler results can be varied based on the options chosen to obtain the parameters being 
+studied. In this case, API calls and GPU activity were exported to understand the performance 
+bottlenecks and those sections of the code were rectified to improve the speed of the algorithm.
+The profiler was executed for each case and it was observed that aggregation kernel calculations 
+took the most time for execution followed by the breakage kernel. Consolidation kernel 
+and other calculations comprised of less than $1$\% of execution time. The other parameter 
+studied was the number of times each API was summoned by the code and the time spent. API 
+calls included the time spent to copy the data, launch the GPU kernels, synchronization of 
+threads working inside the GPU device, etc. Each thread inside the GPU operates independently,
+thus all threads may not be at the same line of code at a given moment of time, thus some threads 
+finish calculations before others. The time taken to synchronize these threads required the most 
+amount of time during the execution of the code. When such an API is called by the code 
+further execution of the code is paused until all the threads of the GPU are in the same 
+line of code. This accounted for $99$\% of the total API call time. This indicated that there 
+were not many places where the code could have been optimized further since synchronization 
+statements were only added before calculations where complete array of data was required. 
+If further reduction in these statements was undertaken, it would lead to data loss and possible 
+wrong final calculated particle size distribution.
 
 \begin{figure}[h]
 \centering
-\includegraphics[scale=0.7,trim=110 220 120 220, clip]{gpu_timing_plot.pdf}
+\includegraphics[scale=0.7,trim=110 220 120 220, clip]{desktopgputiming.pdf}
 \caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
 \label{fig:res_gpu_timings}
 \end{figure}
