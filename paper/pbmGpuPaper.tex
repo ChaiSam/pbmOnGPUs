@@ -669,27 +669,6 @@ wrong final calculated particle size distribution.
 \label{fig:res_gpu_timings}
 \end{figure}
 
-Talk about code performance first and then about the profile of the code
-The GPU parallel code timings were not compared directly to the CPU 
-version since it would have been unfair since the hardware configurations 
-used were completely different. There are several non-code related latency 
-and delays that could affect the performance of the code. Thus, no 
-comparison was performed between the 2 code versions. 
-A soft scaling was performed for the GPU code. This refers to change of 
-the size of the problem is in direct correlation with the computational 
-power required for its execution. In this study, the sections of geometry 
-were varied from 2 to 16 compartments, while the number of solids from 1 
-to 16 for both the solids. Using this configuration, the maximum number 
-of threads required would be 4096 while the minimum would be 2 threads. 
-Figure 4-7 shows timing comparison between the studies. It can be seen 
-that as the size of the problem increases there is a small increase in 
-the time of the simulation which can directly be linked to increase in 
-the number of calculations as well problem initiation times would be 
-higher. A larger time is required for problems which require threads 
-greater than the number of CUDA cores present on the GPU (here 1792), 
-since the extra blocks would need to wait for the earlier blocks to 
-complete their simulations before they can be executed.
-
 \subsection{Performance on GPUs compared to CPUs}
 
 \subsection{Server level GPU code performance}
