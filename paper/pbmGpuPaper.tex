@@ -659,8 +659,8 @@ further execution of the code is paused until all the threads of the GPU are in 
 line of code. This accounted for $99$\% of the total API call time. This indicated that there 
 were not many places where the code could have been optimized further since synchronization 
 statements were only added before calculations where complete array of data was required. 
-If further reduction in these statements was undertaken, it would lead to data loss and possible 
-wrong final calculated particle size distribution.
+If further reduction in these statements was undertaken, it would lead to data loss and 
+possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE CHART})
 
 \begin{figure}[h]
 \centering
@@ -670,12 +670,20 @@ wrong final calculated particle size distribution.
 \end{figure}
 
 \subsection{Performance on GPUs compared to CPUs}
+describe the MPI scaling issues on desktops.
+mention how thetime decreases with increase in MPI core count
+compare results to old paper. Also mention how soft scaling on MPI cores reduces
+efficiency
+Say why GPU is better in a desktop environment and why it should be 
+easier to use GPU if desktop simulations are undertaken
+
 
 \subsection{Server level GPU code performance}
+Talk about performance on the server GPUs why they could be only a small or benefit in 
+this scenario since problem size is no that big and can be used scaled better using CPUs
 
 
 
-I still need to figure out some studies to complete this section.
 
 \section{Conclusions}
 \label{secConc}
