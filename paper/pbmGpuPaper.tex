@@ -1,4 +1,4 @@
-\documentclass[preprint,10pt,authoryear,review]{elsarticle}
+\documentclass[preprint,10pt,authoryear]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -670,6 +670,23 @@ possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE
 \end{figure}
 
 \subsection{Performance on GPUs compared to CPUs}
+The CPU version of the parallel PBM was run on the desktop with the aforementioned 
+configuration. This meant that the number of MPI cores available for the simulations 
+was limited to 4. Soft scaling of the problem by changing the number of compartments 
+was performed for this study. Figure \ref{} shows a comparison of the times taken 
+by the simulation to run on $1$, $2$ \& $4$ MPI cores. The times indicate that 
+with the increase in the number of cores the model was
+
+In each soft scaling study,
+the number of compartments were varied from $1$ to $16$. 
+
+
+
+
+
+The PBM was developed to parallelize calculations using 
+
+
 describe the MPI scaling issues on desktops.
 mention how thetime decreases with increase in MPI core count
 compare results to old paper. Also mention how soft scaling on MPI cores reduces
