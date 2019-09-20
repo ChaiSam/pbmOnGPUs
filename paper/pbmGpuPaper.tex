@@ -1,4 +1,5 @@
 \documentclass[preprint,10pt,authoryear,review]{elsarticle}
+%\documentclass[final,10pt,authoryear,twocolumn]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -672,6 +673,12 @@ possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE
 \end{figure}
 
 \subsection{Performance on GPUs compared to CPUs}
+The NVIDIA Quadro P4000 GPU used had its cores at a base clock speed of $1202$ MHz while
+the CPU cores had a base clock of $4000$ MHz. The algorithm used to parallelize on the GPU 
+did not permit the use of only one core of the GPU for simulation. Thus, a single MPI core 
+CPU simulation was used as the baseline for all comparisons. Theoretically, it would take 
+longer on a single core of the GPU to run a similar simulation than on a single GPU core
+
 The CPU version of the parallel PBM was run on the desktop with the aforementioned 
 configuration. This meant that the number of MPI cores available for the simulations 
 was limited to 4. Soft scaling of the problem by changing the number of compartments 
@@ -696,8 +703,23 @@ times in a similar range.
 \end{figure}
 
 Speedup is an important aspect that is considered to understand the scalability and 
-parallel performance of a code. It can be seen from the Figure \ref{fig:res_desktop_speedup} 
-indicated that there 
+parallel performance of a code. Speedup for a code is directly proportional 
+to the number of cores used for a simulation. 
+In Figure \ref{fig:res_desktop_speedup}, the speedup increases with the increase in 
+the number of MPI cores. This increase in speedup can be attributed to the increase 
+in the computation power. Another unusual trend observed in the case of 8, 16 and 
+32 number of compartments, the speedup is higher than 2 and 4 for 2 MPI and 4 MPI core simulations respectively. This phenomena is known as super linear speedup which occurs 
+when the speedup is greater than the number of cores used. In rare cases like these
+speedup increases due to increase in cache memory and random access memory(RAM) 
+available \citep{tuncer2009}. The simulations with the GPU parallel code showed an 
+overall increase in the speedup as the number of compartments as seen in Figure 
+\ref{fig:res_desktop_speedup}. The speedup was low for compartment numbers 1 and 2 
+since the amount of time spent in communication in between the CPU and the GPU as well 
+as the time taken by the SMs inside the GPU to distribute the problem had a larger 
+contribution to the simulation time. The increase in number of compartments diminished 
+this communication time effect as amount of calculations is significantly higher. The 
+highest speeedup achieved for a GPU simulation was about $12.3$, which means it took 
+$12$ times less time than a serial CPU computation. 
 
 
 \begin{figure}[h]
@@ -710,28 +732,57 @@ indicated that there
 
 
 \subsection{Server level GPU code performance}
-Talk about performance on the server GPUs why they could be only a small or benefit in 
-this scenario since problem size is no that big and can be used scaled better using CPUs
+The high performance computing (HPC) device used to run the parallel PBM GPU code 
+was present at Rutgers at the School of Engineering (SoE). The SoE HPC cluster was 
+equipped with a NVIDIA Kepler K20 GPU. This GPU contains 2496 CUDA cores which are 
+have a base clock of $706$ MHz and only 5 GB of GDDR5 of memory. The Kepler series 
+GPUs were a couple of generations older than the Pascal generation Quadro P400 used 
+in desktop simulation studies. The clock speed and memory of the desktop GPU was 
+higher than the one present on the HPC. 
+
+Time taken to complete the $90$ second PBM simulation on the HPC's GPU are shown in 
+Figure \ref{fig:res_serverTimes}. The time taken to run the PBM initially remains 
+constant upto 16 compartments, but a large increase in the time is observed for the 
+simulation with 32 compartments. This increase could be attributed to the saturation 
+of CUDA cores of the GPU and that SMs had to wait for the previous calculations to 
+complete before the threads were assigned the remnant of calculations.
+
+
 
 \begin{figure}[H]
      \centering
      \begin{subfigure}[b]{0.48\linewidth}
          \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gputimings.pdf}
          \caption{Time taken to complete simulation}
+         \label{fig:res_serverTimes}
      \end{subfigure}
      \hfill
      \begin{subfigure}[b]{0.48\linewidth}
          \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gpuSpeedup.pdf}
          \caption{Speedup achieved over serial simulation}
+         \label{fig:res_serverSpeedup}
      \end{subfigure}
         \caption{Case-I (Ibuprofen as API) GSD at 7 min w.m.t}
-        \label{fig:3}
+        \label{fig:res_server}
 \end{figure}
 
 
 
 \section{Conclusions}
 \label{secConc}
+In the presented study, a PBM was developed using to run parallel on a GPU. The time 
+of the simulations on the GPU were compared to similar ones on CPUs. In most of the 
+cases it was observed that GPU simulations were faster than CPU simulations which had 
+higher number of calculations. Simulations with low amounts of calculations were slower 
+in case of GPUs, but such cases are rare in PBMs. The GPU architecture also plays a major 
+role in the simulation. This work also highlighted that a desktop PC could be used for 
+computationally intensive simulations rather than a supercomputer or cluster when resources 
+are limited. This work can be extended in the future by testing on newer GPUs from NVIDIA 
+like the Volta and Turing platforms, which are more optimized for float point calculations 
+than the Pascal platform GPU used in this study. The algorithm to parallelize the code 
+can also be parallelized further to eliminate loops inside the kernels using dynamic 
+parallelization supported by newer versions of CUDA.
+
 \end{linenumbers}
 
 \bibliographystyle{elsarticle-harv}
