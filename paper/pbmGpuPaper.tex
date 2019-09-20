@@ -1,4 +1,4 @@
-\documentclass[preprint,10pt,authoryear]{elsarticle}
+\documentclass[preprint,10pt,authoryear,review]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -23,7 +23,7 @@
 \usepackage{amssymb,amsmath}
 %% The amsthm package provides extended theorem environments
 \usepackage{amsthm}
-
+\usepackage{subcaption}
 %% The lineno packages adds line numbers. Start line numbering with
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
 %% for the whole article with \linenumbers after \end{frontmatter}.
@@ -585,13 +585,15 @@ remain the same and the problem size is increased. In this study, the
 number of processing units were limited due to the architecture of the 
 GPU and the CUDA C++ code developed did not utilize more than one GPU 
 during execution. Thus, a soft scaling approach was preferred in such a 
-scenario. The parallel performance of the code was calculated as shown in 
-Equation \ref{eqn:result_parallelefficiencyWeak}. $t_1$ is the time taken 
+scenario. The parallel performance of a code is usually measured in 
+terms of on ratio of time taken to solve the run the simulations on one 
+core to the time taken to run the simulation on N cores. It is depicted in
+Equation \ref{eqn:result_parallelefficiencyWeak}, where $t_1$ is the time taken 
 to the run the problem on one core where as $t_N$ is the time taken to 
 run the problem on N cores.
 
 \begin{align}
-\ Parallel\; efficiency = \frac{t_1}{t_N}\times 100
+\ Speedup = \frac{t_1}{t_N}
 \label{eqn:result_parallelefficiencyWeak}
 \end{align}
 
@@ -665,7 +667,7 @@ possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.7,trim=110 220 120 220, clip]{desktopgputiming.pdf}
-\caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
+\caption{GPU timing plot}
 \label{fig:res_gpu_timings}
 \end{figure}
 
@@ -675,30 +677,56 @@ configuration. This meant that the number of MPI cores available for the simulat
 was limited to 4. Soft scaling of the problem by changing the number of compartments 
 was performed for this study. Figure \ref{} shows a comparison of the times taken 
 by the simulation to run on $1$, $2$ \& $4$ MPI cores. The times indicate that 
-with the increase in the number of cores the model was
+with the increase in the number of cores the model took less time to complete 
+calculations for the same number of compartments. It can also be seen that for the 
+same number of MPI cores used in a soft scaling the amount of time increases 
+with increase in the number of cores. This increase can be attributed to the 
+increase in the number of calculations with addition of new compartments. There is a 
+slight plateau in the times when 2 and 4 MPI cores were used for $8$ and $16$ compartments 
+respectively. When a further analysis of the rates was for each compartment was undertaken 
+it was observed that till the particles did not each the last few compartments of the 
+granulator the rates were $0$ thus reducing the compute time and leading to simulation
+times in a similar range. 
 
-In each soft scaling study,
-the number of compartments were varied from $1$ to $16$. 
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.7,trim=100 240 100 240, clip]{cpu_desktopTiming.pdf}
+\caption{CPU timing plot with MPI}
+\label{fig:res_cpu_timings}
+\end{figure}
+
+Speedup is an important aspect that is considered to understand the scalability and 
+parallel performance of a code. It can be seen from the Figure \ref{fig:res_desktop_speedup} 
+indicated that there 
 
 
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.7,trim=120 240 120 240, clip]{speedup_desktop.pdf}
+\caption{Speedup compared to serial simulations}
+\label{fig:res_desktop_speedup}
+\end{figure}
 
-
-
-The PBM was developed to parallelize calculations using 
-
-
-describe the MPI scaling issues on desktops.
-mention how thetime decreases with increase in MPI core count
-compare results to old paper. Also mention how soft scaling on MPI cores reduces
-efficiency
-Say why GPU is better in a desktop environment and why it should be 
-easier to use GPU if desktop simulations are undertaken
 
 
 \subsection{Server level GPU code performance}
 Talk about performance on the server GPUs why they could be only a small or benefit in 
 this scenario since problem size is no that big and can be used scaled better using CPUs
 
+\begin{figure}[H]
+     \centering
+     \begin{subfigure}[b]{0.48\linewidth}
+         \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gputimings.pdf}
+         \caption{Time taken to complete simulation}
+     \end{subfigure}
+     \hfill
+     \begin{subfigure}[b]{0.48\linewidth}
+         \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gpuSpeedup.pdf}
+         \caption{Speedup achieved over serial simulation}
+     \end{subfigure}
+        \caption{Case-I (Ibuprofen as API) GSD at 7 min w.m.t}
+        \label{fig:3}
+\end{figure}
 
 
 
