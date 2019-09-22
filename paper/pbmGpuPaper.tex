@@ -644,6 +644,7 @@ $16$ and the SMs would have to wait to distribute the calculation to cores once
 initially allocated calculations are finished. This wait time leads to the increase in the 
 time of simulations as seen in the case for $16$ and $32$ compartments. 
 
+
 The above argument was supported by the profile of the code that was obtained using NVIDIA's
 inbuilt code profiler $nvprof$. Code profiling is an important step in algorithm development. 
 The profiler results can be varied based on the options chosen to obtain the parameters being 
@@ -668,7 +669,8 @@ possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.7,trim=110 220 120 220, clip]{desktopgputiming.pdf}
-\caption{GPU timing plot}
+\caption{Time taken to complete 90s PBM simulation with varying number of compartments 
+on NVIDIA Quadro P4000 GPU}
 \label{fig:res_gpu_timings}
 \end{figure}
 
@@ -698,7 +700,8 @@ times in a similar range.
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.7,trim=100 240 100 240, clip]{cpu_desktopTiming.pdf}
-\caption{CPU timing plot with MPI}
+\caption{Time taken to complete 90s PBM simulation with varying number of compartments 
+on desktop CPU with varying number of MPI cores}
 \label{fig:res_cpu_timings}
 \end{figure}
 
@@ -725,7 +728,7 @@ $12$ times less time than a serial CPU computation.
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.7,trim=120 240 120 240, clip]{speedup_desktop.pdf}
-\caption{Speedup compared to serial simulations}
+\caption{Comparing speedup for CPU and GPU simulations to respective serial simulations}
 \label{fig:res_desktop_speedup}
 \end{figure}
 
@@ -745,7 +748,14 @@ Figure \ref{fig:res_serverTimes}. The time taken to run the PBM initially remain
 constant upto 16 compartments, but a large increase in the time is observed for the 
 simulation with 32 compartments. This increase could be attributed to the saturation 
 of CUDA cores of the GPU and that SMs had to wait for the previous calculations to 
-complete before the threads were assigned the remnant of calculations.
+complete before the threads were assigned the remnant of calculations. A serial 
+simulation was performed on the HPC and used as a baseline for speedup calculations. 
+Speedup from the server GPUs are shown in Figure \ref{fig:res_serverSpeedup}. The 
+increase in the speed of the simulation for these studies is lower than the desktop 
+studies which could be directly connected to clock speeds of the CUDA cores. The 
+server GPU cores were clocked at a lower frequency which meant the rate of calculations 
+would decrease. One other reason for reduced speedup could be the older architecture 
+of Kepler GPU which are slower in floating point calculations \citep{Pascal2016}.
 
 
 
@@ -753,16 +763,17 @@ complete before the threads were assigned the remnant of calculations.
      \centering
      \begin{subfigure}[b]{0.48\linewidth}
          \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gputimings.pdf}
-         \caption{Time taken to complete simulation}
+         \caption{•}
          \label{fig:res_serverTimes}
      \end{subfigure}
      \hfill
      \begin{subfigure}[b]{0.48\linewidth}
          \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gpuSpeedup.pdf}
-         \caption{Speedup achieved over serial simulation}
+         \caption{•}
          \label{fig:res_serverSpeedup}
      \end{subfigure}
-        \caption{Case-I (Ibuprofen as API) GSD at 7 min w.m.t}
+        \caption{(a)Time taken to run 90s PBM simulation on HPC's Kepler K20 GPU 
+        (b)Speedup achieved for the GPU simulation over the serial simulation on the HPC device}
         \label{fig:res_server}
 \end{figure}
 
