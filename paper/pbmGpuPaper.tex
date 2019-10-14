@@ -333,13 +333,14 @@ spatial compartment due to particle transfer affect the number of particles in d
 \label{eqn:mthds_pbm_rate} 
 \end{align}
 
-where, $l(s_1,s_2,x)$ is the amount of liquid volume in each particle with API volume of $s_1$ and 
-excipient volume of $s_2$ in the spatial compartment $x$. $\Re_{liq,agg}(s_1,s_2,x)$ and 
-$\Re_{liq,break}(s_1,s_2,x)$ are respectively the rates of liquid transferred between size classes due to 
-aggregation and breakage. $l_{in}(s_1,s_2,x)$ and $l_{out}(s_1,s_2,x)$ are respectively the liquid 
-volumes of the particles coming in and going out of the spatial compartment. $l_{add}(s_1,s_2,x)$ is 
-the volume of liquid acquired by each particle in the compartment at every time step due to external 
-liquid addition.
+where, $l(s_1,s_2,x)$ is the amount of liquid volume in each particle with 
+API volume of $s_1$ and excipient volume of $s_2$ in the spatial compartment 
+$x$. $\Re_{liq,agg}(s_1,s_2,x)$ and $\Re_{liq,break}(s_1,s_2,x)$ are 
+respectively the rates of liquid transferred between size classes due to 
+aggregation and breakage. $l_{in}(s_1,s_2,x)$ and $l_{out}(s_1,s_2,x)$ are 
+respectively the liquid volumes of the particles coming in and going out of 
+the spatial compartment. $l_{add}(s_1,s_2,x)$ is the volume of liquid acquired 
+by each particle in the compartment at every time step due to external liquid addition.
 Similarly, the rate of change of gas volume is calculated using the following equation: 
 
 \begin{align}
@@ -349,14 +350,16 @@ Similarly, the rate of change of gas volume is calculated using the following eq
 \label{eqn:mthds_pbm_gas_agg} 
 \end{align}
 
-where, $g(s_1,s_2,x)$ is the gas volume of each particle with API volume of $s_1$ and excipient 
-volume of $s_2$ in the spatial compartment $x$. $\Re_{gas,agg}(s_1,s_2,x)$ and 
-$\Re_{gas,break}(s_1,s_2,x)$ are respectively the rates of gas transferred between size classes due to 
-aggregation and breakage. $g_{in}(s_1,s_2,x)$ and $g_{out}(s_1,s_2,x)$ are respectively the gas 
-volume of the particles entering and leaving the spatial compartment. $\dot{g}_{cons}(s_1,s_2,x)$ is the 
-volume of gas coming out of each particle at every time-step due to consolidation of the particles. 
-The rate of aggregation, $\Re_{agg}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} is 
-calculated as: \citep{Chaturbedi2017}
+where, $g(s_1,s_2,x)$ is the gas volume of each particle with API volume 
+of $s_1$ and excipient volume of $s_2$ in the spatial compartment $x$. 
+$\Re_{gas,agg}(s_1,s_2,x)$ and $\Re_{gas,break}(s_1,s_2,x)$ are respectively 
+the rates of gas transferred between size classes due to aggregation and breakage. 
+$g_{in}(s_1,s_2,x)$ and $g_{out}(s_1,s_2,x)$ are respectively the gas 
+volume of the particles entering and leaving the spatial compartment. 
+$\dot{g}_{cons}(s_1,s_2,x)$ is the volume of gas coming out of each particle at 
+every time-step due to consolidation of the particles. The rate of aggregation, 
+$\Re_{agg}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} is calculated as: 
+\citep{Chaturbedi2017}
 
 \begin{align}
 \Re_{agg}(s_1,s_2,x)&= \frac{1}{2}\int _0^{s_1} \int_0^{s_2} 
@@ -367,9 +370,9 @@ calculated as: \citep{Chaturbedi2017}
 \end{align}
 
 
-where, the aggregation kernel, $\beta(s_1,s_2, s_1',s_2',x)$ is expressed as a function of collision 
-rate coefficient ($C$) and probability that collision results in agglomeration($\psi$) \citep{ingram2005}
-and is shown below: 
+where, the aggregation kernel, $\beta(s_1,s_2, s_1',s_2',x)$ is expressed as a 
+function of collision rate coefficient ($C$) and probability that collision 
+results in agglomeration($\psi$) \citep{ingram2005} and is shown below: 
 
 \begin{align}
 \beta(s_1,s_2,s_1',s_2',x) = \beta_oC(s_1,s_2,s_1',s_2',x)\psi(s_1,s_2,s_1',s_2',x)
@@ -379,8 +382,9 @@ and is shown below:
 \end{align}
 
 where, $\beta_o$ is aggregation rate constant.\\
-Collision rate coefficient ($C$) is a function of particle sizes and is calculated by normalizing the 
-number of collisions between group of particles \citep{gantt2006} and is obtained from LIGGGHTS 
+Collision rate coefficient ($C$) is a function of particle sizes and is 
+calculated by normalizing the number of collisions between group of 
+particles \citep{gantt2006} and is obtained from LIGGGHTS 
 DEM simulation. A recent study shows that collision frequency depends on PSD as well 
 \citep{sen2014}. Collision rate coefficient can be expressed as:
 
@@ -421,21 +425,22 @@ K_{break}(s_1,s_2,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU
 
 
 % where, $G_{shear}$ is the shear rate exerted by the impeller on the granules. $R(s_1,s_2,x)$ is 
-the radius of the granule that breaks and $B$ is the breakage kernel constant. $G_shear$ is 
-calculated as $\frac{\nu_{impeller}*D_{impeller}*PI}{60}$ where $\nu_{impeller}$ and $D_{impeller}$ 
-are respectively the rotational speed and diameter of the impeller.
-The rate of increase of liquid volume of a particle, $\dot{l}_{add}(s_1,s_2,x)$ is expressed as:
+the radius of the granule that breaks and $B$ is the breakage kernel constant. 
+$G_shear$ is calculated as $\frac{\nu_{impeller}*D_{impeller}*PI}{60}$ where 
+$\nu_{impeller}$ and $D_{impeller}$ are respectively the rotational speed and 
+diameter of the impeller.The rate of increase of liquid volume of a particle, 
+$\dot{l}_{add}(s_1,s_2,x)$ is expressed as:
 
 \begin{align}
 \dot{l}_{add}(s_1,s_2,x) = \frac{(s_1+s_2)(\dot{m}_{spray}(1-c_{binder})-\dot{m}_{evap})}{m_{solid}(x)}
 \label{eqn:mthds_liq_addn_rate}
 \end{align}
 
-where, $(s_1+s_2)$  is the total solid volume of the particle; $\dot{m}_spray$ is the rate of external 
-liquid addition, $c_{binder}$ is the concentration of binder in the external liquid (which is assumed to 
-be zero in this case); $\dot{m}_{evap}$ is the rate of evaporation of liquid from 
-the system (which is also assumed to be zero in this case) and $m_{solid}$ is the total amount of solid 
-present in the compartment.
+where, $(s_1+s_2)$  is the total solid volume of the particle; $\dot{m}_spray$ is the 
+rate of external liquid addition, $c_{binder}$ is the concentration of binder in the 
+external liquid (which is assumed to be zero in this case); $\dot{m}_{evap}$ is the 
+rate of evaporation of liquid from the system (which is also assumed to be zero in 
+this case) and $m_{solid}$ is the total amount of solid present in the compartment.
 The rate of decrease in gas volume per particle due to consolidation is calculated using the 
 following expression: \citep{Verkoeijen2002} 
 
@@ -446,22 +451,23 @@ following expression: \citep{Verkoeijen2002}
 \label{eqn:mthds_rate_gas_vol_part}
 \end{align}        
 
- where, $c$ and $\omega$ are the consolidation constants; $v_{impeller}$ is the impeller 
-rotational speed; $V(s_1,s_2,x)$ is the volume of particle, $\epsilon_{min}$ is the minimum porosity; 
+where, $c$ and $\omega$ are the consolidation constants; $v_{impeller}$ is the impeller 
+rotational speed; $V(s_1,s_2,x)$ is the volume of particle, $\epsilon_{min}$ is 
+the minimum porosity; 
 $g(s_1,s_2,x)$ and $l(s_1,s_2,x)$ are respectively the gas and liquid volumes of the particle.
 
- Particle transfer rate, $\dot{F}_{out}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} is calculated 
-as:
+Particle transfer rate, $\dot{F}_{out}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
+is calculated as:
 
 \begin{align}
 \dot{F}_{out}(s_1,s_2,x) = \dot{F}(s_1,s_2,x)\frac{\nu_{compartment}(x)*dt}{d_{compartment}}
 \label{eqn:mthds_f_out_dot_part_trans_rate}
 \end{align}
 
-where, $\nu_{compartment}(x)$ and $d_{compartment}$ are respectively the average velocity of 
-particles in compartment $x$ and the distance between the mid-points of two adjacent compartment, 
-which is the distance particles have to travel to move to the next spatial compartment. $dt$ is the 
-time-step.
+where, $\nu_{compartment}(x)$ and $d_{compartment}$ are respectively the average 
+velocity of particles in compartment $x$ and the distance between the mid-points 
+of two adjacent compartment, which is the distance particles have to travel to 
+move to the next spatial compartment. $dt$ is the time-step.
 
 \subsection{MPI implementation}
 The message parsing interface (MPI) parallel implementation of the PBM was 
@@ -499,24 +505,22 @@ for a certain section of the problem, usually a spatial chunk inside the geometr
 %all value. As a result each process calculates the same size for the 
 %new time‎ step.
 
-These simulations were performed 
-on a computer with an Intel Core i7-7700K processor clocked at 4.2GHz and 
-32 GB of RAM. For maximum performance while data reading and writing a SSD 
-was used. GCC version 7.4 with openMPI 2.0 was used to compile 
-the parallel C++ code.
+These simulations were performed on a computer with an Intel Core i7-7700K 
+processor clocked at 4.2GHz and 32 GB of RAM. For maximum performance while 
+data reading and writing a SSD was used. GCC version 7.4 with openMPI 2.0 
+was used to compile the parallel C++ code.
 
 \begin{algorithm}
      \scriptsize
-     \caption{Parallel Population Balance Model}
-     \label{alg:parallelPBM}
+     \caption{CPU-based Parallel Population Balance Model}
+     \label{alg:CPUparallelPBM}
      \begin{algorithmic}[1]
-     \Procedure{Population Balance Model}{$N_{Comp}$,$N_{MPI}$,$N_{OMP}$}\Comment{$N_{Comp}$ is the number of compartments}
+     \Procedure{PBM}{$N_{Comp}$,$N_{MPI}$}\Comment{$N_{Comp}$ is the number of compartments}
      \State \texttt{Divide $N_{Comp}$ in $N_{MPI}$}
      \While{$t < t_{final}$}
      \For{$\forall n_{Comp}$ in 1 MPI process}
-     \For{$\forall n$ in $N_{OMP}$}
-     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}
-     \EndFor 
+     \State \texttt{Calculate $\Re_{aggregation}$ for solid bins $s_1$,$s_2$}
+     \State \texttt{Calculate $\Re_{breakage}$ for solid bins $s_1$,$s_2$}
      \State \texttt{Calculate $n_{particles}$ using Euler's method}
      \EndFor
      \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
@@ -526,7 +530,7 @@ the parallel C++ code.
      \EndProcedure
      \end{algorithmic}
  \label{alg:parpbm}
- \end{algorithm}     
+ \end{algorithm}   
 
 
 
@@ -601,6 +605,30 @@ to the GPU for parallel execution.
 \caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
 \label{fig:mtd_gpu_imp}
 \end{figure}
+
+
+\begin{algorithm}
+     \scriptsize
+     \caption{GPU-based Parallel Population Balance Model}
+     \label{alg:CPUparallelPBM}
+     \begin{algorithmic}[1]
+     \Procedure{PBM}{$N_{Comp}$,$N_{MPI}$}\Comment{$N_{Comp}$ is the number of compartments}
+     \State \texttt{Divide $N_{Comp}$ in $N_{MPI}$}
+     \While{$t < t_{final}$}
+     \For{$\forall n_{Comp}$ in 1 MPI process}
+     \For{$\forall n$ in $N_{OMP}$}
+     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}
+     \EndFor 
+     \State \texttt{Calculate $n_{particles}$ using Euler's method}
+     \EndFor
+     \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
+     \State \texttt{Calculate $timestep$ using \textit{CFL} condition}
+     \State \texttt{$t_{new} = t + timestep$ }
+     \EndWhile
+     \EndProcedure
+     \end{algorithmic}
+ \label{alg:parpbm}
+ \end{algorithm}
 
 \section{Results and discussions}
 \label{secResults}
@@ -700,28 +728,7 @@ on NVIDIA Quadro P4000 GPU}
 \label{fig:res_gpu_timings}
 \end{figure}
 
-\begin{algorithm}
-     \scriptsize
-     \caption{CPU-based Parallel Population Balance Model}
-     \label{alg:CPUparallelPBM}
-     \begin{algorithmic}[1]
-     \Procedure{PBM}{$N_{Comp}$,$N_{MPI}$}\Comment{$N_{Comp}$ is the number of compartments}
-     \State \texttt{Divide $N_{Comp}$ in $N_{MPI}$}
-     \While{$t < t_{final}$}
-     \For{$\forall n_{Comp}$ in 1 MPI process}
-     \For{$\forall n$ in $N_{OMP}$}
-     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}
-     \EndFor 
-     \State \texttt{Calculate $n_{particles}$ using Euler's method}
-     \EndFor
-     \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
-     \State \texttt{Calculate $timestep$ using \textit{CFL} condition}
-     \State \texttt{$t_{new} = t + timestep$ }
-     \EndWhile
-     \EndProcedure
-     \end{algorithmic}
- \label{alg:parpbm}
- \end{algorithm}     
+     
 
 
 \subsection{Performance on GPUs compared to CPUs}
