@@ -1,5 +1,5 @@
 \documentclass[preprint,10pt,authoryear,review]{elsarticle}
-%\documentclass[final,10pt,authoryear,twocolumn]{elsarticle}
+%\documentclass[final,8pt,authoryear,twocolumn]{elsarticle}
 
 %% Use the option review to obtain double line spacing
 %% \documentclass[preprint,review,12pt]{elsarticle}
@@ -24,6 +24,9 @@
 \usepackage{amssymb,amsmath}
 %% The amsthm package provides extended theorem environments
 \usepackage{amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{textcomp}
 \usepackage{subcaption}
 %% The lineno packages adds line numbers. Start line numbering with
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
@@ -274,9 +277,9 @@ local memory is the fastest for a thread and its slows down as we move towards s
 and the least for accessing data from the global GPU memory. 
 
 
-\begin{figure}
+\begin{figure}[h]
 \centering
-\includegraphics[scale=0.6]{bkg_gpu_arch.pdf}
+\includegraphics[scale=0.75]{gpu_arch_new.pdf}
 \caption{The parallel structure matrix inside the GPU and the various memories associated 
 with each structure.}
 \label{fig:bkg_gpu_arch}
@@ -309,18 +312,19 @@ processes such as crystallization \citep{Szilagy2016} , combustion \citep{Shi201
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-The population balance equation used in this work is expressed below:
+The general population balance equation implemented in this work can be expressed as:
 \begin{align}
 \frac{d}{dt}F(s_1,s_2,x)=\Re_{agg}(s_1,s_2,x)+\Re_{break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)-\dot{F}_{out}(s_1,s_2,x)
 \label{eqn:mthds_pbm_overall} 
 \end{align}
-where, $F(s_1,s_2,x)$ is the number of particles with an active pharmaceutical ingredients (API) volume of $s_1$ and an excipient 
-volume of $s_2$ in the spatial compartment $x$. The rate of change of number of particles with time 
-in different size classes depend on the rate of aggregation $\Re_{agg}(s_1,s_2,x)$ and the rate of 
-breakage $\Re_{break}(s_1,s_2,x)$. Also, the rate of particles coming into, $\dot{F}_{in}(s_1,s_2,x)$ and 
-going out, $\dot{F}_{out}(s_1,s_2,x)$ of the spatial compartment due to particle transfer affect the number of 
-particles in different size classes. 
-The rate of change of liquid volume in each particle is calculated using the equation: 
+where, $F(s_1,s_2,x)$ represents the number of particles with an active pharmaceutical 
+ingredient (API) volume of $s_1$ and an excipient volume of $s_2$ in the spatial 
+compartment $x$. The rate of change of number of particles with time 
+in different size classes depend on the rate of aggregation $\Re_{agg}(s_1,s_2,x)$ 
+and the rate of breakage $\Re_{break}(s_1,s_2,x)$. Also, the rate of particles coming 
+into, $\dot{F}_{in}(s_1,s_2,x)$ and going out, $\dot{F}_{out}(s_1,s_2,x)$ of the 
+spatial compartment due to particle transfer affect the number of particles in different size
+ classes. The rate of change of liquid volume in each particle is calculated using the equation: 
 
 \begin{align}
 \frac{d}{dt}F(s_1,s_2,x)&l(s_1,s_2,x)= 
@@ -501,6 +505,28 @@ on a computer with an Intel Core i7-7700K processor clocked at 4.2GHz and
 was used. GCC version 7.4 with openMPI 2.0 was used to compile 
 the parallel C++ code.
 
+\begin{algorithm}
+     \scriptsize
+     \caption{Parallel Population Balance Model}
+     \label{alg:parallelPBM}
+     \begin{algorithmic}[1]
+     \Procedure{Population Balance Model}{$N_{Comp}$,$N_{MPI}$,$N_{OMP}$}\Comment{$N_{Comp}$ is the number of compartments}
+     \State \texttt{Divide $N_{Comp}$ in $N_{MPI}$}
+     \While{$t < t_{final}$}
+     \For{$\forall n_{Comp}$ in 1 MPI process}
+     \For{$\forall n$ in $N_{OMP}$}
+     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}
+     \EndFor 
+     \State \texttt{Calculate $n_{particles}$ using Euler's method}
+     \EndFor
+     \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
+     \State \texttt{Calculate $timestep$ using \textit{CFL} condition}
+     \State \texttt{$t_{new} = t + timestep$ }
+     \EndWhile
+     \EndProcedure
+     \end{algorithmic}
+ \label{alg:parpbm}
+ \end{algorithm}     
 
 
 
@@ -571,7 +597,7 @@ to the GPU for parallel execution.
 
 \begin{figure}
 \centering
-\includegraphics[scale=0.4]{gpuImp_schematic.pdf}
+\includegraphics[scale=0.8,trim=200 250 300 200]{gpuAlgorithm_schematic.pdf}
 \caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
 \label{fig:mtd_gpu_imp}
 \end{figure}
@@ -673,6 +699,30 @@ possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE
 on NVIDIA Quadro P4000 GPU}
 \label{fig:res_gpu_timings}
 \end{figure}
+
+\begin{algorithm}
+     \scriptsize
+     \caption{CPU-based Parallel Population Balance Model}
+     \label{alg:CPUparallelPBM}
+     \begin{algorithmic}[1]
+     \Procedure{PBM}{$N_{Comp}$,$N_{MPI}$}\Comment{$N_{Comp}$ is the number of compartments}
+     \State \texttt{Divide $N_{Comp}$ in $N_{MPI}$}
+     \While{$t < t_{final}$}
+     \For{$\forall n_{Comp}$ in 1 MPI process}
+     \For{$\forall n$ in $N_{OMP}$}
+     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}
+     \EndFor 
+     \State \texttt{Calculate $n_{particles}$ using Euler's method}
+     \EndFor
+     \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
+     \State \texttt{Calculate $timestep$ using \textit{CFL} condition}
+     \State \texttt{$t_{new} = t + timestep$ }
+     \EndWhile
+     \EndProcedure
+     \end{algorithmic}
+ \label{alg:parpbm}
+ \end{algorithm}     
+
 
 \subsection{Performance on GPUs compared to CPUs}
 The NVIDIA Quadro P4000 GPU used had its cores at a base clock speed of $1202$ MHz while
