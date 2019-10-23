@@ -612,19 +612,23 @@ to the GPU for parallel execution.
      \caption{GPU-based Parallel Population Balance Model}
      \label{alg:CPUparallelPBM}
      \begin{algorithmic}[1]
-     \Procedure{PBM}{$N_{Comp}$,$N_{MPI}$}\Comment{$N_{Comp}$ is the number of compartments}
-     \State \texttt{Divide $N_{Comp}$ in $N_{MPI}$}
+     \Procedure{PBM}{$N_{Comp}$}\Comment{$N_{Comp}$ is the number of compartments}
+     \State\texttt{Copy initial variables from CPU memory to GPU memory}
+     \State \texttt{GPU initial calculation kernel call from CPU}\Comment{Performed on GPU}
+     \State \texttt{Divide $N_{Comp}$ in $N_{blocks}$}
+     \State \texttt{Copy back initial values to the CPU RAM}
      \While{$t < t_{final}$}
-     \For{$\forall n_{Comp}$ in 1 MPI process}
-     \For{$\forall n$ in $N_{OMP}$}
-     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}
-     \EndFor 
+	 \State \texttt{Copy time-dependent process variables from CPU to GPU RAM}
+     \State \texttt{GPU aggregation rate kernel call from CPU}
+     \State \texttt{Calculate $\Re_{agg}$ for solid bins $s_1$,$s_2$}\Comment{Performed on GPU}
+	 \State \texttt{GPU aggregation rate kernel call from CPU}     
+     \State \texttt{Calculate $\Re_{breakage}$ for solid bins $s_1$,$s_2$}\Comment{Performed on GPU}
      \State \texttt{Calculate $n_{particles}$ using Euler's method}
-     \EndFor
-     \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
-     \State \texttt{Calculate $timestep$ using \textit{CFL} condition}
+     \State \texttt{Copy back process rate data back to the CPU RAM}
+     \State \texttt{Calculate $timestep$ using \textit{CFL} condition}\Comment{Performed on CPU}
      \State \texttt{$t_{new} = t + timestep$ }
      \EndWhile
+     \State \texttt{Clear GPU memory}
      \EndProcedure
      \end{algorithmic}
  \label{alg:parpbm}
