@@ -78,17 +78,17 @@
 
 \begin{abstract}
 Population Balance models are widely used in pharmaceutical industry to simulate
-and optimize the granulation process.Prediction of the distribution of many 
+and optimize the granulation process. Prediction of the distribution of  
 particulate systems with the evolution of time using these models, has become an 
 efficient tool for the on-line control of the granulation process. 
 With increase in the number of components and phases in a particulate mixture, 
 complexity of PBM increases. This leads to multi-dimensional matrix calculations 
-requiring great computational power. Solving such a system with a traditional 
+requiring great computational power. Solving such a system of equations with a traditional 
 central processing unit (CPU) would be very time consuming, thus there is a 
 need of a parallel framework which can help decrease the simulation time. 
 Over the past decade, graphical process units (GPUs) are increasingly being 
 used for computation. This study focuses on the development of an algorithm to 
-parallelize the various nested loops inside the PBM. 
+parallelize the nested loops inside the PBM. 
 The PBM was developed for a continuous high shear granulation process and was made 
 specifically for NVIDIA GPUs as it was developed on CUDA C/C++. The communication 
 time is much lower in comparison to the speedup achieved in the parallel section 
@@ -113,7 +113,8 @@ Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep 
 %% main text
 \section{Introduction}
 \label{secIntro}
-Various chemical industries like detergent, food, pharmaceutical, fertilizers, catalyst encounter particulate processing daily. 
+Various chemical industries like detergent, food, pharmaceutical, fertilizers, catalyst encounter 
+particulate processing daily. 
 These processes constitute to about $50\%$ of the world's chemical production \citep{seville1997}.
 In the pharmaceutical industry, particulate processes are widely used to increase 
 the size of the granules, improve flow-ability, increase yield strength etc. One of 
@@ -128,35 +129,37 @@ aiding further processing.
 Understanding the dynamics of the continuous granulating system is vital for its smooth 
 operation and to reduce the amount of waste generated in the development phase. The Food 
 and Drug administration (FDA) has also been promoting a similar initiative with its 
-Quality by Design (QbD) and Process Analytically Tools (PAT) principles~\citep{sen2014}. 
-Thus, a process model for the system becomes an integral part of the development phase. 
-A model which predicts the bulk mechanical properties of the mixture as well as a particle size 
-distribution (PSD) is required. Over the past decade, Population Balance Models (PBMs) have been used 
-to predict the behavior of granulation processes \citep{Barrasso2013},\citep{Ramachandran2009}. 
+Quality by Design (QbD) and Process Analytically Tools (PAT) principles~\citep{sen2014} 
+\citep{FDAPAT2004}. Thus, a process model for the system becomes an integral part 
+of the development phase. A model which predicts the bulk mechanical properties of the 
+mixture as well as a particle size distribution (PSD) is required. Over the past decade, 
+Population Balance Models (PBMs) have been used to predict the behavior of granulation 
+processes \citep{Barrasso2013},\citep{Ramachandran2009}. 
 
-PBMs are used to calculate bulk rate processes occurring during granulation. PBMs are sometimes 
-unable to integrate certain information, thus a mechanistic kernel can be 
-introduced in these models to make them more accurate. Another way to increase its accuracy, 
-is to incorporate larger number of solid bins inside the PBM. The increase in the number of 
-solid bins leads to an increase in calculations for each time step, leading to a higher 
-simulation times. The calculations increase by a factor of $2^n$ where n being the number 
-of solid bins. An accurate model which incorporates higher number of solid bins as well as 
-includes a mechanistic kernel in its calculations is expected to be very 
-slow to simulate and could take upto hours to complete. Such models and their solving 
-techniques are not viable to be used in real time system control. Thus, there is a need to 
-solve these models quicker.
+PBMs are used to calculate bulk rate processes occurring during granulation. On various occasions 
+they are unable to capture some physics-based process information, thus a mechanistic 
+kernel can be introduced in these models to make them more accurate. Another way to 
+increase its accuracy, is to incorporate larger number of solid bins inside the PBM. 
+The increase in the number of solid bins leads to an increase in calculations for each 
+time step, leading to a higher simulation times. The calculations increase by a factor 
+of $2^n$ where n being the number of solid bins. An accurate model which incorporates higher 
+number of solid bins as well as includes a mechanistic kernel in its calculations is expected 
+to be sluggish to simulate and could take several hours to complete. Such models and their solving 
+techniques are not viable to be used in real time system control. Thus, there is a need to improve 
+the time it takes to simulate the model.
 
 The advancement of computers and its peripherals in recent years have led to a great increase in 
 computational resources leading to faster simulations. The recent central processing unit (CPU) 
-now contains various of cores thus making it possible to run multiples processes in parallel. 
+now contain various cores thus making it possible to run multiple processes in parallel. 
 In order to take advantage of a highly parallel framework, large number of cores are needed 
 which may not be possible in a personal desktop and a supercomputer cluster needs to be used.
 Another computer peripheral that can to be used to run a highly parallel code is the computer's 
 graphic processing unit (GPU)~\citep{Prakash2013b}. These GPUs contain thousands of compute 
 cores that can be used run tasks in parallel. Thus, a desktop equipped with a GPU could 
-compute the same results as a CPU code on supercomputers in lesser amount of time as seen in Section \ref{secResults}
-With the launch of Compute Unified Device Architecture (CUDA), NVIDIA made it easier to use GPUs for 
-general parallel programming in an approach usually termed as general purpose computing on GPUs (GPGPUs).
+compute the same results as a CPU code on supercomputers in lesser amount of time as seen 
+in Section \ref{secResults}. With the launch of Compute Unified Device Architecture (CUDA), 
+NVIDIA made it easier to use GPUs for general parallel programming in an approach usually 
+termed as general purpose computing on GPUs (GPGPUs).
 
 In the present study, a mechanistic multi-dimensional PBM was developed such that it was not 
 only accurate but also scalable since the number of solid bins could be changed to alter its 
@@ -220,8 +223,8 @@ occurring inside the system.
 
 
 \subsection{Parallel Computing}
-Computing with its current infrastructure has become a very important tool in sciece. 
-Parallel computing is one of most extensively used type of computing used by scientists 
+Computing with its current infrastructure has become an important tool in science. 
+Parallel computing is one of the more extensively used type of computing used by scientists 
 to perform simulations. It is the process of splitting of larger calculations into 
 many smaller processes executed concurrently \citep{Almasi1989}. This type of execution 
 helps achieve large speed gains overs simulations run on a single core in a serial manner.
@@ -233,32 +236,33 @@ These multiple operations could be performed on a single data set or on multiple
 sets, known as multiple instruction single data (MISD) and multiple instruction 
 multiple data (MIMD) respectively. On the other hand, data parallelism 
 involves the distribution of data across various processes which usually perform same set of 
-operations on the data \citep{solihin2015}. This type of parallelism is also known 
-as single instruction multiple data (SIMD). These two types of parallelism can also 
+operations on the data \citep{solihin2015}. This type of parallelism is known 
+as single instruction multiple data (SIMD). MIMD and SIMD can also 
 be combined in certain systems, thus decreasing the simulation times further.
 
 \subsection{GPU based parallel computing}
 Traditionally, large parallel jobs needed to be run on supercomputers which had thousands 
 of cores, but these are require special components making them expensive.
-Graphic processing unit (GPU) were initially mainly used for vector calculations to support 
+Graphic processing unit (GPU) were initially used for vector calculations to support 
 graphics inside a computer system. But, lately GPU manufacturers have started to promote them 
 general computing as well. This form of computing has been gaining popularity among scientists 
-to accelerate simulations \citep{kandrot2011}. These GPUs dominantly have a 
+to accelerate simulations \citep{kandrot2011}. These GPUs comprise of a 
 massively parallel architecture with hundreds to thousands of computational cores 
-which can thousands of active threads simultaneously \citep{keckler2011}. 
-Modern GPU computing can be exploited using parallel programming languages 
+which can have thousands of active threads running simultaneously \citep{keckler2011}. 
+This means that GPUs have large cWomputing potential the GPU computing can be exploited using parallel programming languages 
 such as OpenCL and CUDA. 
 
-CUDA is an application programming interface (API) developed by NVIDIA \citep{NVIDIA2012} that enables 
-users to program parallel code for execution on the GPU. This is framework is an 
+CUDA is an application programming interface (API) developed by NVIDIA \citep{NVIDIA2012} 
+that enables users to program parallel code for execution on the GPU. This framework is an 
 extension implemented on top of C/C++ or Fortran. Parallel code for the GPU is written 
 as kernels, which theoretically are similar to functions or methods in traditional 
-programming languages. Only few sections of the code can be written in terms of kernel 
-while the remaining has to be executed in serial on the CPU of the system. The \texttt{nvcc} 
+programming languages. As several parts of the code need to executed only once during a simulation, 
+only few sections of the code can be written in terms of kernel while the remaining has 
+to be executed in serial on the CPU of the system. The \texttt{nvcc} 
 compiler from the CUDA toolkit prioritizes the compilation of these kernels before 
 passing the serial section of the code to the native C/C++ compiler inside the system. 
 There are three main parallel abstractions that exist in CUDA are grids, blocks and 
-threads \citep{santos2013}. Each CUDA kernel is executed serially during the execution 
+threads \citep{santos2013}. Each CUDA kernel is executed in a serial manner during the execution 
 of the program unless specified, where the kernels can be run in parallel using CUDA 
 streams. Each kernel executes as a grid which in turn consists of various blocks which 
 are consistuted by various threads. This thread-block-grid hierarchy helps obtain fine 
@@ -286,7 +290,7 @@ with each structure.}
 \end{figure}
 
 
-\subsection{Previous parallel PBM works}
+\subsection{Previous parallelized PBM works}
 PBMs have known to be been computationally intensive especially ones with larger internal 
 coordinates and higher dimensions. Thus, several researchers have made attempts to increase 
 the speed of these simulations. \cite{Gunawan2008} developed a parallelization technique 
@@ -298,7 +302,9 @@ with a shared memory model could help improve simulation speeds further. A hybri
 was implemented by \cite{Bettencourt2017} to obtain speed improvements of about 98\% from the 
 serial code. This implementation took into account both Message Parsing Interface (MPI) as well 
 as Open Multi-processing (OMP). A similar PBM parallelization approach was also undertaken in 
-\citep{Sampat2018} and a speed up of about 13 was obtained. 
+\citep{Sampat2018} and a speed up of about 13 was obtained. The reduction in speed was attributed 
+to the use of dynamic arrays used in their PBM framework to accommodate the hybrid nature of the 
+model being used. 
 
 Algorithms to parallelize the PBM codes on GPU have been studied briefly by \cite{Prakash2013b} 
 using the inbuilt MATLAB's parallel computing toolbox (PCT). This study was able to achieve 
@@ -312,155 +318,156 @@ processes such as crystallization \citep{Szilagy2016} , combustion \citep{Shi201
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-The general population balance equation implemented in this work can be expressed as:
+Population balance model in its general formed is expressed as follows \citep{ramkrishna2014}:
 \begin{align}
-\frac{d}{dt}F(s_1,s_2,x)=\Re_{agg}(s_1,s_2,x)+\Re_{break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)-\dot{F}_{out}(s_1,s_2,x)
+\frac{d}{dt}F(s_i,l,g,x)&=\Re_{agg}(s_i,l,g,x)+\Re_{break}(s_i,l,g,x)\notag\\ 
+&+\dot{F}_{in}(s_i,l,g,x)-\dot{F}_{out}(s_i,l,g,x)
 \label{eqn:mthds_pbm_overall} 
 \end{align}
-where, $F(s_1,s_2,x)$ represents the number of particles with an active pharmaceutical 
-ingredient (API) volume of $s_1$ and an excipient volume of $s_2$ in the spatial 
-compartment $x$. The rate of change of number of particles with time 
-in different size classes depend on the rate of aggregation $\Re_{agg}(s_1,s_2,x)$ 
-and the rate of breakage $\Re_{break}(s_1,s_2,x)$. Also, the rate of particles coming 
-into, $\dot{F}_{in}(s_1,s_2,x)$ and going out, $\dot{F}_{out}(s_1,s_2,x)$ of the 
-spatial compartment due to particle transfer affect the number of particles in different size
- classes. The rate of change of liquid volume in each particle is calculated using the equation: 
+where, $F(s_i,x)$ represents the number of solid particles of type i being studied in each spatial 
+compartment $x$ of the granulator. The rate of aggregation $\Re_{agg}(s_i,x)$ 
+and the rate of breakage $\Re_{break}(s_i,x)$ determines the rate at which particles density
+changes within different size classes. The rate of particles entering, $\dot{F}_{in}(s_i,x)$ 
+and exiting, $\dot{F}_{out}(s_i,x)$, the spatial compartment due to particle transfer also 
+affects their number in each size class. The rate of change of internal liquid volume in each 
+particle can be calculated as: 
 
 \begin{align}
-\frac{d}{dt}F(s_1,s_2,x)&l(s_1,s_2,x)= 
-\Re_{liq,agg}(s_1,s_2,x)+\Re_{liq,break}(s_1,s_2,x)\notag\\
-&+\dot{F}_{in}(s_1,s_2,x)l_{in}(s_1,s_2,x)-\dot{F}_{out}(s_1,s_2,x)l_{out}(s_1,s_2,x)\notag \\&+F(s_1,s_2,x)\dot{l}_{add}(s_1,s_2,x)
+\frac{d}{dt}F(s_i,x)&l(s_i,x)= 
+\Re_{liq,agg}(s_i,x)+\Re_{liq,break}(s_i,x)+\dot{F}_{in}(s_i,x)l_{in}(s_i,x)\notag\\
+&-\dot{F}_{out}(s_i,x)l_{out}(s_i,x)+F(s_i,x)\dot{l}_{add}(s_i,x)
 \label{eqn:mthds_pbm_rate} 
 \end{align}
-
-where, $l(s_1,s_2,x)$ is the amount of liquid volume in each particle with 
-API volume of $s_1$ and excipient volume of $s_2$ in the spatial compartment 
-$x$. $\Re_{liq,agg}(s_1,s_2,x)$ and $\Re_{liq,break}(s_1,s_2,x)$ are 
-respectively the rates of liquid transferred between size classes due to 
-aggregation and breakage. $l_{in}(s_1,s_2,x)$ and $l_{out}(s_1,s_2,x)$ are 
-respectively the liquid volumes of the particles coming in and going out of 
-the spatial compartment. $l_{add}(s_1,s_2,x)$ is the volume of liquid acquired 
+where, $l(s_i,x)$ is the internal liquid volume in each particle with ${s_i}$ as the 
+solid volume for solid type 1 in the spatial compartment $x$. 
+$\Re_{liq,agg}(s_i,x)$ and $\Re_{liq,break}(s_i,x)$ are the rates at which liquid is transferred 
+between size classes due to aggregation and breakage respectively. $l_{in}(s_i,x)$ 
+and $l_{out}(s_i,x)$ are the internal liquid volumes of the particles entering and exiting 
+the spatial compartment. $l_{add}(s_i,x)$ is the volume of liquid acquired 
 by each particle in the compartment at every time step due to external liquid addition.
 Similarly, the rate of change of gas volume is calculated using the following equation: 
 
 \begin{align}
-\frac{d}{dt}F(s_1,s_2,x)g(s_1,s_2,x)&= 
-\Re_{gas,agg}(s_1,s_2,x)+\Re_{gas,break}(s_1,s_2,x)+\dot{F}_{in}(s_1,s_2,x)g_{in}(s_1,s_2,x)\notag\\
-&-\dot{F}_{out}(s_1,s_2,x)g_{out}(s_1,s_2,x)+F(s_1,s_2,x)\dot{g}_{cons}(s_1,s_2,x)
+\frac{d}{dt}F(s_i,x)g(s_i,x)&= 
+\Re_{gas,agg}(s_i,x)+\Re_{gas,break}(s_i,x)+\dot{F}_{in}(s_i,x)g_{in}(s_i,x)\notag\\
+&-\dot{F}_{out}(s_i,x)g_{out}(s_i,x)+F(s_i,x)\dot{g_cons}(s_i,x)
 \label{eqn:mthds_pbm_gas_agg} 
 \end{align}
-
-where, $g(s_1,s_2,x)$ is the gas volume of each particle with API volume 
-of $s_1$ and excipient volume of $s_2$ in the spatial compartment $x$. 
-$\Re_{gas,agg}(s_1,s_2,x)$ and $\Re_{gas,break}(s_1,s_2,x)$ are respectively 
-the rates of gas transferred between size classes due to aggregation and breakage. 
-$g_{in}(s_1,s_2,x)$ and $g_{out}(s_1,s_2,x)$ are respectively the gas 
-volume of the particles entering and leaving the spatial compartment. 
-$\dot{g}_{cons}(s_1,s_2,x)$ is the volume of gas coming out of each particle at 
-every time-step due to consolidation of the particles. The rate of aggregation, 
-$\Re_{agg}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} is calculated as: 
-\citep{Chaturbedi2017}
+where, $g(s_i,x)$ is the gas volume of each particle with solid volumes of $s_i$ 
+in the spatial compartment $x$. $\Re_{gas,agg}(s_i,x)$ and $\Re_{gas,break}(s_i,x)$ are 
+the rates of gas transferred between size classes due to aggregation and breakage respectively. 
+$g_{in}(s_i,x)$ and $g_{out}(s_i,x)$ are the gas volume of the particles entering and 
+leaving the spatial compartment respectively. $\dot{g_cons}(s_i,x)$ represents the volume of 
+gas particles formed due to process of consolidation occurring inside the system. The 
+rate of aggregation, $\Re_{agg}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} is 
+calculated as \citep{Chaturbedi2017}:
 
 \begin{align}
-\Re_{agg}(s_1,s_2,x)&= \frac{1}{2}\int _0^{s_1} \int_0^{s_2} 
-\beta(s_1',s_2',s_1-s_1',s_2-s_2',x)F(s_1',s_2',x)F(s_1-s_1',s_2-s_2',x)ds_1'ds_2'\notag\\ 
-&- F(s_1,s_2,x)\int _0^{s_{max_1}-s_1} \int_0^{s_{max_2}-s_2} 
-\beta(s_1,s_2,s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2'
+\Re_{agg}(s_i,x)&= \frac{1}{2}\int _0^{s_1} \int_0^{s_2} 
+\beta(s_i',s_i-s_i',x)F(si',x)F(s_i-s_i',x)ds_1'ds_2'\notag\\ 
+&- F(s_i,x)\int _0^{s_{max_1}-s_1} \int_0^{s_{max_2}-s_2} 
+\beta(s_i,s_i',x)F(s_i',x)ds_1'ds_2'
 \label{eqn:mthds_R_agg}
 \end{align}
-
-
-where, the aggregation kernel, $\beta(s_1,s_2, s_1',s_2',x)$ is expressed as a 
-function of collision rate coefficient ($C$) and probability that collision 
-results in agglomeration($\psi$) \citep{ingram2005} and is shown below: 
+where, $\beta(s_i, s_i',x)$ is the aggregation kernel and is expressed as a 
+function of collision frequency ($C$) and collision efficiency ($\psi$) 
+\citep{Barrasso2015ces}: 
 
 \begin{align}
-\beta(s_1,s_2,s_1',s_2',x) = \beta_oC(s_1,s_2,s_1',s_2',x)\psi(s_1,s_2,s_1',s_2',x)
-%\beta(s_1,s_2,s_1',s_2',x) = & \beta_o*(V(s_1,s_2,x)+V(s_1',s_2',x))^{\gamma}*(c(s_1,s_2,x)\notag\\
-%&+c(s_1',s_2',x))^{\alpha}\left(1-\frac{(c(s_1,s_2,x)+c(s_1',s_2',x))^{\delta}}{2}\right)^{\alpha}
+\beta(s_i,s_i',x)=C(s_i,s_i',x)\psi(s_i,s_i',x)
 \label{eqn:mthds_pbm_beta_kernal}
 \end{align}
+The collision frequency of the solid particles was evaluated from the existing 
+DEM data from \citep{Sampat2018}. To facilitate this study, it was assumed that
+the collision frequency was independent of the liquid particles present in the 
+system.
 
-where, $\beta_o$ is aggregation rate constant.\\
-Collision rate coefficient ($C$) is a function of particle sizes and is 
-calculated by normalizing the number of collisions between group of 
-particles \citep{gantt2006} and is obtained from LIGGGHTS 
-DEM simulation. A recent study shows that collision frequency depends on PSD as well 
-\citep{sen2014}. Collision rate coefficient can be expressed as:
+The collision efficiency $\psi$ was estimated based on Stokes , which 
+states that a collision is successful when the Stokes number $St_v$ associated 
+with the collision is lesser than the critical Stokes number ${St^*_v}$ for the 
+particles. These number are calculated as follows:
 
 \begin{align}
-C(s_1,s_2,s_1',s_2')=\frac{N_{coll}(s_1,s_2,s_1',s_2')}{N_p(s_1,s_2)N_p(s_1',s_2')\Delta t}
-\label{eqn:collfreq}
+St_v=\frac{8\tilde{m}U}{3\pi\tilde{d^2}\mu}
+\label{eqn:mthds_pbm_agg_Stnum}
 \end{align}
 
-In Equation \ref{eqn:collfreq}, $N_{coll}$ is the number of collision between two particles in 
-time interval $\Delta t$ \& $N_p$ is number of particle of particular size. The agglomeration 
-($\psi$) in equation (\ref{eqn:mthds_pbm_beta_kernal}) can be expressed as:
-
 \begin{align}
-\psi((s_1,s_2,s_1',s_2') = 
-\left\{\begin{matrix}
-\psi_0,\hspace{0.2cm} LC((s_1,s_2) \geq LC_{min}\hspace{0.2cm} and\hspace{0.2cm} LC((s_1',s_2') \geq LC_{min}	\\ 
-0,\hspace{0.2cm} LC((s_1,s_2) < LC_{min}\hspace{0.2cm} or\hspace{0.2cm} LC((s_1',s_2') < LC_{min}
-\end{matrix}\right.
-\label{eqn:colleff}
+St^*_v=\left(1+\frac{1}{e}\right)log\left(\frac{h}{h_a}\right)
+\label{eqn:mthds_pbm_agg_cricSt}
 \end{align}
- In Equation \ref{eqn:colleff}, $LC$ is the liquid content of particles and $LC_{min}$ stands for minimum 
- liquid content required for coalescence of particles. 
+Here, $\tilde{m}$ \& $\tilde{d}$ represent the harmonic mean of the masses and 
+diameters of the particles respectively.$U$ is the collision velocity, $\mu$ is the 
+viscosity of the system and $e$ is the coefficient of restitution. The thickness of 
+the liquid on the surface of the particle $h$ and the height of surface asperities 
+$h_a$ were obtained from \citep{Barrasso2015ces}. $U_critical$ is defined as the 
+ratio of the critical Stokes number to the Stokes number associated with the collision. 
+The collision frequency $\psi$ is defined as:
 
-%%%% commented the breakage details as we aren't including in results
-
-
-Similarly, the breakage rate is expressed as-
 \begin{align}
-\Re_{break}(s_1,s_2,x)  = \int_0^{s_{max_1}} \int_0^{s_{max_2}} & \notag
-K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2' \\ &  - K_{break}(s_1,s_2,x)F(s_1,s_2,x) 
+\Psi = \int_0^{U_critical} p(U)dU
+\label{eqn:mthds_pbm_agg_psi}
 \end{align}
-	    
-where, the breakage kernel $K_{break}(s_1,s_2,x)$ is formulated as: 
+where it is assumed that the collision velocities follow a log normal distribution:
+
 
 \begin{align}
-K_{break}(s_1,s_2,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU	    
+p(U) = \frac{1}{U\sqrt{2\pi}\sigma}\exp\left[-\frac{(lnU-\mu)^2}{2\sigma^2}\right]
+\label{eqn:mthds_pbm_agg_lognormVelo}
 \end{align}
 
-
-% where, $G_{shear}$ is the shear rate exerted by the impeller on the granules. $R(s_1,s_2,x)$ is 
-the radius of the granule that breaks and $B$ is the breakage kernel constant. 
-$G_shear$ is calculated as $\frac{\nu_{impeller}*D_{impeller}*PI}{60}$ where 
-$\nu_{impeller}$ and $D_{impeller}$ are respectively the rotational speed and 
-diameter of the impeller.The rate of increase of liquid volume of a particle, 
-$\dot{l}_{add}(s_1,s_2,x)$ is expressed as:
+Similarly, the breakage rate can be expressed as follows:
+\begin{align}
+\Re_{break}(s_i,x)  = \int_0^{s_{max_1}} \int_0^{s_{max_2}} & \notag
+K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2' \\ &  - K_{break}(s_i,x)F(s_i,x) 
+\label{eqn:mthds_pbm_breakage_geneq}
+\end{align}   
+where, the breakage kernel $K_{break}(s_i,x)$ is formulated as: 
 
 \begin{align}
-\dot{l}_{add}(s_1,s_2,x) = \frac{(s_1+s_2)(\dot{m}_{spray}(1-c_{binder})-\dot{m}_{evap})}{m_{solid}(x)}
+K_{break}(s_i,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU
+\label{eqn:mthds_pbm_breakage_kernel}
+\end{align}
+Similar to the aggregation kernel, $C_impact$ is defined as rate at which 
+the particles impact with the geometry in the DEM simulation. Critical velocity 
+for breakage to occur is defined as:
+
+\begin{align}
+U_break=\frac{2St^*_def}{\rho_{s_i}}\frac{9}{8}\frac{(1-\epsilon)^2}{\epsilon}\frac{9\mu}{16d_{p_i}}
+\label{eqn:mthds_pbm_breakage_ubreak}
+\end{align}
+where $2St^*_def$ is defined as critical Stokes deformation number \citep{Iveson2001} and 
+$d_{p_i}$ is diameter of the solid particle $s_i$.
+
+
+The rate of increase of liquid volume of a particle, 
+$\dot{l}_{add}(s_i,x)$ is expressed as:
+
+\begin{align}
+\dot{l}_{add}(s_i,x) = \frac{(\sum_i(s_i)(\dot{m}_{spray})}{m_{solid}(x)}
 \label{eqn:mthds_liq_addn_rate}
 \end{align}
+where, $\sum_i(s_i)$  is the total solid volume of the particle; $\dot{m}_spray$ is the 
+rate of external liquid addition and $m_{solid}$ is the total amount of solid present in the compartment.
 
-where, $(s_1+s_2)$  is the total solid volume of the particle; $\dot{m}_spray$ is the 
-rate of external liquid addition, $c_{binder}$ is the concentration of binder in the 
-external liquid (which is assumed to be zero in this case); $\dot{m}_{evap}$ is the 
-rate of evaporation of liquid from the system (which is also assumed to be zero in 
-this case) and $m_{solid}$ is the total amount of solid present in the compartment.
 The rate of decrease in gas volume per particle due to consolidation is calculated using the 
-following expression: \citep{Verkoeijen2002} 
+following expression \citep{Verkoeijen2002}:
 
 \begin{align}
-\dot{g}_{cons}(s_1,s_2,x)=&c (\nu_{impeller})^{\omega}V(s_1,s_2,x)\frac{(1-\epsilon_{min})}{s} 
+\dot{g}_{cons}(s_i,x)=&c (\nu_{impeller})^{\omega}V(s_i,x)\frac{(1-\epsilon_{min})}{s} 
 \notag \\ 
-& \left[g(s_1,s_2,x)+l(s_1,s_2,x) -(s_1+s_2)\frac{\epsilon_{min}}{1-\epsilon_{min}}\right]
+& \left[g(s_i,x)+l(s_i,x) -(s_1+s_2)\frac{\epsilon_{min}}{1-\epsilon_{min}}\right]
 \label{eqn:mthds_rate_gas_vol_part}
 \end{align}        
 
 where, $c$ and $\omega$ are the consolidation constants; $v_{impeller}$ is the impeller 
-rotational speed; $V(s_1,s_2,x)$ is the volume of particle, $\epsilon_{min}$ is 
-the minimum porosity; 
-$g(s_1,s_2,x)$ and $l(s_1,s_2,x)$ are respectively the gas and liquid volumes of the particle.
+rotational speed; $\epsilon_{min}$ is the minimum porosity; 
 
-Particle transfer rate, $\dot{F}_{out}(s_1,s_2,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
+Particle transfer rate, $\dot{F}_{out}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
 is calculated as:
 
 \begin{align}
-\dot{F}_{out}(s_1,s_2,x) = \dot{F}(s_1,s_2,x)\frac{\nu_{compartment}(x)*dt}{d_{compartment}}
+\dot{F}_{out}(s_i,x) = \dot{F}(s_i,x)\frac{\nu_{compartment}(x)*dt}{d_{compartment}}
 \label{eqn:mthds_f_out_dot_part_trans_rate}
 \end{align}
 
@@ -468,6 +475,15 @@ where, $\nu_{compartment}(x)$ and $d_{compartment}$ are respectively the average
 velocity of particles in compartment $x$ and the distance between the mid-points 
 of two adjacent compartment, which is the distance particles have to travel to 
 move to the next spatial compartment. $dt$ is the time-step.
+
+A finite difference method was used to solve the developed system of ordinary differential 
+equations (ODEs) \citep{Barrasso2015cerd}. The numerical integration technique used 
+was first order Euler integration as it is commonly used for speed improvements as while 
+having minimal impact on accuracy \citep{Barrasso2013}. In order to avoid numerical 
+instability due to the explicit nature of the Euler integration, Courant-Friedrichs-Lewis 
+(CFL) condition must be satisfied~\citep{courant1967}. For our PBM model, time-step was 
+calculated at each iteration such that, the number of particles leaving a particular bin 
+at any time is less than the number of particles present at that time \citep{Ramachandran2010}.
 
 \subsection{MPI implementation}
 The message parsing interface (MPI) parallel implementation of the PBM was 
@@ -486,26 +502,9 @@ to illustrate the distribution of tasks. For each time step, a MPI process is re
 for a certain section of the problem, usually a spatial chunk inside the geometry 
 (also referred to as compartment).  
 
-%For each time step, the MPI processes are made 
-%responsible for a specific chunk of the spatial compartments. Then each 
-%OMP thread, inside of each MPI process, is allocated to one of the cores 
-%of multi-core CPU the MPI process is bound too. The OMP threads divide up 
-%and compute $R_agg$. After $R_agg$ is calculated the MPI processes calculate 
-%the new PSD value for their chunk at that specific time step, Ft,c. The 
-%slave processes send their Ftc to the master processes which collects them 
-%into the complete $F_{t,all}$. The master process then broadcasts the $F_t$, all 
-%value to all slave processes. This decomposition of the data into‎ 
-%different CPUs and further into various threads is illustrated in 
-%Figure 3-4.‎ A crucial feature of the PBM is that the current PSD (Ft,all) 
-%value is used to compute a new‎ time step size for the next iteration. 
-%This means all of the MPI processes need to have the same‎ dynamic time 
-%step size at each iteration for the calculations to be properly carried 
-%out in parallel.‎ Since the completely updated Ft, all value is shared 
-% before calculating a new time step each process‎ will have the same Ft, 
-%all value. As a result each process calculates the same size for the 
-%new time‎ step.
 
-These simulations were performed on a computer with an Intel Core i7-7700K 
+
+Simulations for this study were performed on a computer with an Intel Core i7-7700K 
 processor clocked at 4.2GHz and 32 GB of RAM. For maximum performance while 
 data reading and writing a SSD was used. GCC version 7.4 with openMPI 2.0 
 was used to compile the parallel C++ code.
@@ -579,7 +578,7 @@ was used to compile the parallel C++ code.
 \subsection{GPU implementation}
 NVIDIA’s CUDA toolkit extends the C language such that user defined functions 
 called kernels can be created to be run on the GPU. These kernels can be 
-executed N times in parallel using large number of threads. A thread is 
+executed several number of times in parallel using large number of threads. A thread is 
 sequence if programmed instructions that can be managed by the computer’s 
 scheduler. A kernel depending upon the dimensions of the data can execute 
 instructions in 1-D, 2-D or 3-D thread blocks. The kernel can also launch 
@@ -594,14 +593,15 @@ kernels. Like in the CPU parallelization, the geometry was split into
 multiple compartments. These compartments in turn formed the number of 
 blocks inside each GPU kernel. The number of solids used helped formed 
 the threads in each of these blocks. The work flow of the execution can 
-be found in Figure 3-5. The orange arrows in Figure 3-5 indicate the 
+be found in Figure \ref{fig:mtd_gpu_imp}. The orange arrows in Figure 
+\ref{fig:mtd_gpu_imp} indicate the 
 transfer of data from the CPU memory to the GPU memory and vice-versa 
 whereas the blue arrows indicate the sections of the code that is sent 
 to the GPU for parallel execution.
 
 \begin{figure}
 \centering
-\includegraphics[scale=0.8,trim=200 250 300 200]{gpuAlgorithm_schematic.pdf}
+\includegraphics[scale=0.8,trim=200 250 300 200]{GPU_flowchart.pdf}
 \caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
 \label{fig:mtd_gpu_imp}
 \end{figure}
@@ -727,7 +727,7 @@ possibly incorrect final calculated particle size distribution. (\textbf{ADD PIE
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.7,trim=110 220 120 220, clip]{desktopgputiming.pdf}
-\caption{Time taken to complete 90s PBM simulation with varying number of compartments 
+\caption{Time taken to complete 90 seconds of PBM simulation with varying number of compartments 
 on NVIDIA Quadro P4000 GPU}
 \label{fig:res_gpu_timings}
 \end{figure}
@@ -761,7 +761,7 @@ times in a similar range.
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.7,trim=100 240 100 240, clip]{cpu_desktopTiming.pdf}
-\caption{Time taken to complete 90s PBM simulation with varying number of compartments 
+\caption{Time taken to complete 90 seconds of PBM simulation with varying number of compartments 
 on desktop CPU with varying number of MPI cores}
 \label{fig:res_cpu_timings}
 \end{figure}
@@ -824,13 +824,13 @@ of Kepler GPU which are slower in floating point calculations \citep{Pascal2016}
      \centering
      \begin{subfigure}[b]{0.48\linewidth}
          \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gputimings.pdf}
-         \caption{•}
+         \caption{}
          \label{fig:res_serverTimes}
      \end{subfigure}
      \hfill
      \begin{subfigure}[b]{0.48\linewidth}
          \includegraphics[scale=0.7,trim=120 240 120 240,width=\linewidth]{soe_gpuSpeedup.pdf}
-         \caption{•}
+         \caption{}
          \label{fig:res_serverSpeedup}
      \end{subfigure}
         \caption{(a)Time taken to run 90s PBM simulation on HPC's Kepler K20 GPU 
