@@ -65,44 +65,46 @@
 \begin{document}
 
 \begin{frontmatter}
-\title{Accelerating multi-dimensional population balance model simulations using GPU with a highly scalable framework.}
+\title{Accelerating multi-dimensional population balance model simulations with a highly scalable framework on GPUs.}
 
 
 \author[label1]{Chaitanya Sampat}
 \author[label1]{Yukteshwar Baranwal}
-\address[label1]{Chemical and Biochemical Engineering, Rutgers University, Piscataway, NJ, USA - 08854}
+\address[label1]{Chemical and Biochemical Engineering, 
+Rutgers University, Piscataway, NJ, USA - 08854}
 \author[label1]{Rohit Ramachandran\corref{cor1}}
 \ead{rohitrr@soemail.rutgers.com}
 \cortext[cor1]{Corresponding author}
 %\ead[url]{pslrutgers.com}
 
 \begin{abstract}
-Population Balance models are widely used in pharmaceutical industry to simulate
-and optimize the granulation process. Prediction of the distribution of  
-particulate systems with the evolution of time using these models, has become an 
-efficient tool for the on-line control of the granulation process. 
-With increase in the number of components and phases in a particulate mixture, 
-complexity of PBM increases. This leads to multi-dimensional matrix calculations 
-requiring great computational power. Solving such a system of equations with a traditional 
-central processing unit (CPU) would be very time consuming, thus there is a 
-need of a parallel framework which can help decrease the simulation time. 
-Over the past decade, graphical process units (GPUs) are increasingly being 
-used for computation. This study focuses on the development of an algorithm to 
-parallelize the nested loops inside the PBM. 
-The PBM was developed for a continuous high shear granulation process and was made 
-specifically for NVIDIA GPUs as it was developed on CUDA C/C++. The communication 
-time is much lower in comparison to the speedup achieved in the parallel section 
-of the code on the GPUs. The speed up achieved was significant compared to the PBM 
-code when run in serial or in on multi-core configuration. The speed improvements 
-for the code for various CPU \& GPU architectures and configurations have 
-been reported. 
+Population Balance models (PBMs) are widely used in pharmaceutical industry to simulate
+and optimize the granulation process. Prediction of time evolution of the distribution 
+of the particulate properties using these PBMs, is very important in understanding
+key dynamics. However, with an increase in the number of components and phases in 
+a particulate mixture, complexity of a PBM increases. This leads to multi-dimensional 
+matrix calculations potentially requiring significant computational power. Solving 
+such a system of equations with a traditional central processing unit (CPU) would 
+be intractable.
+%thus there is a need of a parallel framework which can help decrease 
+%the simulation time. 
+%Over the past decade, graphical process units (GPUs) are increasingly being 
+%used for computation. 
+This study focuses on the development of an algorithm to parallelize the nested 
+loops inside the PBM via a GPU framework. The developed PBM was parallelized 
+specifically for NVIDIA GPUs as it was written in CUDA C/C++. The contribution of 
+communication time between the CPU and GPU in the code contributed to less than 1\% of 
+the total run time leading to a maximum speedup of about 12 over the serial code being 
+achieved on the GPU. The speed up reported for the GPU PBM was about 2x the PBM 
+code on multi-core configuration on a desktop computer. The speed improvements 
+are also reported for various CPU \& GPU architectures and configurations.
 %The speed improvements were also tested with various combinations in 
 %discretization of the granulator geometry and threads used for calculations. 
 \end{abstract}
 
 \begin{keyword}
 %% keywords here, in the form: keyword \sep keyword
-Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep MPI
+Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep MPI \sep CUDA
 %% MSC codes here, in the form: \MSC code \sep code
 %% or \MSC[2008] code \sep code (2000 is the default)
 \end{keyword}
@@ -113,40 +115,23 @@ Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep 
 %% main text
 \section{Introduction}
 \label{secIntro}
-Various chemical industries like detergent, food, pharmaceutical, fertilizers, catalyst encounter 
-particulate processing daily. 
-These processes constitute to about $50\%$ of the world's chemical production \citep{seville1997}.
-In the pharmaceutical industry, particulate processes are widely used to increase 
-the size of the granules, improve flow-ability, increase yield strength etc. One of 
-major processes in among these to increase the granule size is granulation. 
-Granulation is the process in which fine pharmaceutical powder 
-blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
-These larger granules help in better flow ability and strength to these mixtures 
-aiding further processing. 
-
-%Due to the large number of collisions inside these systems, modeling these systems is a challenge.
-
-Understanding the dynamics of the continuous granulating system is vital for its smooth 
-operation and to reduce the amount of waste generated in the development phase. The Food 
-and Drug administration (FDA) has also been promoting a similar initiative with its 
-Quality by Design (QbD) and Process Analytically Tools (PAT) principles~\citep{sen2014} 
-\citep{FDAPAT2004}. Thus, a process model for the system becomes an integral part 
-of the development phase. A model which predicts the bulk mechanical properties of the 
-mixture as well as a particle size distribution (PSD) is required. Over the past decade, 
-Population Balance Models (PBMs) have been used to predict the behavior of granulation 
-processes \citep{Barrasso2013},\citep{Ramachandran2009}. 
-
-PBMs are used to calculate bulk rate processes occurring during granulation. On various occasions 
-they are unable to capture some physics-based process information, thus a mechanistic 
-kernel can be introduced in these models to make them more accurate. Another way to 
-increase its accuracy, is to incorporate larger number of solid bins inside the PBM. 
-The increase in the number of solid bins leads to an increase in calculations for each 
-time step, leading to a higher simulation times. The calculations increase by a factor 
-of $2^n$ where n being the number of solid bins. An accurate model which incorporates higher 
-number of solid bins as well as includes a mechanistic kernel in its calculations is expected 
-to be sluggish to simulate and could take several hours to complete. Such models and their solving 
-techniques are not viable to be used in real time system control. Thus, there is a need to improve 
-the time it takes to simulate the model.
+Over the past decade, Population Balance Models (PBMs) have been used to predict 
+several industrial processes \citep{ramkrishna2014}. The population balance equation is 
+simply a number conservation of particles which regulate the behavior of the entire system.
+PBMs can be divided into several external and internal coordinates, which can add 
+bring more accuracy to the model. Deriving accurate equations to determine these rate of change 
+of these  internal coordinates requires precise empirical co-relations from 
+experimental data. Another method used to a mechanistic kernel can be introduced in these 
+models to make them more accurate \citep{Barrasso2015cerd}. 
+The PBM accuracy can also be improved by incorporating larger number of solid bins 
+inside the PBM. The increase in the number of solid bins leads to an increase in 
+calculations for each time step, leading to a higher simulation times. The calculations 
+increase by a factor of $n^4$ where n being the number of solid bins. An accurate model 
+which incorporates higher number of solid bins as well as includes a mechanistic kernel 
+in its calculations is expected to be sluggish to simulate and could take several hours 
+to complete. Such models and their solving techniques are not viable to be used in real 
+time system control. Thus, there is a need to improve the time it takes to simulate the 
+model.
 
 The advancement of computers and its peripherals in recent years have led to a great increase in 
 computational resources leading to faster simulations. The recent central processing unit (CPU) 
@@ -161,21 +146,55 @@ in Section \ref{secResults}. With the launch of Compute Unified Device Architect
 NVIDIA made it easier to use GPUs for general parallel programming in an approach usually 
 termed as general purpose computing on GPUs (GPGPUs).
 
-In the present study, a mechanistic multi-dimensional PBM was developed such that it was not 
-only accurate but also scalable since the number of solid bins could be changed to alter its 
-behaviour. This model was developed in C++ to be run on CPUs. This C++ model was parallelised 
-using Message Parsing Interace (MPI) which is parallel application programming interface (API). 
-This model was developed NVIDIA GPUs and was parallelized using the CUDA toolkit. The timings of 
-the simulations were then compared for each of these cases. The scalability of the GPU based code 
-was also tested to obtain speed improvements over serial CPU code.
+Various chemical industries like detergent, food, pharmaceutical, fertilizers, catalyst encounter 
+particulate processing daily. 
+These processes constitute to about $50\%$ of the world's chemical production \citep{seville1997}.
+In the pharmaceutical industry, particulate processes are widely used to increase 
+the size of the granules, improve flow-ability, increase yield strength etc. One of 
+major processes in among these to increase the granule size is granulation. 
+Granulation is the process in which fine pharmaceutical powder 
+blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
+These larger granules help in better flow ability and strength to these mixtures 
+aiding further processing. 
+
+Understanding the dynamics of the continuous granulating system is vital for its smooth 
+operation and to reduce the amount of waste generated in the development phase. The Food 
+and Drug administration (FDA) has also been promoting a similar initiative with its 
+Quality by Design (QbD) and Process Analytically Tools (PAT) principles~\citep{sen2014} 
+\citep{FDAPAT2004}. Thus, a process model for the system becomes an integral part 
+of the development phase. A model which predicts the bulk mechanical properties of the 
+mixture as well as a particle size distribution (PSD) is required. 
+
+
+The main objective of this work is to develop a highly scalable framework for to simulate 
+PBMs on GPUs. This framework would be independent of the type of kernels as well as number 
+of spatial compartments as well as the number of solid bins used. The framework would be 
+universal and would be able to run of different NVIDIA GPUs without the need for any changes. 
+The number of threads that the PBM will use depends upon the size of the problem as well as 
+the number of cores available on the GPU. This code was developed in NVIDIA CUDA C/C++. 
+A similar code was also developed on C++ to be run on the CPU which has limited scalability 
+due to number of CPU cores available on desktop computer. This work also enables the use of 
+desktop computers to obtain numerical solutions to computation intensive tasks rather than 
+relying on supercomputers for quicker results.
+
+
+%
+%In the present study, a mechanistic multi-dimensional PBM was developed such that it was not 
+%only accurate but also scalable since the number of solid bins could be changed to alter its 
+%behaviour. This model was developed in C++ to be run on CPUs. This C++ model was parallelised 
+%using Message Parsing Interace (MPI) which is parallel application programming interface (API). 
+%This model was developed NVIDIA GPUs and was parallelized using the CUDA toolkit. The timings of 
+%the simulations were then compared for each of these cases. The scalability of the GPU based code 
+%was also tested to obtain speed improvements over serial CPU code.
 
 
 \section{Background and previous works}
 \label{secBkgd}
-\subsection{Granulation and population balance modeling}
+\subsection{Population balance modeling in Granulation}
 Granulation is the process of engineering granules from pharmaceutical powder blends 
 with the addition of liquid or solid binders. This process is usually carried out 
-to obtain granules with a certain PSD,  bulk densities and other physical properties~\citep{Barrasso2015cerd}.
+to obtain granules with a certain PSD,  bulk densities and other physical properties
+~\citep{Barrasso2015cerd}.
 There are about 3 rate processes that occur due the addition of a liquid binder to the 
 powder mixture are wetting and nucleation, consolidation and aggregation, and breakage 
 and attrition~\citep{sen2014}. In a high shear granulator, the particles are rendered wet 
@@ -363,10 +382,10 @@ rate of aggregation, $\Re_{agg}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
 calculated as \citep{Chaturbedi2017}:
 
 \begin{align}
-\Re_{agg}(s_i,x)&= \frac{1}{2}\int _0^{s_1} \int_0^{s_2} 
-\beta(s_i',s_i-s_i',x)F(si',x)F(s_i-s_i',x)ds_1'ds_2'\notag\\ 
-&- F(s_i,x)\int _0^{s_{max_1}-s_1} \int_0^{s_{max_2}-s_2} 
-\beta(s_i,s_i',x)F(s_i',x)ds_1'ds_2'
+\Re_{agg}(s_i,x)&= \frac{1}{2}\int _0^{s_i} 
+\beta(s_i',s_i-s_i',x)F(si',x)F(s_i-s_i',x)ds_i'\notag\\ 
+&- F(s_i,x)\int _0^{s_{max_i}-s_i} 
+\beta(s_i,s_i',x)F(s_i',x)ds_i'
 \label{eqn:mthds_R_agg}
 \end{align}
 where, $\beta(s_i, s_i',x)$ is the aggregation kernel and is expressed as a 
@@ -418,8 +437,8 @@ p(U) = \frac{1}{U\sqrt{2\pi}\sigma}\exp\left[-\frac{(lnU-\mu)^2}{2\sigma^2}\righ
 
 Similarly, the breakage rate can be expressed as follows:
 \begin{align}
-\Re_{break}(s_i,x)  = \int_0^{s_{max_1}} \int_0^{s_{max_2}} & \notag
-K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_1'ds_2' \\ &  - K_{break}(s_i,x)F(s_i,x) 
+\Re_{break}(s_i,x)  = \int_0^{s_{max_i}} & \notag
+K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_i' \\ &  - K_{break}(s_i,x)F(s_i,x)ds_i
 \label{eqn:mthds_pbm_breakage_geneq}
 \end{align}   
 where, the breakage kernel $K_{break}(s_i,x)$ is formulated as: 
@@ -528,7 +547,6 @@ was used to compile the parallel C++ code.
      \EndWhile
      \EndProcedure
      \end{algorithmic}
- \label{alg:parpbm}
  \end{algorithm}   
 
 
@@ -610,7 +628,7 @@ to the GPU for parallel execution.
 \begin{algorithm}
      \scriptsize
      \caption{GPU-based Parallel Population Balance Model}
-     \label{alg:CPUparallelPBM}
+     \label{alg:GPUparallelPBM}
      \begin{algorithmic}[1]
      \Procedure{PBM}{$N_{Comp}$}\Comment{$N_{Comp}$ is the number of compartments}
      \State\texttt{Copy initial variables from CPU memory to GPU memory}
@@ -631,12 +649,11 @@ to the GPU for parallel execution.
      \State \texttt{Clear GPU memory}
      \EndProcedure
      \end{algorithmic}
- \label{alg:parpbm}
  \end{algorithm}
 
 \section{Results and discussions}
 \label{secResults}
-
+\subsection{Performance metrics}
 Parallel efficiency of an algorithm can be tested either by strong scaling 
 where the problem size remains the same and number of processing elements 
 are increased or by weak scaling where the number of processing elements 
@@ -660,6 +677,7 @@ The problem size was varied by increasing the number of compartments inside
 the PBM. This in turn increased the total number of calculations performed 
 without increasing the amount of work that needed to be performed by each 
 processing unit (core).
+
 
 
 \subsection{Algorithm performance on a desktop GPU}
