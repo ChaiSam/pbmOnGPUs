@@ -676,7 +676,11 @@ run the problem on N cores.
 The problem size was varied by increasing the number of compartments inside 
 the PBM. This in turn increased the total number of calculations performed 
 without increasing the amount of work that needed to be performed by each 
-processing unit (core).
+processing unit (core). The number of cores required during the simulation 
+on the GPU was determined by the product of the number of compartments and 
+the number of solid bins for each solid type used. Thus, the number of GPU 
+cores used in this study varied from 256 cores for 1 compartment to 8192 
+for 32 compartments.
 
 
 
