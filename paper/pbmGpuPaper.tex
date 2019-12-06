@@ -28,10 +28,12 @@
 \usepackage{algpseudocode}
 \usepackage{textcomp}
 \usepackage{subcaption}
+
+
 %% The lineno packages adds line numbers. Start line numbering with
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
 %% for the whole article with \linenumbers after \end{frontmatter}.
-\usepackage{lineno}
+%\usepackage{lineno}
 
 %% natbib.sty is loaded by default. However, natbib options can be
 %% provided with \biboptions{...} command. Following options are
@@ -111,7 +113,7 @@ Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep 
 
 \end{frontmatter}
 
-\begin{linenumbers}
+%\begin{linenumbers}
 %% main text
 \section{Introduction}
 \label{secIntro}
@@ -191,20 +193,8 @@ relying on supercomputers for quicker results.
 \section{Background and previous works}
 \label{secBkgd}
 \subsection{Population balance modeling in Granulation}
-Granulation is the process of engineering granules from pharmaceutical powder blends 
-with the addition of liquid or solid binders. This process is usually carried out 
-to obtain granules with a certain PSD,  bulk densities and other physical properties
-~\citep{Barrasso2015cerd}.
-There are about 3 rate processes that occur due the addition of a liquid binder to the 
-powder mixture are wetting and nucleation, consolidation and aggregation, and breakage 
-and attrition~\citep{sen2014}. In a high shear granulator, the particles are rendered wet 
-when they come in contact with the liquid binder, which also aids in granule formation due to 
-liquid bridges. These granules can also break into smaller fragments due to shear stresses, 
-compressive and tensile forces that are exerted on to the system due the impeller, 
-particle-particle interactions and particle-wall interactions.
 
-To understand the process dynamics and control these process, population balance equations 
-have been accepted as a relevant methodology \citep{Immanuel2005}. Population balances have been successful in 
+Population balances have been successful in 
 predicting physical phenomena occurring in granulation such as aggregation, breakage and 
 consolidation. These models predict how groups of distinct entities inside the pharmaceutical 
 powder behave on a bulk scale due to process parameters over time of granulation. A
@@ -228,7 +218,23 @@ external coordinates, usually spatial variance. $F$ represents the
 number of particles present inside the system, $\dot{F}_{in}$ 
 and $\dot{F}_{out}$ is the rate of particles coming in and going out the 
 system respectively. $\Re_{formation}$ and $\Re_{depletion}$ are the rate of 
-formation and depletion due various phenomena occurring in granulation. 
+formation and depletion due various phenomena.
+
+Granulation is the process of engineering granules from pharmaceutical powder blends 
+with the addition of liquid or solid binders. This process is usually carried out 
+to obtain granules with a certain PSD,  bulk densities and other physical properties
+~\citep{Barrasso2015cerd}.
+There are about 3 rate processes that occur due the addition of a liquid binder to the 
+powder mixture are wetting and nucleation, consolidation and aggregation, and breakage 
+and attrition~\citep{sen2014}. To understand the process dynamics and control these 
+process, population balance equations have been accepted as a relevant methodology \citep{Immanuel2005}.
+
+In a high shear granulator, the particles are rendered wet 
+when they come in contact with the liquid binder, which also aids in granule formation due to 
+liquid bridges. These granules can also break into smaller fragments due to shear stresses, 
+compressive and tensile forces that are exerted on to the system due the impeller, 
+particle-particle interactions and particle-wall interactions.
+
 
 Prediction of PSDs and other particle bulk properties is highly dependent on 
 the kernels used to describe the sub-processes inside granulation. Identification 
@@ -327,20 +333,22 @@ model being used.
 
 Algorithms to parallelize the PBM codes on GPU have been studied briefly by \cite{Prakash2013b} 
 using the inbuilt MATLAB's parallel computing toolbox (PCT). This study was able to achieve 
-good speed ups but could have been higher if the code had been implemented in native programming 
-languages such as C or FORTRAN. Other works that have used GPU acceleration to improve computation 
-times for their population balance simulations include those from various other chemical engineering 
-processes such as crystallization \citep{Szilagy2016} , combustion \citep{Shi2012} , multiphase flow 
-\citep{santos2013} , coagulation dynamics \citep{Xu2015}
+good speed ups but could have been higher if the code had been implemented in native 
+programming languages such as C or FORTRAN. Other works that have used GPU acceleration 
+to improve computation times for their population balance simulations include those from 
+various other chemical engineering processes such as crystallization \citep{Szilagy2016}, 
+combustion \citep{Shi2012} , multiphase flow \citep{santos2013} , coagulation dynamics 
+\citep{Xu2015}. Previous literature lacks the discussion of adaptation of the parallel 
+algorithm scaling when several model parameters are changed at once. 
 
 
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-Population balance model in its general formed is expressed as follows \citep{ramkrishna2014}:
+The overall population balance equation used in our algorithm looked like \citep{ramkrishna2014}:
 \begin{align}
-\frac{d}{dt}F(s_i,l,g,x)&=\Re_{agg}(s_i,l,g,x)+\Re_{break}(s_i,l,g,x)\notag\\ 
-&+\dot{F}_{in}(s_i,l,g,x)-\dot{F}_{out}(s_i,l,g,x)
+\frac{d}{dt}F(s_i,l,g,x,t)&=\Re_{agg}(s_i,l,g,x,t)+\Re_{break}(s_i,l,g,x,t)\notag\\ 
+&+\dot{F}_{in}(s_i,l,g,x,t)-\dot{F}_{out}(s_i,l,g,x,t)
 \label{eqn:mthds_pbm_overall} 
 \end{align}
 where, $F(s_i,x)$ represents the number of solid particles of type i being studied in each spatial 
@@ -382,58 +390,15 @@ rate of aggregation, $\Re_{agg}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
 calculated as \citep{Chaturbedi2017}:
 
 \begin{align}
-\Re_{agg}(s_i,x)&= \frac{1}{2}\int _0^{s_i} 
-\beta(s_i',s_i-s_i',x)F(si',x)F(s_i-s_i',x)ds_i'\notag\\ 
+\Re_{agg}(s_i,x)&= \frac{1}{2}\int _0^{s_i} \int _0^{s_i'} 
+\beta(s_i',s_i-s_i',x)F(si',x)F(s_i-s_i',x)ds_ids_i'\notag\\ 
 &- F(s_i,x)\int _0^{s_{max_i}-s_i} 
 \beta(s_i,s_i',x)F(s_i',x)ds_i'
 \label{eqn:mthds_R_agg}
 \end{align}
 where, $\beta(s_i, s_i',x)$ is the aggregation kernel and is expressed as a 
-function of collision frequency ($C$) and collision efficiency ($\psi$) 
-\citep{Barrasso2015ces}: 
-
-\begin{align}
-\beta(s_i,s_i',x)=C(s_i,s_i',x)\psi(s_i,s_i',x)
-\label{eqn:mthds_pbm_beta_kernal}
-\end{align}
-The collision frequency of the solid particles was evaluated from the existing 
-DEM data from \citep{Sampat2018}. To facilitate this study, it was assumed that
-the collision frequency was independent of the liquid particles present in the 
-system.
-
-The collision efficiency $\psi$ was estimated based on Stokes , which 
-states that a collision is successful when the Stokes number $St_v$ associated 
-with the collision is lesser than the critical Stokes number ${St^*_v}$ for the 
-particles. These number are calculated as follows:
-
-\begin{align}
-St_v=\frac{8\tilde{m}U}{3\pi\tilde{d^2}\mu}
-\label{eqn:mthds_pbm_agg_Stnum}
-\end{align}
-
-\begin{align}
-St^*_v=\left(1+\frac{1}{e}\right)log\left(\frac{h}{h_a}\right)
-\label{eqn:mthds_pbm_agg_cricSt}
-\end{align}
-Here, $\tilde{m}$ \& $\tilde{d}$ represent the harmonic mean of the masses and 
-diameters of the particles respectively.$U$ is the collision velocity, $\mu$ is the 
-viscosity of the system and $e$ is the coefficient of restitution. The thickness of 
-the liquid on the surface of the particle $h$ and the height of surface asperities 
-$h_a$ were obtained from \citep{Barrasso2015ces}. $U_critical$ is defined as the 
-ratio of the critical Stokes number to the Stokes number associated with the collision. 
-The collision frequency $\psi$ is defined as:
-
-\begin{align}
-\Psi = \int_0^{U_critical} p(U)dU
-\label{eqn:mthds_pbm_agg_psi}
-\end{align}
-where it is assumed that the collision velocities follow a log normal distribution:
-
-
-\begin{align}
-p(U) = \frac{1}{U\sqrt{2\pi}\sigma}\exp\left[-\frac{(lnU-\mu)^2}{2\sigma^2}\right]
-\label{eqn:mthds_pbm_agg_lognormVelo}
-\end{align}
+function of collision frequency ($C$) and collision efficiency ($\psi$). Further 
+information on the model can be found in \ref{app:aggKernel}.
 
 Similarly, the breakage rate can be expressed as follows:
 \begin{align}
@@ -441,25 +406,10 @@ Similarly, the breakage rate can be expressed as follows:
 K_{break}(s_1',s_2',x)F(s_1',s_2',x)ds_i' \\ &  - K_{break}(s_i,x)F(s_i,x)ds_i
 \label{eqn:mthds_pbm_breakage_geneq}
 \end{align}   
-where, the breakage kernel $K_{break}(s_i,x)$ is formulated as: 
+where, $K_{break}(s_i,x)$ is the breakage kernel. The formulation for the breakage 
+kernel is discussed in more detail in \ref{app:breakKernel}.
 
-\begin{align}
-K_{break}(s_i,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU
-\label{eqn:mthds_pbm_breakage_kernel}
-\end{align}
-Similar to the aggregation kernel, $C_impact$ is defined as rate at which 
-the particles impact with the geometry in the DEM simulation. Critical velocity 
-for breakage to occur is defined as:
-
-\begin{align}
-U_break=\frac{2St^*_def}{\rho_{s_i}}\frac{9}{8}\frac{(1-\epsilon)^2}{\epsilon}\frac{9\mu}{16d_{p_i}}
-\label{eqn:mthds_pbm_breakage_ubreak}
-\end{align}
-where $2St^*_def$ is defined as critical Stokes deformation number \citep{Iveson2001} and 
-$d_{p_i}$ is diameter of the solid particle $s_i$.
-
-
-The rate of increase of liquid volume of a particle, 
+The rate of increase of liquid volume of inside a particle, 
 $\dot{l}_{add}(s_i,x)$ is expressed as:
 
 \begin{align}
@@ -468,19 +418,19 @@ $\dot{l}_{add}(s_i,x)$ is expressed as:
 \end{align}
 where, $\sum_i(s_i)$  is the total solid volume of the particle; $\dot{m}_spray$ is the 
 rate of external liquid addition and $m_{solid}$ is the total amount of solid present in the compartment.
-
-The rate of decrease in gas volume per particle due to consolidation is calculated using the 
-following expression \citep{Verkoeijen2002}:
-
-\begin{align}
-\dot{g}_{cons}(s_i,x)=&c (\nu_{impeller})^{\omega}V(s_i,x)\frac{(1-\epsilon_{min})}{s} 
-\notag \\ 
-& \left[g(s_i,x)+l(s_i,x) -(s_1+s_2)\frac{\epsilon_{min}}{1-\epsilon_{min}}\right]
-\label{eqn:mthds_rate_gas_vol_part}
-\end{align}        
-
-where, $c$ and $\omega$ are the consolidation constants; $v_{impeller}$ is the impeller 
-rotational speed; $\epsilon_{min}$ is the minimum porosity; 
+%
+%The rate of decrease in gas volume per particle due to consolidation is calculated using the 
+%following expression \citep{Verkoeijen2002}:
+%
+%\begin{align}
+%\dot{g}_{cons}(s_i,x)=&c (\nu_{impeller})^{\omega}V(s_i,x)\frac{(1-\epsilon_{min})}{s} 
+%\notag \\ 
+%& \left[g(s_i,x)+l(s_i,x) -(s_1+s_2)\frac{\epsilon_{min}}{1-\epsilon_{min}}\right]
+%\label{eqn:mthds_rate_gas_vol_part}
+%\end{align}        
+%
+%where, $c$ and $\omega$ are the consolidation constants; $v_{impeller}$ is the impeller 
+%rotational speed; $\epsilon_{min}$ is the minimum porosity; 
 
 Particle transfer rate, $\dot{F}_{out}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
 is calculated as:
@@ -682,7 +632,27 @@ the number of solid bins for each solid type used. Thus, the number of GPU
 cores used in this study varied from 256 cores for 1 compartment to 8192 
 for 32 compartments.
 
+Parallelization of code can lead some deviation of the calculations from 
+the serial execution. This discrepancy in calculation can be attributed to 
+the difference in the precision of the cores of the CPU or GPU being used. 
+This change in precision can lead to a small error in one timestep 
+percolating to produce results that can drastically different from the serial 
+code. To check the validity of the presented algorithm a relative least sum 
+of squares error was calculated as shown in Equation \ref{eqn:result_rSSe}:
 
+
+\begin{align}
+\label{eqn:result_rSSe}
+rSSE = {\sum}_{i=0}^{t_{end}‎}\frac{(d_{50_{serial_i}}-d_{50_{parallel_i}})^2}{N} \qquad
+\end{align}
+
+The $rSSE$ was calculated for the algorithm considering the single core MPI 
+solution as the base and determining the error values wrt to this simulation.
+The error for each of the case can be found in Figure \ref{*}. The average error 
+for the GPU was less than $x\%$ which is an acceptable range. Thus, making the 
+solutions from the algorithm quicker with a very small loss in accuracy.
+
+\textbf{INSERT ERROR PLOT. }
 
 \subsection{Algorithm performance on a desktop GPU}
 The desktop configuration used for these studies comprised of a Intel $i7-7700K$  
@@ -874,18 +844,93 @@ of Kepler GPU which are slower in floating point calculations \citep{Pascal2016}
 \label{secConc}
 In the presented study, a PBM was developed using to run parallel on a GPU. The time 
 of the simulations on the GPU were compared to similar ones on CPUs. In most of the 
-cases it was observed that GPU simulations were faster than CPU simulations which had 
-higher number of calculations. Simulations with low amounts of calculations were slower 
-in case of GPUs, but such cases are rare in PBMs. The GPU architecture also plays a major 
-role in the simulation. This work also highlighted that a desktop PC could be used for 
-computationally intensive simulations rather than a supercomputer or cluster when resources 
-are limited. This work can be extended in the future by testing on newer GPUs from NVIDIA 
+cases it was observed that GPU simulations were faster than CPU simulations where the 
+problem size was large with minimal loss in accuracy. Simulations with low amounts 
+of calculations were slower in case of GPUs, but such cases are rare in PBMs. 
+The GPU architecture also plays a major role in the simulation. This work also 
+highlighted that a desktop PC could be used for computationally intensive 
+simulations rather than a supercomputer or cluster when resources are limited. 
+This work can be extended in the future by testing on newer GPUs from NVIDIA 
 like the Volta and Turing platforms, which are more optimized for float point calculations 
 than the Pascal platform GPU used in this study. The algorithm to parallelize the code 
 can also be parallelized further to eliminate loops inside the kernels using dynamic 
 parallelization supported by newer versions of CUDA.
 
-\end{linenumbers}
+\appendix
+\section{PBM model}
+\label{app:A}
+\subsection{Aggregation Kernel}
+\label{app:aggKernel}
+
+The aggregation kernel used in this work was formulated as in \cite{Barrasso2015ces}: 
+
+\begin{align}
+\beta(s_i,s_i',x)=C(s_i,s_i',x)\psi(s_i,s_i',x)
+\label{eqn:mthds_pbm_beta_kernal}
+\end{align}
+The collision frequency of the solid particles was evaluated from the existing 
+DEM data from \citep{Sampat2018}. To facilitate this study, it was assumed that
+the collision frequency was independent of the liquid particles present in the 
+system.
+
+The collision efficiency $\psi$ was estimated based on Stokes , which 
+states that a collision is successful when the Stokes number $St_v$ associated 
+with the collision is lesser than the critical Stokes number ${St^*_v}$ for the 
+particles. These number are calculated as follows:
+
+\begin{align}
+St_v=\frac{8\tilde{m}U}{3\pi\tilde{d^2}\mu}
+\label{eqn:mthds_pbm_agg_Stnum}
+\end{align}
+
+\begin{align}
+St^*_v=\left(1+\frac{1}{e}\right)log\left(\frac{h}{h_a}\right)
+\label{eqn:mthds_pbm_agg_cricSt}
+\end{align}
+Here, $\tilde{m}$ \& $\tilde{d}$ represent the harmonic mean of the masses and 
+diameters of the particles respectively.$U$ is the collision velocity, $\mu$ is the 
+viscosity of the system and $e$ is the coefficient of restitution. The thickness of 
+the liquid on the surface of the particle $h$ and the height of surface asperities 
+$h_a$ were obtained from \citep{Barrasso2015ces}. $U_critical$ is defined as the 
+ratio of the critical Stokes number to the Stokes number associated with the collision. 
+The collision frequency $\psi$ is defined as:
+
+\begin{align}
+\Psi = \int_0^{U_critical} p(U)dU
+\label{eqn:mthds_pbm_agg_psi}
+\end{align}
+where it is assumed that the collision velocities follow a log normal distribution:
+
+
+\begin{align}
+p(U) = \frac{1}{U\sqrt{2\pi}\sigma}\exp\left[-\frac{(lnU-\mu)^2}{2\sigma^2}\right]
+\label{eqn:mthds_pbm_agg_lognormVelo}
+\end{align}
+
+
+
+\subsection{Breakage Kernel}
+\label{app:breakKernel}
+The breakage kernel $K_{break}(s_i,x)$ is formulated as: 
+
+\begin{align}
+K_{break}(s_i,x) = C_{impact}\int_{U_{break}}^{\infty}p(U)dU
+\label{eqn:mthds_pbm_breakage_kernel}
+\end{align}
+Similar to the aggregation kernel, $C_impact$ is defined as rate at which 
+the particles impact with the geometry in the DEM simulation. Critical velocity 
+for breakage to occur is defined as:
+
+\begin{align}
+U_break=\frac{2St^*_def}{\rho_{s_i}}\frac{9}{8}\frac{(1-\epsilon)^2}{\epsilon}\frac{9\mu}{16d_{p_i}}
+\label{eqn:mthds_pbm_breakage_ubreak}
+\end{align}
+where $2St^*_def$ is defined as critical Stokes deformation number \citep{Iveson2001} and 
+$d_{p_i}$ is diameter of the solid particle $s_i$.
+
+
+
+%\end{linenumbers}
 
 \bibliographystyle{elsarticle-harv}
 \bibliography{pbmGpuPaper}
