@@ -210,7 +210,7 @@ formation and depletion due various phenomena. $\Re_{formation}$ described in
 This calculation consists of a double integral for each entity being tracked. In a 
 system tracking 2 particulates, it would require 4 nested loops to compute these 
 integrals. Figure \ref{fig:res_profile_pie} also indicates that this calculation 
-takes $~50\%$ of the total run time. Thus, parallelizing this calculation if crucial 
+takes $~25\%$ of the total run time. Thus, parallelizing this calculation if crucial 
 to the effectiveness of the parallel algorithm.
 
 Granulation is the process of engineering granules from pharmaceutical powder blends 
@@ -323,7 +323,7 @@ problem size was not computationally very heavy. This study also suggested that 
 with a shared memory model could help improve simulation speeds further. A hybrid memory model 
 which uses both shared and local memory was implemented by \cite{Bettencourt2017} to 
 obtain speed improvements of about 98\% from the serial code. This implementation took 
-into account both Message Parsing Interface (MPI) as well as Open Multi-processing (OMP). 
+into account both Message Passing Interface (MPI) as well as Open Multi-processing (OMP). 
 A similar PBM parallelization approach was also undertaken in \cite{Sampat2018} and an 
 approximate speedup of 13 w;as obtained. The reduction in speed was attributed to the use of 
 dynamic arrays used in their PBM framework to accommodate the hybrid nature of the model 
@@ -343,13 +343,13 @@ size as a factor in determining number of GPU cores used for the simulation. The
 are restricted to a maximum number of cores that are used and with an increase in the 
 problem size, the algorithm would not adapt to increase the number of cores used. 
 This could potentially lead to computation power that may go unused in high-end GPUs that 
-have the capacity to perform several teraflops of double-precision calculations/.
+have the capacity to perform several teraflops of double-precision calculations.
 
 
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-The overall population balance equation used in our algorithm looked like \citep{ramkrishna2014}:
+The overall population balance equation can be represented as \citep{ramkrishna2014}:
 \begin{align}
 \frac{d}{dt}F(s_i,l,g,x,t)&=\Re_{agg}(s_i,l,g,x,t)+\Re_{break}(s_i,l,g,x,t)\notag\\ 
 &+\dot{F}_{in}(s_i,l,g,x,t)-\dot{F}_{out}(s_i,l,g,x,t)
@@ -459,18 +459,17 @@ calculated at each iteration such that, the number of particles leaving a partic
 at any time is less than the number of particles present at that time \citep{Ramachandran2010}.
 
 \subsection{MPI implementation}
-The message parsing interface (MPI) parallel implementation of the PBM was 
+The message passing interface (MPI) parallel implementation of the PBM was 
 focused towards equal distribution of the task and memory. The implementation 
 used in this work differs from the hybrid implementation used by \citep{Bettencourt2017}
-and \citep{Sampat2018} as only MPI was used to parallelize the code. It 
-was pointed by \citep{Sampat2018} that open message parsing (OMP) does not 
+and \cite{Sampat2018} as only MPI was used to parallelize the code. It 
+was pointed by \cite{Sampat2018} that open multi-processing(OMP) does not 
 provide significant speed improvements due to limitations with usage of 
 dynamic vectors which are essential for such a system. Thus, the OMP 
 implementation was avoided which also meant that lesser number of cores 
 would be required. The focus of this study to localize the computation power 
-rather than depend on supercomputers/clusters. MPI was used for message passing 
-from one core to another as well as all the calculations  
-were performed on the same MPI core. As pseudo code has been presented in Algorithm 1 
+rather than depend on supercomputers/clusters.  
+A pseudo code has been presented in Algorithm \ref{alg:CPUparallelPBM}
 to illustrate the distribution of tasks. For each time step, a MPI process is responsible 
 for a certain section of the problem, usually a spatial chunk inside the geometry 
 (also referred to as compartment).  
@@ -497,79 +496,35 @@ was used to compile the parallel C++ code.
      \EndFor
      \State \texttt{Collect $n_{particles}$ from $N_{MPI}$}\Comment{Master process collects all data}
      \State \texttt{Calculate $timestep$ using \textit{CFL} condition}
-     \State \texttt{$t_{new} = t + timestep$ }
+     \State \texttt{$t_{new} = t + timestep$}
      \EndWhile
      \EndProcedure
      \end{algorithmic}
  \end{algorithm}   
 
 
-
-
-%To obtain the most optimal parallel performance, when solving the PBM, workloads 
-%were distributed in a manner which took into account the shared and distributed 
-%memory aspects of the clusters, the PBM was being run on. To parallelize the model 
-%in a way which could take advantage of shared memory but still effectively run 
-%across a distributed system both MPI and OMP were implemented. One MPI process 
-%was used per CPU core and one OMP thread was used per CPU core, as 
-%Bettencourt et al. (2017) found it resulted in the  performance. MPI was 
-%used for message passing from one node to another while OMP was used for 
-%calculations on each node that could be efficiently solved using a shared 
-%memory system.‎ An algorithm in the form of pseudo code is presented in the 
-%Appendix illustrating how the calculations are distributed and carried out 
-%during the simulation. For each time step, the MPI processes are made 
-%responsible for a specific chunk of the spatial compartments. Then each 
-%OMP thread, inside of each MPI process, is allocated to one of the cores 
-%of multi-core CPU the MPI process is bound too. The OMP threads divide up 
-%and compute $R_agg$. After $R_agg$ is calculated the MPI processes calculate 
-%the new PSD value for their chunk at that specific time step, Ft,c. The 
-%slave processes send their Ftc to the master processes which collects them 
-%into the complete Ft,all. The master process then broadcasts the Ft, all 
-%value to all slave processes. This decomposition of the data into‎ 
-%different CPUs and further into various threads is illustrated in 
-%Figure 3-4.‎ A crucial feature of the PBM is that the current PSD (Ft,all) 
-%value is used to compute a new‎ time step size for the next iteration. 
-%This means all of the MPI processes need to have the same‎ dynamic time 
-%step size at each iteration for the calculations to be properly carried 
-%out in parallel.‎ Since the completely updated Ft, all value is shared 
- %before calculating a new time step each process‎ will have the same Ft, 
-%all value. As a result each process calculates the same size for the 
-%new time‎ step.‎ Since the DEM informed PBM code required dynamic size 
-%increase for the data structure due‎ to different number of particles 
-%being present in the DEM simulation, the PBM code developed‎ used the 
-%Standard Template Library containers and their features available 
-%in C++ 11 and later.‎ It requires intel v17.0.2 (GCC 5.3+) or later 
-%for compilation. Since this module was not present on‎ the Stampede,
-%the execution of the PBM was done on the newer Stampede2 supercomputer. 
-%Each‎ of the compute node of the cluster consists of Intel Xeon Phi 7250 
-%(“Knights Landing") which has‎ 68 cores on a single socket clocked at 1.4 GHz, 
-%with 96 GB of DDR4 RAM. Each of the cores‎ consists of 4 hardware threads. 
-%The simulations were then run by varying the number of MPI‎ processes from 
-%1 to 16 and the number of OMP threads from 1 to 8, thus, using a maximum of 128‎ cores.
-
 \subsection{GPU implementation}
 NVIDIA’s CUDA toolkit extends the C language such that user defined functions 
 called kernels can be created to be run on the GPU. These kernels can be 
-executed several number of times in parallel using large number of threads. A thread is 
-sequence if programmed instructions that can be managed by the computer’s 
-scheduler. A kernel depending upon the dimensions of the data can execute 
+executed several number of times in parallel using large number of threads. 
+A thread is a sequence of programmed instructions that can be managed by the 
+computer’s scheduler. A kernel depending upon the dimensions of the data can execute 
 instructions in 1-D, 2-D or 3-D thread blocks. The kernel can also launch 
 multiple thread blocks at once, thus increasing the number of parallel 
 process executions known as grid. Similar to a thread block, a grid can 
 be up to 3-D depending upon the data under study.
 The code execution was split between the CPU (also called host) and GPU 
-(also called device). Time sensitive calculations as well as mixed data 
-calculations were handled on the CPU with a single core, while the more 
+(also called device). Time sensitive calculations and calculations that
+require collection of data from the GPU were handled on the CPU 
+with a single core, while the more 
 computationally intensive tasks were distributed on to the GPU using 
-kernels. Like in the CPU parallelization, the geometry was split into 
-multiple compartments. These compartments in turn formed the number of 
+kernels. Similar to the parallelization using MPI in CPUs, the geometry was 
+split into multiple compartments. These compartments determined the number of 
 blocks inside each GPU kernel. The number of solids used helped formed 
 the threads in each of these blocks. The work flow of the execution can 
-be found in Figure \ref{fig:mtd_gpu_imp}. The orange arrows in Figure 
-\ref{fig:mtd_gpu_imp} indicate the 
-transfer of data from the CPU memory to the GPU memory and vice-versa 
-whereas the blue arrows indicate the sections of the code that is sent 
-to the GPU for parallel execution.
+be found in Figure \ref{fig:mtd_gpu_imp}. The arrows in Figure \ref{fig:mtd_gpu_imp} 
+indicate the interchange of data between the CPU memory to the GPU memory. 
+
 
 \begin{figure}
 \centering
@@ -608,13 +563,13 @@ to the GPU for parallel execution.
 \section{Results and discussions}
 \label{secResults}
  \subsection{Performance metrics}
-Parallel efficiency of an algorithm can be tested either by strong scaling 
+Parallel efficiency of an algorithm can be tested either by strong scaling, 
 where the problem size remains the same and number of processing elements 
-are increased or by weak scaling where the number of processing elements 
+are increased or by weak scaling, where the number of processing elements 
 remain the same and the problem size is increased. In this study, the 
 number of processing units were limited due to the architecture of the 
 GPU and the CUDA C++ code developed did not utilize more than one GPU 
-during execution. Thus, a soft scaling approach was preferred in such a 
+during execution. Thus, a weak scaling approach was preferred in such a 
 scenario. The parallel performance of a code is usually measured in 
 terms of on ratio of time taken to solve the run the simulations on one 
 core to the time taken to run the simulation on N cores. It is depicted in
@@ -636,11 +591,11 @@ the number of solid bins for each solid type used. Thus, the number of GPU
 cores used in this study varied from 256 cores for 1 compartment to 8192 
 for 32 compartments.
 
-Parallelization of code can lead some deviation of the calculations from 
+Parallelization of code can lead to deviation in calculations from 
 the serial execution. This discrepancy in calculation can be attributed to 
 the difference in the precision of the cores of the CPU or GPU being used. 
-This change in precision can lead to a small error in one timestep 
-percolating to produce results that can drastically different from the serial 
+This change in precision can lead to a small error in one timestep, which can 
+percolate and produce results that can drastically different from the serial 
 code. To check the validity of the presented algorithm a relative least sum 
 of squares error was calculated as shown in Equation \ref{eqn:result_rSSe}:
 
@@ -651,8 +606,8 @@ rSSE =  \sum_{i=0}^{t_{end}} \frac{(d_{50_{serial_i}}-d_{50_{parallel_i}})^2}{N}
 
 The $rSSE$ was calculated for the algorithm considering the single core MPI 
 solution as the base and determining the error values wrt to this simulation.
-The error for each of the case can be found in Figure \ref{*}. The error 
-for the GPU simulations varied from $0.45\%$ to about $2\%$ which is an acceptable 
+The error for each of the case can be found in Figure \ref{res_gpu_error}. The error 
+for the GPU simulations varied from $0.45\%$ to about $6\%$ which is an acceptable 
 range. Thus, making the solutions from the algorithm quicker with a very small 
 loss in accuracy. There was an increase in the error with the increase in number 
 of compartments, which could be due to the increase in the number of data points compared. 
@@ -662,7 +617,7 @@ of compartments, which could be due to the increase in the number of data points
 \includegraphics[scale=0.7]{gpu_error.pdf}
 \caption{Relative sum of square error observed for the GPU simulations compared to 
 the serial simulation}
-\label{fig:res_gpu_timings}
+\label{fig:res_gpu_error}
 \end{figure}
 
 
@@ -674,26 +629,31 @@ CUDA version 9.0 paired with GCC 7.3 was used to the run the desktop GPU simulat
 with Ubuntu 18.04 operating system (OS).
 
 
-Each GPU consisted of several streaming multi-processors(SM) which help 
-distribute the problem to the 1792 cores inside the GPU. Once the calculations  
-pass from the CPU to the GPU, the SMs take over and allocate work to the GPU in 
-blocks of $32$ threads each. This distribution was found to be one of the major 
-bottlenecks especially when control was handed over from the CPU to the GPU. 
-This leads to a significant time delay if the amount of calculation to be 
-performed by the GPU is low and the control exchanges are more common. 
+
+%This distribution of calculations comprised a large 
+%percentage of the CUDA API calls that were made during each execution.
+%This leads to a significant time delay if the amount of calculation to be 
+%performed by the GPU is low and the control exchanges are more common. 
+
 The number of solid bins for the 2 different types of solids used were $16$, 
 this meant that there was a maximum of $65,536$ calculations that needed to 
 be performed for each time step for each compartment. While, the
 number of calculations increased to over 2 million per time step when the number of 
-compartments was increased to $32$. SMs divide these calculations in blocks 
+compartments was increased to $32$. Each GPU consisted of several streaming 
+multi-processors(SM) which help distribute the problem to the 1792 cores inside 
+the GPU. Once the calculations  pass from the CPU to the GPU, the SMs take 
+over and allocate work to the GPU in blocks of $32$ threads each. 
+SMs divide these calculations in blocks 
 of 32 threads and send it to the cores for calculations which accounts for some 
 overheard time during the simulation. This overhead is present for each timestep, 
 which can be compensated by the number of calculations running in parallel on 
-the GPU. The PBM was run for $90$ seconds which included $45$ seconds of mixing 
-and 45 seconds of liquid addition. The algorithm performance was tested by soft scaling 
+the GPU. 
+
+The PBM simulation was run for $90$ seconds which included $45$ seconds of mixing 
+and 45 seconds of liquid addition. The algorithm performance was tested by weak scaling 
 the problem by changing the number of compartments from $1$ and doubling them in 
 each simulation until the number of compartments reached $32$. Figure \ref{fig:res_gpu_timings} 
-shows the time taken these simulation. It can be seen that the amount of time taken 
+shows the time taken these simulation. It can be observed that the amount of time taken 
 for the simulation remains almost constant till the number of compartments reaches $8$, 
 followed by an increase in the time taken as the number of compartment are increased 
 further to $32$. According to parallelization procedure used the cores utilized to run the 
@@ -723,16 +683,17 @@ bottlenecks and those sections of the code were rectified to improve the speed o
 The profiler was executed for each case and it was observed that aggregation kernel calculations 
 took the most time for execution followed by the breakage kernel. Consolidation kernel 
 and other calculations comprised of less than $1$\% of execution time. The other parameter 
-studied was the number of times each API was summoned by the code and the time spent. API 
+studied was the number of times each API was called by the code and the time spent. API 
 calls included the synchronization of threads working inside the GPU device, memory allocation 
 for arrays, etc. Each thread inside the GPU operates independently,
-thus all threads may not be at the same line of code at a given moment of time, thus some threads 
-finish calculations before others. The time taken to synchronize these threads required the most 
-amount of time during the execution of the code. When such an API is called by the code 
-further execution of the code is paused until all the threads of the GPU are in the same 
-line of code. This accounted for $99$\% of the total other API call time. This indicated that there 
-were not many places where the code could have been optimized further since synchronization 
-statements were only added before calculations where complete array of data was required. 
+thus all threads may not be at the same section of the code at a given moment of time, 
+thus some threads may finish calculations before others. The time taken to synchronize 
+these threads required the most amount of time during the execution of the code. When 
+such an API is called by the code further execution of the code is paused until all 
+the threads of the GPU are in the same line of code. This accounted for $99\%$ of the total  
+other API call time. This indicated that there were not many places where the code could 
+have been optimized further since synchronization statements were only added before 
+calculations where complete array of data was required. 
 If further reduction in these statements was undertaken, it would lead to data loss and 
 possibly incorrect final calculated particle size distribution. A comparison of times taken 
 by each process in the simulations is shown in Figure \ref{fig:res_profile_pie}. A similar 
@@ -740,7 +701,7 @@ distribution of times was observed for all simulations on the GPU.
 
 \begin{figure}[h]
 \centering
-\includegraphics[scale=0.4]{Profile_Pie-converted.pdf}
+\includegraphics[scale=1]{Profile_Pie.pdf}
 \caption{Distribution of times taken by different processes inside the GPU-parallelized 
 PBM}
 \label{fig:res_profile_pie}
@@ -756,7 +717,7 @@ longer on a single core of the GPU to run a similar simulation than on a single 
 
 The CPU version of the parallel PBM was run on the desktop with the aforementioned 
 configuration. This meant that the number of MPI cores available for the simulations 
-was limited to 4. Soft scaling of the problem by changing the number of compartments 
+was limited to 4. Weak scaling of the problem by changing the number of compartments 
 was performed for this study. Figure \ref{fig:res_cpu_timings} shows a comparison of the times taken 
 by the simulation to run on $1$, $2$ \& $4$ MPI cores. The times indicate that 
 with the increase in the number of cores the model took less time to complete 
@@ -764,11 +725,11 @@ calculations for the same number of compartments. It can also be seen that for t
 same number of MPI cores used in a soft scaling the amount of time increases 
 with increase in the number of cores. This increase can be attributed to the 
 increase in the number of calculations with addition of new compartments. There is a 
-slight plateau in the times when 2 and 4 MPI cores were used for $8$ and $16$ compartments 
+plateau in the times when 2 and 4 MPI cores were used for $8$ and $16$ compartments 
 respectively. When a further analysis of the rates was for each compartment was undertaken 
 it was observed that till the particles did not each the last few compartments of the 
-granulator the rates were $0$ thus reducing the compute time and leading to simulation
-times in a similar range. 
+granulator no aggregation or breakage occurred in those spatial sections thus reducing 
+the compute time and leading to similar simulation times.
 
 \begin{figure}[h]
 \centering
@@ -778,20 +739,22 @@ on desktop CPU with varying number of MPI cores}
 \label{fig:res_cpu_timings}
 \end{figure}
 
-Speedup is an important aspect that is considered to understand the scalability and 
+Speedup is important to understand the scalability and 
 parallel performance of a code. Speedup for a code is directly proportional 
 to the number of cores used for a simulation. 
 In Figure \ref{fig:res_desktop_speedup}, the speedup increases with the increase in 
 the number of MPI cores. This increase in speedup can be attributed to the increase 
-in the computation power. Another unusual trend observed in the case of 8, 16 and 
-32 number of compartments, the speedup is higher than 2 and 4 for 2 MPI and 4 MPI core simulations respectively. This phenomena is known as super linear speedup which occurs 
+in the computation power. 
+One unusual trend observed in the case of 8, 16 and 32 number of compartments for both 
+2 MPI and 4 MPI core simulations, the speedup is higher than 2 and 4 respectively. 
+This phenomena is known as super linear speedup which occurs 
 when the speedup is greater than the number of cores used. In rare cases like these
 speedup increases due to increase in cache memory and random access memory(RAM) 
 available \citep{tuncer2009}. The simulations with the GPU parallel code showed an 
 overall increase in the speedup as the number of compartments as seen in Figure 
 \ref{fig:res_desktop_speedup}. The speedup was low for compartment numbers 1 and 2 
 since the amount of time spent in communication in between the CPU and the GPU as well 
-as the time taken by the SMs inside the GPU to distribute the problem had a larger 
+as the time taken by the thread synchronization in the GPU to had a larger 
 contribution to the simulation time. The increase in number of compartments diminished 
 this communication time effect as amount of calculations is significantly higher. The 
 highest speeedup achieved for a GPU simulation was about $12.3$, which means it took 
@@ -813,7 +776,7 @@ was present at Rutgers at the School of Engineering (SoE). The SoE HPC cluster w
 equipped with a NVIDIA Kepler K20 GPU. This GPU contains 2496 CUDA cores which are 
 have a base clock of $706$ MHz and only 5 GB of GDDR5 of memory. The Kepler series 
 GPUs were a couple of generations older than the Pascal generation Quadro P400 used 
-in desktop simulation studies. The clock speed and memory of the desktop GPU was 
+in desktop simulation studies. The clock speed and memory of the desktop GPU were 
 higher than the one present on the HPC. 
 
 Time taken to complete the $90$ second PBM simulation on the HPC's GPU are shown in 
@@ -821,16 +784,16 @@ Figure \ref{fig:res_serverTimes}. The time taken to run the PBM initially remain
 constant upto 16 compartments, but a large increase in the time is observed for the 
 simulation with 32 compartments. This increase could be attributed to the saturation 
 of CUDA cores of the GPU and that SMs had to wait for the previous calculations to 
-complete before the threads were assigned the remnant of calculations. A serial 
-simulation was performed on the HPC and used as a baseline for speedup calculations. 
-Speedup from the server GPUs are shown in Figure \ref{fig:res_serverSpeedup}. The 
-increase in the speed of the simulation for these studies is lower than the desktop 
-studies which could be directly connected to clock speeds of the CUDA cores. The 
-server GPU cores were clocked at a lower frequency which meant the rate of calculations 
-would decrease. One other reason for reduced speedup could be the older architecture 
-of Kepler GPU which are slower in floating point calculations \citep{Pascal2016}.
-
-
+complete before the threads were assigned the remnant of calculations. This trend 
+is similar to the trend observed in Figure \ref{fig:res_desktop_speedup} for the 
+desktop GPU. A serial simulation was performed on the HPC and used as a baseline 
+for speedup calculations. Speedup from the server GPUs are shown in Figure 
+\ref{fig:res_serverSpeedup}. The increase in the speed of the simulation for these 
+studies is lower than the desktop studies which could be directly connected to clock 
+speeds of the CUDA cores. The server GPU cores were clocked at a lower frequency 
+which meant the rate of calculations would decrease. One other reason for reduced 
+speedup could be the older architecture of Kepler GPU which are slower in floating 
+point calculations \citep{Pascal2016}.
 
 \begin{figure}[H]
      \centering
@@ -854,19 +817,24 @@ of Kepler GPU which are slower in floating point calculations \citep{Pascal2016}
 
 \section{Conclusions}
 \label{secConc}
-In the presented study, a PBM was developed using to run parallel on a GPU. The time 
-of the simulations on the GPU were compared to similar ones on CPUs. In most of the 
-cases it was observed that GPU simulations were faster than CPU simulations where the 
-problem size was large with minimal loss in accuracy. Simulations with low amounts 
-of calculations were slower in case of GPUs, but such cases are rare in PBMs. 
-The GPU architecture also plays a major role in the simulation. This work also 
-highlighted that a desktop PC could be used for computationally intensive 
-simulations rather than a supercomputer or cluster when resources are limited. 
-This work can be extended in the future by testing on newer GPUs from NVIDIA 
+In the presented study, a PBM was developed using NVIDIA's  CUDA C/C++ language 
+to run in parallel on a GPU. The time of the simulations on the GPU were compared 
+to CPUs. In cases with larger problem size, it was observed that GPU simulations 
+were faster than CPU simulations and there was minimal loss in accuracy. 
+It can be observed that GPUs are more efficient when the complexity of the 
+problem is high in terms of compartments, which is a commonly observed in general 
+application of PBMs.
+
+The adaptive structure of the algorithm 
+enabled the simulation to use varying number of GPU cores to parallelize the PBM simulations.
+The GPU architecture also plays a major role in the simulation time. This work also 
+highlighted that a desktop PC could be sufficient for a computationally intensive 
+simulation instead of a utilizing a supercomputer or cluster. 
+This work can be extended in the future by testing it on newer GPUs from NVIDIA 
 like the Volta and Turing platforms, which are more optimized for float point calculations 
-than the Pascal platform GPU used in this study. The algorithm to parallelize the code 
-can also be parallelized further to eliminate loops inside the kernels using dynamic 
-parallelization supported by newer versions of CUDA.
+than the Pascal platform GPU used in this study. The presented algorithm can also be 
+improved further by eliminating loops inside the kernels using dynamic parallelization 
+supported by newer versions of CUDA.
 
 \appendix
 \section{PBM model}
