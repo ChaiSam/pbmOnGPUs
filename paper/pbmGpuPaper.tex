@@ -179,13 +179,12 @@ than relying on supercomputers for quicker results.
 
 \section{Background and previous works}
 \label{secBkgd}
-\subsection{Population balance modeling and Granulation}
+\subsection{Population balance modeling and wet granulation}
 
 Population balances equations have been successful in 
 predicting physical phenomena occurring in granulation such as aggregation, breakage and 
-consolidation. These models predict how groups of distinct entities inside the pharmaceutical 
-powder behave on a bulk scale due to process parameters over time of granulation. A
-general representation of the model is:
+consolidation. These models predict how groups of distinct entities  behave on a bulk 
+scale during granulation. A general representation of the model is:
 
 \begin{align}
 \frac{ \partial}{\partial t}&F(\textbf{v},\textbf{x},t) + \frac{\partial}{\partial 
@@ -201,11 +200,11 @@ general representation of the model is:
 where $\textbf{v}$ is a vector of internal 
 coordinates.  $\textbf{v}$ is commonly used to describe the solid, liquid, 
 and gas content of each type of particle. The vector $\textbf{x}$ represents 
-external coordinates, usually spatial variance. $F$ represents the 
+external coordinates, usually spatial. $F$ represents the 
 number of particles present inside the system, $\dot{F}_{in}$ 
 and $\dot{F}_{out}$ is the rate of particles coming in and going out the 
 system respectively. $\Re_{formation}$ and $\Re_{depletion}$ are the rate of 
-formation and depletion due various phenomena. $\Re_{formation}$ described in 
+formation and depletion due various phenomena. $\Re_{formation}$ described in Equation 
 \ref{eqn:mthds_R_agg} is the most computationally intensive component of the PBM.
 This calculation consists of a double integral for each entity being tracked. In a 
 system tracking 2 particulates, it would require 4 nested loops to compute these 
@@ -213,24 +212,20 @@ integrals. Figure \ref{fig:res_profile_pie} also indicates that this calculation
 takes $~25\%$ of the total run time. Thus, parallelizing this calculation if crucial 
 to the effectiveness of the parallel algorithm.
 
-Granulation is the process of engineering granules from pharmaceutical powder blends 
+Wet granulation is the process of engineering granules from pharmaceutical powder blends 
 with the addition of liquid or solid binders. This process is usually carried out 
 to obtain granules with a certain PSD,  bulk densities and other physical properties
-~\citep{Barrasso2015cerd}. There are about 3 rate processes that occur due the addition 
+~\citep{Barrasso2015cerd}. There are about three rate processes that occur due the addition 
 of a liquid binder to the powder mixture are wetting and nucleation, consolidation and 
-aggregation, and breakage and attrition~\citep{sen2014}. One way to the perform 
+aggregation, and breakage and attrition~\citep{sen2014}. One way to perform wet
 granulation of pharmaceutical powders is to use a high shear granulator. 
-In a high shear granulator, the particles are considered to be wet 
-when they come in contact with the liquid binder, which also aids in granule formation due to 
-liquid bridges. These granules can also break into smaller fragments due to shear stresses, 
-compressive and tensile forces that are exerted on to the system due the impeller, 
-particle-particle interactions and particle-wall interactions.
+In a high shear granulator, as the liquid binder is distributed within the granulator, 
+liquid bridges are formed between particles and are subjected to the impeller. 
+The impeller rotation along with particle-particle and particle-wall interactions 
+results in the aforementioned granulation mechanisms.
 
 %To understand the process 
 %dynamics and control these process, population balance equations have been accepted as a relevant methodology \citep{Immanuel2005}.
-
-
-
 %Prediction of PSDs and other particle bulk properties is highly dependent on 
 %the kernels used to describe the the evolution of particles inside granulation. 
 %Identification of a kernel that describes the sub-processes suitably is of the essence 
@@ -349,10 +344,10 @@ have the capacity to perform several teraflops of double-precision calculations.
 \section{Method and implementation}
 \label{secMethods}
 \subsection{PBM implementation}
-The overall population balance equation can be represented as \citep{ramkrishna2014}:
+The overall population balance equation with a lumped liquid and gas coordinates can be represented as:
 \begin{align}
-\frac{d}{dt}F(s_i,l,g,x,t)&=\Re_{agg}(s_i,l,g,x,t)+\Re_{break}(s_i,l,g,x,t)\notag\\ 
-&+\dot{F}_{in}(s_i,l,g,x,t)-\dot{F}_{out}(s_i,l,g,x,t)
+\frac{d}{dt}F(s_i,x,t)&=\Re_{agg}(s_i,x,t)+\Re_{break}(s_i,x,t)\notag\\ 
+&+\dot{F}_{in}(s_i,x,t)-\dot{F}_{out}(s_i,x,t)
 \label{eqn:mthds_pbm_overall} 
 \end{align}
 where, $F(s_i,x)$ represents the number of solid particles of type i being studied in each spatial 
@@ -374,21 +369,23 @@ solid volume for solid type 1 in the spatial compartment $x$.
 $\Re_{liq,agg}(s_i,x)$ and $\Re_{liq,break}(s_i,x)$ are the rates at which liquid is transferred 
 between size classes due to aggregation and breakage respectively. $l_{in}(s_i,x)$ 
 and $l_{out}(s_i,x)$ are the internal liquid volumes of the particles entering and exiting 
-the spatial compartment. $l_{add}(s_i,x)$ is the volume of liquid acquired 
+the spatial compartment. $\dot{l_{add}}(s_i,x)$ is the rate of volume of liquid acquired 
 by each particle in the compartment at every time step due to external liquid addition.
 Similarly, the rate of change of gas volume is calculated using the following equation: 
 
 \begin{align}
 \frac{d}{dt}F(s_i,x)g(s_i,x)&= 
 \Re_{gas,agg}(s_i,x)+\Re_{gas,break}(s_i,x)+\dot{F}_{in}(s_i,x)g_{in}(s_i,x)\notag\\
-&-\dot{F}_{out}(s_i,x)g_{out}(s_i,x)+F(s_i,x)\dot{g_cons}(s_i,x)
+&-\dot{F}_{out}(s_i,x)g_{out}(s_i,x)+F(s_i,x)\dot{g_{cons}}(s_i,x)
 \label{eqn:mthds_pbm_gas_agg} 
 \end{align}
 where, $g(s_i,x)$ is the gas volume of each particle with solid volumes of $s_i$ 
 in the spatial compartment $x$. $\Re_{gas,agg}(s_i,x)$ and $\Re_{gas,break}(s_i,x)$ are 
-the rates of gas transferred between size classes due to aggregation and breakage respectively. 
+the rates of gas transferred between size classes due to aggregation and 
+breakage respectively. 
 $g_{in}(s_i,x)$ and $g_{out}(s_i,x)$ are the gas volume of the particles entering and 
-leaving the spatial compartment respectively. $\dot{g_cons}(s_i,x)$ represents the volume of 
+leaving the spatial compartment respectively. $\dot{g_{cons}}(s_i,x)$ represents 
+rate of the volume of 
 gas particles formed due to process of consolidation occurring inside the system. The 
 rate of aggregation, $\Re_{agg}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} is 
 calculated as \citep{Chaturbedi2017}:
@@ -417,7 +414,7 @@ The rate of increase of liquid volume of inside a particle,
 $\dot{l}_{add}(s_i,x)$ is expressed as:
 
 \begin{align}
-\dot{l}_{add}(s_i,x) = \frac{(\sum_i(s_i)(\dot{m}_{spray})}{m_{solid}(x)}
+\dot{l}_{add}(s_i,x) = \frac{\sum_is_i\times\dot{m}_{spray}}{m_{solid}(x)}
 \label{eqn:mthds_liq_addn_rate}
 \end{align}
 where, $\sum_i(s_i)$  is the total solid volume of the particle; $\dot{m}_spray$ is the 
@@ -440,7 +437,7 @@ Particle transfer rate, $\dot{F}_{out}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_ov
 is calculated as:
 
 \begin{align}
-\dot{F}_{out}(s_i,x) = \dot{F}(s_i,x)\frac{\nu_{compartment}(x)*dt}{d_{compartment}}
+\dot{F}_{out}(s_i,x) = \dot{F}(s_i,x)\frac{\nu_{compartment}(x)\times dt}{d_{compartment}}
 \label{eqn:mthds_f_out_dot_part_trans_rate}
 \end{align}
 
@@ -450,13 +447,13 @@ of two adjacent compartment, which is the distance particles have to travel to
 move to the next spatial compartment. $dt$ is the time-step.
 
 A finite difference method was used to solve the developed system of ordinary differential 
-equations (ODEs) \citep{Barrasso2015cerd}. The numerical integration technique used 
-was first order Euler integration as it is commonly used for speed improvements as while 
-having minimal impact on accuracy \citep{Barrasso2013}. In order to avoid numerical 
+equations (ODEs) \citep{Barrasso2015cerd}. 
+Euler integration was used as the numerical integration technique for its speed 
+improvements and its minimal impact on accuracy \citep{Barrasso2013}.To avoid numerical 
 instability due to the explicit nature of the Euler integration, Courant-Friedrichs-Lewis 
 (CFL) condition must be satisfied~\citep{courant1967}. For our PBM model, time-step was 
 calculated at each iteration such that, the number of particles leaving a particular bin 
-at any time is less than the number of particles present at that time \citep{Ramachandran2010}.
+at any time was less than the number of particles present at that time \citep{Ramachandran2010}.
 
 \subsection{MPI implementation}
 The message passing interface (MPI) parallel implementation of the PBM was 
@@ -823,9 +820,7 @@ to CPUs. In cases with larger problem size, it was observed that GPU simulations
 were faster than CPU simulations and there was minimal loss in accuracy. 
 It can be observed that GPUs are more efficient when the complexity of the 
 problem is high in terms of compartments, which is a commonly observed in general 
-application of PBMs.
-
-The adaptive structure of the algorithm 
+application of PBMs. The adaptive structure of the algorithm 
 enabled the simulation to use varying number of GPU cores to parallelize the PBM simulations.
 The GPU architecture also plays a major role in the simulation time. This work also 
 highlighted that a desktop PC could be sufficient for a computationally intensive 
@@ -836,7 +831,12 @@ than the Pascal platform GPU used in this study. The presented algorithm can als
 improved further by eliminating loops inside the kernels using dynamic parallelization 
 supported by newer versions of CUDA.
 
+
+\section*{Software and Data}
+\noindent Source code and input scripts for reproduction of the experiments can be found at:\\
+\url{https://github.com/csampat/pbmOnGPUs}
 \appendix
+
 \section{PBM model}
 \label{app:A}
 \subsection{Aggregation Kernel}
