@@ -61,13 +61,16 @@
 \usepackage{multirow}
 \usepackage{float}
 \usepackage{amsmath}
+\usepackage{lineno}
+\usepackage{color,soul}
 
 \journal{Computer and Chemical Engineering}
 
 \begin{document}
 
 \begin{frontmatter}
-\title{Accelerating multi-dimensional population balance model simulations via a highly scalable framework using GPUs.}
+\title{Accelerating multi-dimensional population balance model simulations via a highly 
+scalable framework using GPUs.}
 
 
 \author[label1]{Chaitanya Sampat}
@@ -80,25 +83,20 @@ Rutgers University, Piscataway, NJ, USA - 08854}
 %\ead[url]{pslrutgers.com}
 
 \begin{abstract}
-Population balance models (PBMs) are widely used to simulate and optimize  
-distributed particulate processes. Prediction of time evolution of the distribution 
-of the particulate properties using these PBMs, is important in understanding
-key dynamics. However, with an increase in the number of components and spatial 
-configurations of the process, the calculations associated with rate determination 
-inside a PBM increase. This leads to multi-dimensional matrix calculations 
-potentially requiring significant computational power. Solving such a 
-system of equations with a traditional central processing unit (CPU) would be 
-computationally intractable.This study focuses on the development of a scalable 
-algorithm to parallelize the nested 
-loops inside the PBM via a GPU framework. The developed PBM is unique since it adapts 
-to the size of the problem and uses the GPU cores accordingly. This algorithm was 
-parallelized specifically for NVIDIA GPUs as it was written in CUDA\textsuperscript{\tiny\textregistered} C/C++. The major 
+The solution of high-dimensional PBMs using CPUs are often 
+computationally intractable. This study focuses on the development of a scalable 
+algorithm to parallelize the nested loops inside the PBM via a GPU framework. 
+The developed PBM is unique since it adapts  to the size of the problem and uses 
+the GPU cores accordingly. This algorithm was parallelized for
+ NVIDIA\textsuperscript{\tiny\textregistered} GPUs as it was written in 
+ CUDA\textsuperscript{\tiny\textregistered} and C/C++. The major 
 bottleneck of such algorithms is the communication time between the CPU and the GPU. 
 In our studies, communication time contributed to less than 1\% of the total run 
-time leading to a maximum speedup of about 12 over the serial code being achieved 
-on the GPU. The GPU PBM achieved a speedup of about two times compared to the PBM's
+time and a maximum speedup of about 12 over the \hl{serial CPU code was achieved}. 
+The GPU PBM achieved a speedup of about two times compared to the PBM's
 multi-core configuration on a desktop computer. The speed improvements are also 
 reported for various CPU \& GPU architectures and configurations.
+
 \end{abstract}
 
 \begin{keyword}
@@ -110,16 +108,26 @@ Population Balance Model \sep GPU \sep Parallel Computing \sep Granulation \sep 
 
 \end{frontmatter}
 
-%\begin{linenumbers}
+\begin{linenumbers}
 %% main text
 \section{Introduction}
 \label{secIntro}
+Various chemical industries such as detergent, food, pharmaceutical, fertilizers, catalyst 
+deal with particulate processing on a daily basis. These processes constitute to about 
+$50\%$ of the world's chemical production \citep{seville1997}.
+In the pharmaceutical industry, particulate processes are widely used to increase 
+the size of the granules, improve flow-ability, increase yield strength etc. One of 
+major processes is granulation, in which fine pharmaceutical powder 
+blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
+These larger granules help in better flow ability and strength to these mixtures 
+aiding further processing. 
+
 Over the past decade, Population balance models (PBMs) have been used widely to predict 
 dynamics of distributed processes \citep{ramkrishna2014}. The population 
 balance equation is essentially a number conservation of particles (entities) which 
 regulate the behavior of the entire particulate system. PBMs consist of several 
 external (i.e spatial) and internal coordinates and with an increase in grids of 
-these coordinates it can lead to a more accurate model.  With The increase in 
+these coordinates it can lead to a more accurate model.  With \hl{the} increase in 
 the number of grid of these coordinates, it 
 leads to an increase in calculations for each time step, leading to higher 
 simulation times. The calculations increase by a factor of $n^4$ with n being the 
@@ -129,10 +137,12 @@ of internal coordinates requires precise empirical correlations from
 experimental data. Another way to increase the accuracy of these models 
 is to introduce a first-principle based kernel into these models \citep{Barrasso2015cerd}. 
 An accurate model which incorporates higher number of grids as well as includes a 
-mechanistic kernel in its calculations is expected to be sluggish to simulate and could 
+mechanistic kernel in its calculations is expected to be \hl{sluggish} to simulate and could 
 take upto an hour \citep{Barrasso2015ces} to complete. Such models and their 
 solution techniques are not viable to be used in real time process control. Thus, 
-there is a need to improve the time it takes to simulate a PBM.
+there is a need to improve the time it takes to simulate a PBM. \hl{Thus, a highly parallel
+PBM code which can predict more accurately in real time could be chosen over reduced order 
+models currently used for process control.}
 
 The advancement of computers and their peripherals in recent years have led to an  
 increase in computational resources leading to faster simulations. The central processing 
@@ -147,17 +157,6 @@ supercomputer. With the launch of Compute Unified Device Architecture
 (CUDA\textsuperscript{\tiny\textregistered}), 
 NVIDIA\textsuperscript{\tiny\textregistered} made it easier to use GPUs for 
 general parallel programming in an approach usually termed as general purpose computing on GPUs.
-
-Various chemical industries such as detergent, food, pharmaceutical, fertilizers, catalyst 
-deal with particulate processing on a daily basis. These processes constitute to about 
-$50\%$ of the world's chemical production \citep{seville1997}.
-In the pharmaceutical industry, particulate processes are widely used to increase 
-the size of the granules, improve flow-ability, increase yield strength etc. One of 
-major processes is granulation, in which fine pharmaceutical powder 
-blends are converted to larger granules using a liquid or a dry binder \citep{Chaturbedi2017}. 
-These larger granules help in better flow ability and strength to these mixtures 
-aiding further processing. 
-
 
 The main objective of this work is to develop a highly scalable framework for to simulate 
 PBMs on GPUs. This framework is independent of the type of kernels as well as number 
@@ -205,7 +204,7 @@ formation and depletion due various phenomena. $\Re_{formation}$ described in Eq
 This calculation consists of a double integral for each entity being tracked. In a 
 system tracking 2 particulates, it would require 4 nested loops to compute these 
 integrals. Figure \ref{fig:res_profile_pie} also indicates that this calculation 
-takes $~25\%$ of the total run time. Thus, parallelizing this calculation if crucial 
+takes $~25\%$ of the total run time. Thus, parallelizing this calculation \hl{is} crucial 
 to the effectiveness of the parallel algorithm.
 
 Wet granulation is the process of engineering granules from pharmaceutical powder blends 
@@ -227,7 +226,7 @@ parallel computing has been extensively used by scientists to perform simulation
 Parallel computing is the process of splitting of larger calculations into 
 many smaller ones which can be executed concurrently \citep{Almasi1989}. This type of execution 
 helps achieve large speed gains over serially running a simulation serially 
-on a single core in a serial manner.The computational task can be decomposed in two way, either
+on a single core in a serial manner. \hl{The} computational task can be decomposed in two way, either
 at the task level or at the data level. Task parallelism requires each process to 
 behave distinctively from another as they would each be performing different operations. 
 These operations could be performed on a single data set or on multiple data 
@@ -247,20 +246,21 @@ general computing as well. This form of GPU-based computing has been gaining pop
 to accelerate simulations \citep{kandrot2011}. GPUs comprise of a 
 massively parallel architecture with hundreds to thousands of computational cores 
 which can have thousands of active threads running simultaneously \citep{keckler2011}. 
-This means that GPUs have large computing potential which can be exploited using parallel programming languages 
-such as OpenCL and CUDA\textsuperscript{\tiny\textregistered}. 
+This means that GPUs have large computing potential which can be exploited using parallel 
+programming languages such as OpenCL and CUDA\textsuperscript{\tiny\textregistered}. 
 
 CUDA\textsuperscript{\tiny\textregistered} is an application programming interface 
 (API) developed by NVIDIA\textsuperscript{\tiny\textregistered} \citep{NVIDIA2012} 
-that enables users to program parallel code for execution on the GPU. Parallel code for the GPU is written 
-as kernels, which are similar to functions or methods in traditional 
-programming languages. As several parts of the code need to executed only once during a simulation, 
-only a few sections of the code need to be written in terms of kernel while the remaining sections have
-to be serially executed on the CPU of the system. The \texttt{nvcc} 
-compiler from the CUDA\textsuperscript{\tiny\textregistered} toolkit prioritizes the compilation of these kernels before 
-passing the serial section of the code to the native C/C++ compiler inside the system. 
-There are three main parallel abstractions that exist in CUDA\textsuperscript{\tiny\textregistered} viz. grids, blocks and 
-threads \citep{santos2013}. Each kernel executes as a grid which in turn consists of various blocks which 
+that enables users to program parallel code for execution on the GPU. Parallel code 
+for the GPU is written as kernels, which are similar to functions or methods in traditional 
+programming languages. As several parts of the code need to \hl{be} executed only once during a 
+simulation, only a few sections of the code need to be written in terms of kernel while 
+the remaining sections have to be serially executed on the CPU of the system. The \texttt{nvcc} 
+compiler from the CUDA\textsuperscript{\tiny\textregistered} toolkit prioritizes the 
+compilation of these kernels before passing the serial section of the code to the native 
+C/C++ compiler inside the system. There are three main parallel abstractions that exist in 
+CUDA\textsuperscript{\tiny\textregistered} viz. grids, blocks and threads \citep{santos2013}. 
+Each kernel executes as a grid which in turn consists of various blocks which 
 are consistuted by various threads. This thread-block-grid hierarchy helps obtain fine 
 grained data level and thread level parallelism. An illustration of this hierarchy is 
 observed in Figure \ref{fig:bkg_gpu_arch}.
@@ -279,7 +279,7 @@ by shared memory inside a block and slowest for data in the global memory of the
 
 \begin{figure}[H]
 \centering
-\includegraphics[scale=0.75]{Figure_1.pdf}
+\includegraphics[scale=0.5]{Figure_1.pdf}
 \caption{The parallel structure matrix inside the GPU and the various memories associated 
 with each structure.}
 \label{fig:bkg_gpu_arch}
@@ -299,16 +299,22 @@ which uses both shared and local memory was implemented by \cite{Bettencourt2017
 obtain speed improvements of about 98\% from the serial code. This implementation took 
 into account both Message Passing Interface (MPI) as well as Open Multi-processing (OMP). 
 A similar PBM parallelization approach was also undertaken in \cite{Sampat2018} and an 
-approximate speedup of 13 w;as obtained. The reduction in speed was attributed to the use of 
+approximate speedup of 13 was obtained. The reduction in speed was attributed to the use of 
 dynamic arrays used in their PBM framework to accommodate the hybrid nature of the model 
 being used. 
 
-Algorithms to parallelize the PBM codes on GPU have been studied briefly by \cite{Prakash2013b} 
-using the inbuilt MATLAB's parallel computing toolbox (PCT). This study was able to achieve 
-good speedup values but could have been higher if the code had been implemented in native 
+Algorithms to parallelize the PBM codes on GPU have been studied briefly by Prakash et al.
+\cite{Prakash2013b} using the inbuilt MATLAB's parallel computing toolbox (PCT).
+\hl{They divided the operations of the nested loops into slices which would only use 240 cores of GPU.} 
+This study was able to achieve good speedup values but could have been higher 
+if the code had been implemented in native 
 programming languages such as C or FORTRAN. Since MATLAB is a high level language it internally 
 converts the written code to native programming languages before it is sent to the processor 
-leading to excess computation which can be avoided \citep{pctMatlab}. Other works that have 
+leading to excess computation which can be avoided \citep{pctMatlab}. Prakash et al. 
+\cite{Prakash2013a} \hl{have shown that it is aggregation followed by breakage are responsible 
+for the majority of the simulation time of the PBM due to the nested integrals in the formation 
+and depletion terms. The continuous growth terms are not computationally intensive in 
+comparison. Thus, the PBM in this work focuses on only discrete growth terms.} Other works that have 
 used GPU acceleration to improve computation times for their population balance simulations 
 include those from various other chemical engineering processes such as crystallization 
 \citep{Szilagy2016}, combustion \citep{Shi2012} , multiphase flow \citep{santos2013}, 
@@ -329,7 +335,7 @@ The overall population balance equation with a lumped liquid and gas coordinates
 &+\dot{F}_{in}(s_i,x,t)-\dot{F}_{out}(s_i,x,t)
 \label{eqn:mthds_pbm_overall} 
 \end{align}
-where, $F(s_i,x)$ represents the number of solid particles of type i being studied in each spatial 
+where, $F(s_i,x)$ represents the number of solid particles of type \textit{i} being studied in each spatial 
 compartment $x$ of the granulator. The rate of aggregation $\Re_{agg}(s_i,x)$ 
 and the rate of breakage $\Re_{break}(s_i,x)$ determines the rate at which particles density
 changes within different size classes. The rate of particles entering, $\dot{F}_{in}(s_i,x)$ 
@@ -344,7 +350,7 @@ particle can be calculated as:
 \label{eqn:mthds_pbm_rate} 
 \end{align}
 where, $l(s_i,x)$ is the internal liquid volume in each particle with ${s_i}$ as the 
-solid volume for solid type 1 in the spatial compartment $x$. 
+solid volume for solid type \hl{\textit{i}} in the spatial compartment $x$. 
 $\Re_{liq,agg}(s_i,x)$ and $\Re_{liq,break}(s_i,x)$ are the rates at which liquid is transferred 
 between size classes due to aggregation and breakage respectively. $l_{in}(s_i,x)$ 
 and $l_{out}(s_i,x)$ are the internal liquid volumes of the particles entering and exiting 
@@ -396,7 +402,7 @@ $\dot{l}_{add}(s_i,x)$ is expressed as:
 \dot{l}_{add}(s_i,x) = \frac{\sum_is_i\times\dot{m}_{spray}}{m_{solid}(x)}
 \label{eqn:mthds_liq_addn_rate}
 \end{align}
-where, $\sum_i(s_i)$  is the total solid volume of the particle; $\dot{m}_spray$ is the 
+where, $\sum_i s_i$  is the total solid volume of the particle; $\dot{m}_{spray}$ is the 
 rate of external liquid addition and $m_{solid}$ is the total amount of solid present in the compartment.
 
 Particle transfer rate, $\dot{F}_{out}(s_i,x)$ in Equation \ref{eqn:mthds_pbm_overall} 
@@ -467,7 +473,8 @@ was used to compile the parallel C++ code.
 
 
 \subsection{GPU implementation}
-NVIDIA\textsuperscript{\tiny\textregistered}’s CUDA\textsuperscript{\tiny\textregistered} toolkit extends the C language such that user defined functions 
+NVIDIA\textsuperscript{\tiny\textregistered}’s CUDA\textsuperscript{\tiny\textregistered} 
+toolkit extends the C language such that user defined functions 
 called kernels can be created to be run on the GPU. These kernels can be 
 executed several number of times in parallel using large number of threads. 
 A thread is a sequence of programmed instructions that can be managed by the 
@@ -479,22 +486,15 @@ range from 1-D to 3-D depending upon the data under study.
 The code execution was split between the CPU (also called host) and GPU 
 (also called device). Time sensitive calculations and calculations that
 require collection of data from the GPU were handled on the CPU 
-using a single core, while the more 
-computationally intensive tasks were distributed on to the GPU using 
-kernels. Similar to the parallelization using MPI in CPUs, the geometry was 
-split into multiple compartments. These compartments determined the number of 
+using a single core, while the more computationally intensive tasks were distributed 
+on to the GPU using kernels. Similar to the parallelization using MPI in CPUs, the 
+geometry was split into multiple compartments. \hl{These compartments determined the number of 
 blocks inside each GPU kernel. The number of solids used helped formed 
-the threads in each of these blocks. The work flow of the execution can 
+the threads in each of these blocks.} The work flow of the execution can 
 be found in Figure \ref{fig:mtd_gpu_imp}. The arrows in Figure \ref{fig:mtd_gpu_imp} 
 indicate the interchange of data between the CPU memory to the GPU memory. 
 
 
-\begin{figure}[H]
-\centering
-\includegraphics[scale=0.8,trim=200 250 300 200]{Figure_2.pdf}
-\caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
-\label{fig:mtd_gpu_imp}
-\end{figure}
 
 
 \begin{algorithm}
@@ -523,6 +523,16 @@ indicate the interchange of data between the CPU memory to the GPU memory.
      \end{algorithmic}
  \end{algorithm}
 
+\newpage
+\begin{figure}[th]
+\centering
+\includegraphics[scale=0.8,trim=200 250 300 200]{Figure_2.pdf}
+\caption{Workflow of the GPU code indicating data transfers and execution timeline of the code.}
+\label{fig:mtd_gpu_imp}
+\end{figure}
+
+
+\newpage
 \section{Results and discussions}
 \label{secResults}
  \subsection{Performance metrics}
@@ -568,7 +578,7 @@ rSSE =  \sum_{i=0}^{t_{end}} \frac{(d_{50_{serial_i}}-d_{50_{parallel_i}})^2}{N}
 \end{align}
 
 The $rSSE$ was calculated for the algorithm considering the single core MPI 
-solution as the base and determining the error values wrt to this simulation.
+solution as the base and determining the error values \hl{with respect to} to this simulation.
 The error for each of the case can be found in Figure \ref{fig:res_gpu_error}. The error 
 for the GPU simulations varied from $0.45\%$ to about $6\%$ which is an acceptable 
 range. Thus, making the solutions from the algorithm quicker with a very small 
@@ -577,7 +587,7 @@ of compartments, which could be due to the increase in the number of data points
 
 \begin{figure}[H]
 \centering
-\includegraphics[scale=0.7,trim=50 200 50 200, clip]{Figure_3.pdf}
+\includegraphics[scale=0.7,trim=50 180 50 200, clip]{Figure_3.pdf}
 \caption{Relative sum of square error observed for the GPU simulations compared to 
 the serial simulation}
 \label{fig:res_gpu_error}
@@ -586,17 +596,12 @@ the serial simulation}
 
 \subsection{Algorithm performance on a desktop GPU}
 The desktop configuration used for these studies comprised of a Intel $i7-7700K$  
-CPU clocked at $4.5$ GHz with $32$ GB DDR4 RAM and a NVIDIA\textsuperscript{\tiny\textregistered} Quadro $P4000$ GPU. 
-The NVIDIA\textsuperscript{\tiny\textregistered} Quadro GPU used had 1792 CUDA\textsuperscript{\tiny\textregistered} cores with 8 GB of GDDR5 RAM. 
-CUDA\textsuperscript{\tiny\textregistered} version 9.0 paired with GCC 7.3 was used to the run the desktop GPU simulations 
-with Ubuntu 18.04 operating system (OS).
-
-
-
-%This distribution of calculations comprised a large 
-%percentage of the CUDA API calls that were made during each execution.
-%This leads to a significant time delay if the amount of calculation to be 
-%performed by the GPU is low and the control exchanges are more common. 
+CPU clocked at $4.5$ GHz with $32$ GB DDR4 RAM and a 
+NVIDIA\textsuperscript{\tiny\textregistered} Quadro $P4000$ GPU. 
+The NVIDIA\textsuperscript{\tiny\textregistered} Quadro GPU used had 1792 
+CUDA\textsuperscript{\tiny\textregistered} cores with 8 GB of GDDR5 RAM. 
+CUDA\textsuperscript{\tiny\textregistered} version 9.0 paired with GCC 7.3 was 
+used to the run the desktop GPU simulations with Ubuntu 18.04 operating system (OS).
 
 The number of solid bins for the 2 different types of solids used were $16$, 
 this meant that there was a maximum of $65,536$ calculations that needed to 
@@ -622,8 +627,10 @@ followed by an increase in the time taken as the number of compartment are incre
 further to $32$. According to parallelization procedure used the cores utilized to run the 
 code is directly proportional to the number of compartments and the number of solid bins 
 present in the problem. The constant time is a result of the problem size being smaller than 
-the Quadro $P4000$'s 1792 CUDA\textsuperscript{\tiny\textregistered} core, i.e. the algorithm was not able to utilize all the 
-CUDA\textsuperscript{\tiny\textregistered} cores till the compartment number was $8$. Since the algorithm uses about $256$ cores 
+the Quadro $P4000$'s 1792 CUDA\textsuperscript{\tiny\textregistered} core, i.e. 
+the algorithm was not able to utilize all the 
+CUDA\textsuperscript{\tiny\textregistered} cores till the compartment number was $8$. 
+Since the algorithm uses about $256$ cores 
 to simulate each compartment, the cores would not suffice once the compartment number reaches 
 $16$ and the SMs would have to wait to distribute the calculation to cores once 
 initially allocated calculations are finished. This wait time leads to the increase in the 
@@ -672,7 +679,8 @@ PBM}
 
 
 \subsection{Performance on GPUs compared to CPUs}
-The NVIDIA\textsuperscript{\tiny\textregistered} Quadro P4000 GPU used had its cores at a base clock speed of $1202$ MHz while
+The NVIDIA\textsuperscript{\tiny\textregistered} Quadro P4000 GPU used 
+had its cores at a base clock speed of $1202$ MHz while
 the CPU cores had a base clock of $4000$ MHz. The algorithm used to parallelize on the GPU 
 did not permit the use of only one core of the GPU for simulation. Thus, a single MPI core 
 CPU simulation was used as the baseline for all comparisons. Theoretically, it would take 
@@ -790,10 +798,14 @@ application of PBMs. The adaptive structure of the algorithm
 enabled the simulation to use varying number of GPU cores to parallelize the PBM simulations.
 The GPU architecture also plays a major role in the simulation time. This work also 
 highlighted that a desktop PC could be sufficient for a computationally intensive 
-simulation instead of a utilizing a supercomputer or cluster. 
-This work can be extended in the future by testing it on newer GPUs from NVIDIA\textsuperscript{\tiny\textregistered} 
+simulation instead of a utilizing a supercomputer or cluster. \hl{A similar parallel strategy could  
+be developed for growth terms for internal coordinates and other rate processes inside the PBM 
+using CUDA kernels.} This work can be extended in the future by testing it on newer 
+GPUs from NVIDIA\textsuperscript{\tiny\textregistered} 
 like the Volta and Turing platforms, which are more optimized for float point calculations 
-than the Pascal platform GPU used in this study. The presented algorithm can also be 
+than the Pascal platform GPU used in this study. \hl{This strategy can also be extended to other 
+manufacturer GPUs using other programming languages like OpenCL.}
+The presented algorithm can also be 
 improved further by eliminating loops inside the kernels using dynamic parallelization 
 supported by newer versions of CUDA\textsuperscript{\tiny\textregistered}.
 
@@ -819,7 +831,7 @@ DEM data from \citep{Sampat2018}. To facilitate this study, it was assumed that
 the collision frequency was independent of the liquid particles present in the 
 system.
 
-The collision efficiency $\psi$ was estimated based on Stokes , which 
+The collision efficiency $\psi$ was estimated based on Stokes, which 
 states that a collision is successful when the Stokes number $St_v$ associated 
 with the collision is lesser than the critical Stokes number ${St^*_v}$ for the 
 particles. These number are calculated as follows:
@@ -834,10 +846,10 @@ St^*_v=\left(1+\frac{1}{e}\right)log\left(\frac{h}{h_a}\right)
 \label{eqn:mthds_pbm_agg_cricSt}
 \end{align}
 Here, $\tilde{m}$ \& $\tilde{d}$ represent the harmonic mean of the masses and 
-diameters of the particles respectively.$U$ is the collision velocity, $\mu$ is the 
+diameters of the particles respectively. $U$ is the collision velocity, $\mu$ is the 
 viscosity of the system and $e$ is the coefficient of restitution. The thickness of 
 the liquid on the surface of the particle $h$ and the height of surface asperities 
-$h_a$ were obtained from \citep{Barrasso2015ces}. $U_critical$ is defined as the 
+$h_a$ were obtained from \citep{Barrasso2015ces}. $U_{critical}$ is defined as the 
 ratio of the critical Stokes number to the Stokes number associated with the collision. 
 The collision frequency $\psi$ is defined as:
 
@@ -868,15 +880,15 @@ the particles impact with the geometry in the DEM simulation. Critical velocity
 for breakage to occur is defined as:
 
 \begin{align}
-U_break=\frac{2St^*_def}{\rho_{s_i}}\frac{9}{8}\frac{(1-\epsilon)^2}{\epsilon}\frac{9\mu}{16d_{p_i}}
+U_{break}=\frac{2St^*_{def}}{\rho_{s_i}}\times\frac{9}{8}\times\frac{(1-\epsilon)^2}{\epsilon}\times\frac{9\mu}{16d_{p_i}}
 \label{eqn:mthds_pbm_breakage_ubreak}
 \end{align}
-where $2St^*_def$ is defined as critical Stokes deformation number \citep{Iveson2001} and 
+where $2St^*_{def}$ is defined as critical Stokes deformation number \citep{Iveson2001} and 
 $d_{p_i}$ is diameter of the solid particle $s_i$.
 
 
 
-%\end{linenumbers}
+\end{linenumbers}
 \bibliographystyle{elsarticle-num-names}
 \biboptions{numbers,sort&compress}
 
